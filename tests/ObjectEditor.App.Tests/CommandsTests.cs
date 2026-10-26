@@ -29,7 +29,7 @@ public sealed class CommandsTests : IDisposable
         string? savedFolder = null)
     {
         var settings = new Settings(_folder) { GameDataFolder = savedFolder };
-        return new Commands(settings, ask ?? (() => null), load);
+        return new Commands(settings, _ => ask == null ? null : ask(), load);
     }
 
     [Fact]
@@ -42,6 +42,33 @@ public sealed class CommandsTests : IDisposable
         Assert.False(reply.GetProperty("ok").GetBoolean());
         Assert.Equal("gameDataMissing", reply.GetProperty("error").GetProperty("code").GetString());
         Assert.Equal("no folder", reply.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task The_startup_map_is_given_once_then_cleared()
+    {
+        var settings = new Settings(_folder);
+        var commands = new Commands(
+            settings,
+            _ => null,
+            _ => throw new InvalidOperationException("must not load"),
+            @"C:\Maps\Arena");
+
+        var first = await Ask(commands, "startup");
+        var second = await Ask(commands, "startup");
+
+        Assert.Equal(@"C:\Maps\Arena", first.GetProperty("result").GetProperty("map").GetString());
+        Assert.Equal(JsonValueKind.Null, second.GetProperty("result").GetProperty("map").ValueKind);
+    }
+
+    [Fact]
+    public async Task With_no_startup_map_startup_gives_none()
+    {
+        var commands = Make(_ => throw new InvalidOperationException("must not load"));
+
+        var reply = await Ask(commands, "startup");
+
+        Assert.Equal(JsonValueKind.Null, reply.GetProperty("result").GetProperty("map").ValueKind);
     }
 
     [Fact]
@@ -144,6 +171,29 @@ public sealed class CommandsTests : IDisposable
     }
 
     [Fact]
+    public async Task A_newer_state_has_a_higher_version()
+    {
+        var release = new ManualResetEventSlim();
+        var commands = Make(_ =>
+        {
+            release.Wait();
+            throw new InvalidOperationException("stop here");
+        }, savedFolder: _folder);
+        GameDataState? fromEvent = null;
+        commands.GameDataChanged += state => fromEvent = state;
+
+        var loading = commands.StartLoading();
+        var whileLoading = (await Ask(commands, "gameData")).GetProperty("result").GetProperty("version").GetInt32();
+        release.Set();
+        await loading;
+        var after = (await Ask(commands, "gameData")).GetProperty("result").GetProperty("version").GetInt32();
+
+        Assert.NotNull(fromEvent);
+        Assert.True(fromEvent.Version > whileLoading);
+        Assert.Equal(fromEvent.Version, after);
+    }
+
+    [Fact]
     public async Task Ping_still_works()
     {
         var commands = Make(_ => throw new InvalidOperationException());
@@ -151,5 +201,29 @@ public sealed class CommandsTests : IDisposable
         var reply = await Ask(commands, "ping");
 
         Assert.Equal("pong", reply.GetProperty("result").GetString());
+    }
+
+    [Fact]
+    public async Task The_page_answers_a_close_through_two_commands()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+        var heard = new List<string>();
+        commands.CloseAsking += () => heard.Add("asking");
+        commands.CloseApproved += () => heard.Add("approved");
+
+        var asking = await Ask(commands, "closeAsking");
+        var approved = await Ask(commands, "closeWindow");
+
+        Assert.True(asking.GetProperty("ok").GetBoolean());
+        Assert.True(approved.GetProperty("ok").GetBoolean());
+        Assert.Equal(["asking", "approved"], heard);
+    }
+
+    [Fact]
+    public void With_no_map_nothing_is_unsaved()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+
+        Assert.False(commands.Dirty);
     }
 }
