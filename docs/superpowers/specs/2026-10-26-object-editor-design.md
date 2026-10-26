@@ -116,11 +116,15 @@ Mod:    char[4] fieldId; int32 type (0 int, 1 real, 2 unreal, 3 string);
         value (int32 | float32 | float32 | NUL-terminated string); int32 end marker (kept as read)
 ```
 
-War3Net does not round-trip every file exactly. Known gaps (from reading its code):
+Up to `6.1.2-moonwell.3`, War3Net did not round-trip every file exactly:
 
-- strings are decoded as strict UTF-8, so a name with other bytes fails to read;
-- anything after the two tables (some writers add an empty third table) is dropped;
-- `war3map.wts` loses its BOM and CRLF line ends, which World Editor writes.
+- a string that is not valid UTF-8 was read with replacement characters and written back with them;
+- anything after the two tables (some writers add an empty third table) was dropped;
+- `war3map.wts` lost its BOM and CRLF line ends, which World Editor writes.
+
+Sven's fork fixed all three in `6.1.2-moonwell.4` (2026-10-26), which the app uses: an unchanged string keeps its
+bytes, trailing tables are kept, and `war3map.wts` keeps its BOM and line ends. No file is known that it cannot write
+back exactly, so the guard below is now a safety net for files nobody has met yet.
 
 So, *(agent's calls)*:
 
@@ -129,8 +133,8 @@ So, *(agent's calls)*:
   note saying why ("War3Net would drop 4 bytes at the end of war3map.w3a"). A map is never saved through a lossy read.
 - **The strings file has its own small reader and writer** in the app (`WtsFile`), which keeps the BOM, line ends,
   comments and number padding, because names are edited through it on every World Editor map.
-- **The War3Net gaps are fixed in the fork**, as separate work outside this repository (Sven's fork, his call), after
-  which the guard simply stops firing.
+- **The War3Net gaps are fixed in the fork** (done: `6.1.2-moonwell.4`). The tests stand in a lossy War3Net through an
+  internal write-back hook on `ObjectFile.Read`, so the read-only path stays tested.
 
 ### Map archives
 
@@ -156,7 +160,8 @@ Folder maps need no archive code, so they come first.
 
 1. **Browse:** open a map folder; tree, details panel, field filter, search. Read only.
 2. **Edit and save** a map folder: every field editor, reset, undo and redo, new and copied objects, validation,
-   backups. Closes only once the app's save of Sven's test map opens right in World Editor and the game.
+   backups. Closes only once the app's save of Sven's test map opens right in World Editor and the game. *(Done
+   2026-10-26: World Editor check passed, `docs/checks.md`; the game check left out by Sven.)*
 3. **Table bulk edit** (goal 4; Sven, 2026-10-26: first after browsing and editing).
 4. **Archives:** open and save `.w3x`/`.w3m`.
 5. **Standard data from the game install** (reading the game's CASC storage), so a modder needs no exported data
@@ -313,8 +318,9 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
 
 - **Round trip, every file of every real map:** the guard's check (War3Net read, written back, same bytes) holds for
   every object file of every fixture; the `WtsFile` reader and writer return the same bytes for every `.wts`.
-- **The guard itself:** a file with a trailing table, a non-UTF-8 name and a truncated file each open read only with
-  the right note, never a crash.
+- **The guard itself:** a file with a trailing table and one with a non-UTF-8 name round-trip exactly (War3Net
+  `6.1.2-moonwell.4`); a truncated file, and a file read through a write-back that loses bytes (standing in for a
+  lossy War3Net), each open read only with the right note, never a crash.
 - **Edits:** an edit, saved, then read again, shows the new value and nothing else changed (every other record
   equal).
 - **Game data:** known values (`hfoo` 420 life, `Amls` cooldown 30, hero fields only on heroes) and counts per kind.
@@ -335,15 +341,15 @@ anti-goals hold.
 2. It is for Sven and other modders.
 3. Table bulk edit comes first after browsing and editing.
 4. Sven will save a World Editor test map with many object edits; milestone 2 waits for it. Until it exists, saving
-   ships behind a warning ("saving is tested only on small maps").
+   ships behind a warning ("saving is tested only on small maps"). He saved it the same day (`tests/fixtures/we-heavy`);
+   the app's save of it passed his World Editor check, so the warning is gone, and he left out the check in the game.
 5. C# on War3Net, with the Svelte interface in a WebView2 window (replacing Tauri and Rust).
 
 ## Open questions (Sven's, not blocking the first plan)
 
 1. Licence and repository for the public release (a GitHub repository, pushing and publishing are each his call).
 2. Publishing `Moonwell.Generator` as a package, needed before a public release.
-3. Fixing War3Net's round-trip gaps in his fork (strings, trailing tables, `.wts`).
-4. What annoys him most in the Object Editor, if anything beyond the goals above.
+3. What annoys him most in the Object Editor, if anything beyond the goals above.
 
 ## Calls to check
 

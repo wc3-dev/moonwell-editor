@@ -169,6 +169,34 @@ public sealed class SaveTests(GameDataFixture fixture, ITestOutputHelper output)
     }
 
     [Fact]
+    public void Backup_just_made_is_kept_when_later_ones_exist()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        // Ten backups named later than now (the clock was set back since): the save's own backup still stays.
+        using var map = TempMap.Of("we-3.0");
+        var backups = map.Folder + ".backup";
+        var later = Enumerable.Range(1, 10)
+            .Select(i => Path.Combine(backups, $"2999-01-{i:00} 00-00-00"))
+            .ToList();
+        later.ForEach(folder => Directory.CreateDirectory(folder));
+        var session = Open(map, game);
+        var units = File.ReadAllBytes(Path.Combine(map.Folder, "war3map.w3u"));
+
+        session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "500");
+        var report = session.Save();
+
+        Assert.True(Directory.Exists(report.Backup));
+        Assert.Equal(units, File.ReadAllBytes(Path.Combine(report.Backup, "war3map.w3u")));
+        Assert.Equal(10, Directory.GetDirectories(backups).Length);   // the new one and the newest nine
+        Assert.False(Directory.Exists(later[0]));
+        Assert.All(later.Skip(1), folder => Assert.True(Directory.Exists(folder), folder));
+    }
+
+    [Fact]
     public void Save_refuses_when_changed_on_disk()
     {
         if (Skipped(out var game))
@@ -286,17 +314,24 @@ public sealed class SaveTests(GameDataFixture fixture, ITestOutputHelper output)
             return;
         }
 
-        // War3Net reads this war3map.w3a but would drop its last 4 bytes on writing it back.
+        // War3Net reads this war3map.w3a but (in this test) would drop its last 4 bytes on writing it back. An edit to
+        // its records in memory makes them differ from the file, so a save would write it if read-only kinds were not
+        // skipped.
         using var map = TempMap.Of("moonwell-mymap");
         var abilities = Path.Combine(map.Folder, "war3map.w3a");
-        File.WriteAllBytes(abilities, [.. File.ReadAllBytes(abilities), 0, 0, 0, 0]);
         var lossy = File.ReadAllBytes(abilities);
         var skin = File.ReadAllBytes(Path.Combine(map.Folder, "war3mapSkin.w3a"));
-        var session = Open(map, game);
-        Assert.NotEqual(lossy, session.FileOf(ObjectKind.Ability, false)!.ToBytes());
+        var session = Lossy.Open(map.Folder, game);
+        var inMemory = session.FileOf(ObjectKind.Ability, false)!;
+        inMemory.Custom[0].Set("Htb1", 1, 1, new FieldValue.Real(999));
+        Assert.NotEqual(lossy, inMemory.ToBytes());
 
         session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "500");
         var report = session.Save();
+
+        // A reload reads the file the same lossy way: still read only.
+        session.Reload();
+        Assert.NotNull(session.Object(ObjectKind.Ability, "A001")!.ReadOnly);
 
         Assert.Equal(new[] { "war3map.w3u" }, report.Written);
         Assert.Equal(lossy, File.ReadAllBytes(abilities));

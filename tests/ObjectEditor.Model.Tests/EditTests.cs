@@ -219,6 +219,30 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
     }
 
     [Fact]
+    public void Trigstr_is_written_inline_while_an_object_file_is_unreadable()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        // War3Net cannot read war3map.w3a, so whether one of its modifications refers to TRIGSTR_012 is not known: the
+        // entry is taken for shared, and the new text goes inline.
+        using var map = TempMap.Of("we-3.0");
+        File.WriteAllBytes(Path.Combine(map.Folder, "war3map.w3a"), [3, 0, 0, 0, 0]);
+        var wts = File.ReadAllBytes(Path.Combine(map.Folder, "war3map.wts"));
+        var session = Session.Open(MapFolder.Open(map.Folder), game);
+        Assert.Null(session.FileOf(ObjectKind.Ability, false));
+
+        session.Set(ObjectKind.Unit, "h000", "unam", 0, "Knight");
+
+        Assert.Equal("Knight", session.Object(ObjectKind.Unit, "h000")!.Name);
+        var skin = session.FileOf(ObjectKind.Unit, true)!.Custom.Single(entry => entry.Id == "h000");
+        Assert.Equal(new FieldValue.Text("Knight"), skin.Find("unam", 0)!.Value);
+        Assert.Equal(wts, session.Strings!.ToBytes());
+    }
+
+    [Fact]
     public void New_ids_follow_world_editor()
     {
         if (Skipped(out var game))
@@ -426,6 +450,71 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "600");
         Assert.False(session.Redo());
         Assert.Equal("600", Single(session.Object(ObjectKind.Unit, "hfoo")!, "uhpm", 0).Value);
+    }
+
+    [Fact]
+    public void Undo_of_a_reset_puts_the_modification_back_in_place()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        // hpea's udef comes before its uhpm in the file; an undo must not move it to the end.
+        using var map = TempMap.Of("moonwell-mymap");
+        var bytes = File.ReadAllBytes(Path.Combine(map.Folder, "war3map.w3u"));
+        var session = Session.Open(MapFolder.Open(map.Folder), game);
+        var peasant = session.FileOf(ObjectKind.Unit, false)!.Original.Single(entry => entry.BaseId == "hpea");
+        Assert.NotEqual(peasant.Mods.Count - 1, peasant.Mods.ToList().FindIndex(mod => mod.Field == "udef"));
+
+        session.Reset(ObjectKind.Unit, "hpea", "udef", 0);
+        Assert.NotEqual(bytes, session.FileOf(ObjectKind.Unit, false)!.ToBytes());
+        Assert.True(session.Undo());
+
+        Assert.False(session.Dirty);
+        Assert.Equal(bytes, session.FileOf(ObjectKind.Unit, false)!.ToBytes());
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.True(session.Redo());
+            Assert.Null(peasant.Find("udef", 0));
+            Assert.True(session.Undo());
+            Assert.Equal(bytes, session.FileOf(ObjectKind.Unit, false)!.ToBytes());
+        }
+
+        Assert.Empty(session.Save().Written);
+    }
+
+    [Fact]
+    public void Undo_of_a_reset_keeps_a_duplicate_modification()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        // A file may hold two modifications of one field and level: the reset removes the first, and the undo puts
+        // that one back, leaving the other as it is.
+        using var map = TempMap.Of(null);
+        var units = ObjectFile.Empty(ObjectKind.Unit);
+        var footman = units.AddOriginal("hfoo");
+        footman.Set("uhpm", 0, 0, new FieldValue.Int(500));
+        footman.Set("udef", 0, 0, new FieldValue.Int(3));
+        var spare = ObjectFile.Empty(ObjectKind.Unit).AddOriginal("hfoo");
+        var duplicate = spare.Set("uhpm", 0, 0, new FieldValue.Int(600));
+        spare.Remove(duplicate);
+        footman.Insert(2, duplicate);
+        var bytes = units.ToBytes();
+        File.WriteAllBytes(Path.Combine(map.Folder, "war3map.w3u"), bytes);
+        var session = Session.Open(MapFolder.Open(map.Folder), game);
+
+        session.Reset(ObjectKind.Unit, "hfoo", "uhpm", 0);
+        Assert.True(session.Undo());
+
+        Assert.Equal(bytes, session.FileOf(ObjectKind.Unit, false)!.ToBytes());
+        Assert.True(session.Redo());
+        Assert.True(session.Undo());
+        Assert.Equal(bytes, session.FileOf(ObjectKind.Unit, false)!.ToBytes());
+        Assert.False(session.Dirty);
     }
 
     [Fact]

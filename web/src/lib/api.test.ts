@@ -26,6 +26,13 @@ describe("each wrapper calls its command with the app's argument names", () => {
       { path: "C:\\maps\\arena" },
     ],
     ["openMap with the dialog", () => api.openMap(), "openMap", {}],
+    [
+      "openMap dropping unsaved edits",
+      () => api.openMap(undefined, true),
+      "openMap",
+      { discard: true },
+    ],
+    ["currentMap", () => api.currentMap(), "currentMap", {}],
     ["tree", () => api.tree("ability"), "tree", { kind: "ability" }],
     ["object", () => api.object("unit", "hfoo"), "object", { kind: "unit", id: "hfoo" }],
     [
@@ -68,9 +75,13 @@ describe("each wrapper calls its command with the app's argument names", () => {
     ["redo", () => api.redo(), "redo", {}],
     ["save", () => api.save(), "save", {}],
     ["reload", () => api.reload(), "reload", {}],
+    ["reload dropping unsaved edits", () => api.reload(true), "reload", { discard: true }],
     ["search", () => api.search("foot", 20), "search", { query: "foot", limit: 20 }],
     ["choices", () => api.choices(), "choices", {}],
     ["startup", () => api.startup(), "startup", {}],
+    ["nextId", () => api.nextId("unit", "hfoo"), "nextId", { kind: "unit", baseId: "hfoo" }],
+    ["closeAsking", () => api.closeAsking(), "closeAsking", {}],
+    ["closeWindow", () => api.closeWindow(), "closeWindow", {}],
   ];
 
   it.each(cases)("%s", async (_name, run, command, args) => {
@@ -96,6 +107,21 @@ describe("onSessionChanged", () => {
 
     expect(seen).toEqual([{ dirty: true, changedObjects: 2 }]);
     expect(typeof stop).toBe("function");
+  });
+});
+
+describe("onCloseRequested", () => {
+  it("listens to the closeRequested event and passes on whether the window saw the map dirty", () => {
+    const heard: boolean[] = [];
+    api.onCloseRequested((request) => heard.push(request.dirty));
+
+    const [event, handler] = listened.mock.calls[0] ?? [];
+    expect(event).toBe("closeRequested");
+    handler?.({ dirty: true });
+    handler?.({ dirty: false });
+    handler?.({});
+
+    expect(heard).toEqual([true, false, false]);
   });
 });
 
