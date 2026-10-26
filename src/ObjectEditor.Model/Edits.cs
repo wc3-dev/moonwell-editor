@@ -25,7 +25,7 @@ public sealed partial class Session
     /// <summary>
     /// Sets a field of an object at a level (0 for a field without levels; a doodad's variation, from 1). The value is
     /// read by how the file stores the field: a whole number (a yes/no field takes <c>1</c> or <c>0</c>), a number
-    /// with a <c>.</c>, or text. It goes to the skin file when the game keeps the field there, else to the main file.
+    /// with a <c>.</c>, or text; a choice of one value takes one of its list's values (see <see cref="Parse"/>). It goes to the skin file when the game keeps the field there, else to the main file.
     /// A value equal to the standard one (numbers compared as numbers) removes the map's modification instead, unless
     /// the standard value differs between graphics modes. Text whose modification holds <c>TRIGSTR_n</c> changes
     /// that entry of <c>war3map.wts</c> and keeps the reference, unless another modification of the map refers to the
@@ -33,28 +33,16 @@ public sealed partial class Session
     /// inline, so the other field keeps its text.
     /// </summary>
     /// <exception cref="EditException">
-    /// <c>noObject</c>, <c>noField</c>, <c>readOnly</c>, <c>notNumber</c>, or <c>badText</c> for text an object file
-    /// or the strings file cannot hold.
+    /// <c>noObject</c>, <c>noField</c>, <c>readOnly</c>, <c>notNumber</c>, <c>badValue</c> (a yes/no field's value
+    /// other than 1 and 0, or a value a choice's list does not have), or <c>badText</c> for text an object file or
+    /// the strings file cannot hold.
     /// </exception>
     public void Set(ObjectKind kind, string id, string field, int level, string value)
     {
-        var target = Target(kind, id, field, level);
-        var info = target.Field;
-        var parsed = Parse(info, value);
+        var cell = CheckCell(kind, id, field, level, value);
         var edit = new Edit();
         edit.Touch(kind, id);
-        var resolver = new Resolver(kind, target.Data, _strings);
-        var standardValue = resolver.StandardValue(info, target.Level, target.Standard);
-        var modes = target.Standard.Modes.ContainsKey(Resolver.Key(info, target.Level));
-        if (!modes && SameValue(parsed, standardValue))
-        {
-            RemoveMods(edit, target);
-        }
-        else if (!SetTriggerString(edit, target, parsed))
-        {
-            WriteMod(edit, target, parsed);
-        }
-
+        ApplyCell(edit, cell, null);
         Commit(edit);
     }
 
@@ -65,10 +53,10 @@ public sealed partial class Session
     /// <exception cref="EditException"><c>noObject</c>, <c>noField</c> or <c>readOnly</c>.</exception>
     public void Reset(ObjectKind kind, string id, string field, int level)
     {
-        var target = Target(kind, id, field, level);
+        var cell = CheckCell(kind, id, field, level, null);
         var edit = new Edit();
         edit.Touch(kind, id);
-        RemoveMods(edit, target);
+        ApplyCell(edit, cell, null);
         Commit(edit);
     }
 
@@ -210,6 +198,48 @@ public sealed partial class Session
     }
 
     /// <summary>
+    /// The check part of <see cref="Set"/> (a value) and <see cref="Reset"/> (a null value): the object, field and
+    /// level (<see cref="Target"/>) and the value, read by the field's store. Throws the refusal; changes nothing.
+    /// </summary>
+    private CheckedCell CheckCell(ObjectKind kind, string id, string field, int level, string? value)
+    {
+        var target = Target(kind, id, field, level);
+        return new CheckedCell(target, value == null ? null : Parse(target.Field, value));
+    }
+
+    /// <summary>
+    /// The apply part of <see cref="Set"/> and <see cref="Reset"/>: makes a checked cell's change, recording its steps
+    /// in <paramref name="edit"/>. A null value removes the map's modifications; so does a value equal to the standard
+    /// one, unless the standard value differs between graphics modes; other text may change a strings file entry (see
+    /// <see cref="SetTriggerString"/>); else the value is written into the field's file. The object's records are
+    /// looked up again, as an earlier cell of the same edit may have added or removed them. <paramref name="before"/>
+    /// holds the map's <c>TRIGSTR_n</c> references from before an edit of many cells (null for one cell). Throws
+    /// <c>badText</c>, before any step of this cell, for text the strings file cannot hold.
+    /// </summary>
+    private void ApplyCell(Edit edit, CheckedCell cell, IReadOnlyList<(FieldMod Mod, int Number)>? before)
+    {
+        var target = cell.Target with { Found = cell.Target.Map.Find(cell.Target.Id) };
+        if (cell.Value is not { } value)
+        {
+            RemoveMods(edit, target);
+            return;
+        }
+
+        var info = target.Field;
+        var resolver = new Resolver(target.Kind, target.Data, _strings);
+        var standardValue = resolver.StandardValue(info, target.Level, target.Standard);
+        var modes = target.Standard.Modes.ContainsKey(Resolver.Key(info, target.Level));
+        if (!modes && SameValue(value, standardValue, IsSingleChoice(info)))
+        {
+            RemoveMods(edit, target);
+        }
+        else if (!SetTriggerString(edit, target, value, before))
+        {
+            WriteMod(edit, target, value);
+        }
+    }
+
+    /// <summary>
     /// The object and field an edit of a field is about, checked: the object exists, the field applies to it at that
     /// level, and the object can be edited.
     /// </summary>
@@ -268,9 +298,25 @@ public sealed partial class Session
         }
     }
 
-    /// <summary>A typed value as the field's file stores it; throws <c>notNumber</c> or <c>badText</c>.</summary>
-    private static FieldValue Parse(FieldInfo field, string value)
+    /// <summary>
+    /// A typed value as the field's file stores it. A yes/no field takes <c>1</c> or <c>0</c> only. A choice of one
+    /// value takes one of its list's values (case does not matter, and the other spellings the game's data uses count
+    /// too), and is stored as the list spells it; a label is not a value. Throws <c>notNumber</c>, <c>badValue</c> or
+    /// <c>badText</c>.
+    /// </summary>
+    private FieldValue Parse(FieldInfo field, string value)
     {
+        if (field.Type == "bool")
+        {
+            return ParseBool(field, value);
+        }
+
+        if (field.Type == "choice" && field.Choice != null
+            && _game.Choices.TryGetValue(field.Choice, out var list) && !list.Flags)
+        {
+            value = ChoiceValue(field, list, value);
+        }
+
         switch (field.Store)
         {
             case "int":
@@ -295,6 +341,47 @@ public sealed partial class Session
         }
     }
 
+    /// <summary>A yes/no field's value: <c>1</c> or <c>0</c>, as a whole number; throws <c>badValue</c>.</summary>
+    private static FieldValue ParseBool(FieldInfo field, string value)
+    {
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+            && number is 0 or 1)
+        {
+            return new FieldValue.Int(number);
+        }
+
+        throw new EditException("badValue", $"{field.Label} takes 1 (yes) or 0 (no), not \"{value}\".");
+    }
+
+    /// <summary>
+    /// The list's spelling of a choice's value: the entry whose value (or one of whose other spellings) is
+    /// <paramref name="value"/>, case aside; for a list stored as a whole number, the number as the list writes it.
+    /// Throws <c>badValue</c> when no entry is.
+    /// </summary>
+    private static string ChoiceValue(FieldInfo field, ChoiceList list, string value)
+    {
+        var text = value;
+        if (list.Store == "int"
+            && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+        {
+            text = number.ToString(CultureInfo.InvariantCulture);
+        }
+
+        bool Same(string spelling) => string.Equals(spelling, text, StringComparison.OrdinalIgnoreCase);
+        var entry = list.Entries.FirstOrDefault(entry => Same(entry.Value))
+            ?? list.Entries.FirstOrDefault(entry => entry.Alternates.Any(Same));
+        if (entry != null)
+        {
+            return entry.Value;
+        }
+
+        const int shown = 12;
+        var values = string.Join(", ", list.Entries.Take(shown).Select(entry => entry.Value));
+        var more = list.Entries.Count > shown ? ", ..." : "";
+        throw new EditException(
+            "badValue", $"{field.Label} takes one of its list's values ({values}{more}), not \"{value}\".");
+    }
+
     /// <summary>
     /// Object files store text as UTF-8 ended by a NUL, so it can hold neither a NUL nor broken Unicode.
     /// </summary>
@@ -316,18 +403,29 @@ public sealed partial class Session
         }
     }
 
-    /// <summary>Whether a value is the standard one (shown as text): numbers are compared as numbers.</summary>
-    private static bool SameValue(FieldValue value, string standard)
+    /// <summary>
+    /// Whether a value is the standard one (shown as text): numbers are compared as numbers, and a single choice
+    /// ignoring letter case (the game's data spells some standard values unlike World Editor's list: a doodad's
+    /// occlusion is "no occlusion" there and "No occlusion" in the list), so setting the standard value in the list's
+    /// spelling removes the modification instead of writing one.
+    /// </summary>
+    private static bool SameValue(FieldValue value, string standard, bool singleChoice)
     {
         return value switch
         {
             FieldValue.Int number => SameWhole(number.Value, standard),
             FieldValue.Real real => SameReal(real.Value, standard),
             FieldValue.Unreal unreal => SameReal(unreal.Value, standard),
-            FieldValue.Text text => text.Value == standard,
+            FieldValue.Text text => singleChoice
+                ? string.Equals(text.Value, standard, StringComparison.OrdinalIgnoreCase)
+                : text.Value == standard,
             _ => false,
         };
     }
+
+    /// <summary>Whether a field holds one value of a choice list (not a list of flags).</summary>
+    private bool IsSingleChoice(FieldInfo field) =>
+        field.Choice != null && _game.Choices.TryGetValue(field.Choice, out var list) && !list.Flags;
 
     private static bool SameWhole(int value, string standard) =>
         double.TryParse(standard, NumberStyles.Float, CultureInfo.InvariantCulture, out var other) && other == value;
@@ -337,10 +435,11 @@ public sealed partial class Session
 
     /// <summary>
     /// When the value shown is a <c>TRIGSTR_n</c> text the strings file has, and no other modification refers to that
-    /// entry, sets the entry to the new text and returns true; the modification keeps the reference. Returns false
-    /// otherwise (the value is then written inline).
+    /// entry (now, or in <paramref name="before"/> when given), sets the entry to the new text and returns true; the
+    /// modification keeps the reference. Returns false otherwise (the value is then written inline).
     /// </summary>
-    private bool SetTriggerString(Edit edit, FieldTarget target, FieldValue value)
+    private bool SetTriggerString(
+        Edit edit, FieldTarget target, FieldValue value, IReadOnlyList<(FieldMod Mod, int Number)>? before)
     {
         // The value shown is the field's own file's, else the other file's.
         var (field, level, skin) = (target.Field.Id, target.Level, target.Field.Skin);
@@ -351,19 +450,19 @@ public sealed partial class Session
         }
 
         var number = WtsFile.TriggerString(reference.Value);
-        var before = number == null ? null : _strings.Get(number.Value);
-        if (before == null)
+        var old = number == null ? null : _strings.Get(number.Value);
+        if (old == null)
         {
             return false;
         }
 
-        if (before == text.Value)
+        if (old == text.Value)
         {
             return true;
         }
 
         // An entry another modification also shows is not changed under it: the new text goes inline instead.
-        if (SharedTriggerString(number!.Value, shown))
+        if (SharedTriggerString(number!.Value, shown, before))
         {
             return false;
         }
@@ -376,29 +475,48 @@ public sealed partial class Session
                 "badText", $"war3map.wts cannot hold a line that is only \"}}\" (in {reference.Value}).");
         }
 
-        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Set(entry, before)));
+        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Set(entry, old)));
         return true;
     }
 
     /// <summary>
     /// Whether a modification other than <paramref name="own"/>, in any object file of the map (any kind, main or
-    /// skin), refers to entry <paramref name="number"/> of the strings file. While the map has an object file War3Net
-    /// cannot read, what that file refers to is not known, so every entry counts as shared.
+    /// skin), refers to entry <paramref name="number"/> of the strings file: now, or in <paramref name="before"/> (the
+    /// references from before an edit of many cells) when given, so an entry two cells of one edit share is shared
+    /// for both, though the first one's text has gone inline by the time the second is written. While the map has an
+    /// object file War3Net cannot read, what that file refers to is not known, so every entry counts as shared.
     /// </summary>
-    private bool SharedTriggerString(int number, FieldMod own)
+    private bool SharedTriggerString(int number, FieldMod own, IReadOnlyList<(FieldMod Mod, int Number)>? before)
     {
         if (_unreadable)
         {
             return true;
         }
 
+        return TriggerStringMods().Concat(before ?? [])
+            .Any(reference => reference.Number == number && !ReferenceEquals(reference.Mod, own));
+    }
+
+    /// <summary>
+    /// Every modification whose text is a <c>TRIGSTR_n</c> reference, in any object file of the map (any kind, main or
+    /// skin), with the number of the entry it refers to.
+    /// </summary>
+    private List<(FieldMod Mod, int Number)> TriggerStringMods()
+    {
+        var references = new List<(FieldMod Mod, int Number)>();
         var mods = _kinds.Values
             .SelectMany(map => new[] { map.Main, map.Skin })
             .SelectMany(file => (file?.Original ?? []).Concat(file?.Custom ?? []))
             .SelectMany(entry => entry.Mods);
-        return mods.Any(mod => !ReferenceEquals(mod, own)
-            && mod.Value is FieldValue.Text text
-            && WtsFile.TriggerString(text.Value) == number);
+        foreach (var mod in mods)
+        {
+            if (mod.Value is FieldValue.Text text && WtsFile.TriggerString(text.Value) is { } number)
+            {
+                references.Add((mod, number));
+            }
+        }
+
+        return references;
     }
 
     /// <summary>
@@ -580,6 +698,11 @@ public sealed partial class Session
         throw new ArgumentException("The item is not in the list.", nameof(item));
     }
 
+    /// <summary>
+    /// A cell of an edit, checked: the field it is about, and its value as the file stores it (null to reset).
+    /// </summary>
+    private sealed record CheckedCell(FieldTarget Target, FieldValue? Value);
+
     /// <summary>A field of an object at a level, checked for an edit.</summary>
     private sealed record FieldTarget(
         ObjectKind Kind,
@@ -606,8 +729,9 @@ public sealed class EditException : Exception
 
     /// <summary>
     /// Why: <c>noObject</c> (no such object), <c>noField</c> (no such field, or not at that level), <c>notNumber</c>
-    /// (text in a number field), <c>idTaken</c>, <c>idInvalid</c>, <c>readOnly</c> (the kind or the object cannot be
-    /// edited), or <c>badText</c> (text a map file cannot hold).
+    /// (text in a number field), <c>badValue</c> (a value the field's type does not take: a yes/no field's other than
+    /// 1 and 0, a choice's that its list does not have), <c>idTaken</c>, <c>idInvalid</c>, <c>readOnly</c> (the kind
+    /// or the object cannot be edited), or <c>badText</c> (text a map file cannot hold).
     /// </summary>
     public string Code { get; }
 }
