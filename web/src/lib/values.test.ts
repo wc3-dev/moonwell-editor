@@ -6,6 +6,7 @@ import {
   editorFor,
   formatFlags,
   nameField,
+  noticeTitle,
   parseFlags,
   removeId,
   savedText,
@@ -205,15 +206,35 @@ describe("nameField", () => {
   });
 });
 
+describe("noticeTitle", () => {
+  it("starts with the whole text, so a long one cut off in the status bar can be read", () => {
+    const text =
+      "Not saved: The map archive C:\\Maps\\Arena.w3x was not saved, and is as it was: a reason";
+    expect(noticeTitle({ text })).toBe(text);
+    expect(noticeTitle({ text: "Saved 1 file", title: "war3map.w3u\nBackup: C:\\B" })).toBe(
+      "Saved 1 file\nwar3map.w3u\nBackup: C:\\B",
+    );
+  });
+});
+
 describe("savedText", () => {
   it("says how many files were written and where the backup is", () => {
     expect(
       savedText({
         written: ["war3map.w3u", "war3map.wts"],
         backup: "C:\\Maps\\Arena.backup\\2026-10-26 12-00-00",
+        note: "",
       }),
     ).toBe("Saved 2 files · backup in Arena.backup\\2026-10-26 12-00-00");
-    expect(savedText({ written: ["war3map.w3u"], backup: "" })).toBe("Saved 1 file");
-    expect(savedText({ written: [], backup: "" })).toBe("Nothing to save");
+    expect(savedText({ written: ["war3map.w3u"], backup: "", note: "" })).toBe("Saved 1 file");
+    expect(savedText({ written: [], backup: "", note: "" })).toBe("Nothing to save");
+  });
+
+  it("adds the note of a save whose replace reported an error after the map was saved", () => {
+    const note =
+      "The map archive C:\\Maps\\Arena.w3x was saved, but replacing it reported an error";
+    expect(savedText({ written: ["war3map.w3u"], backup: "", note })).toBe(
+      `Saved 1 file · ${note}`,
+    );
   });
 });

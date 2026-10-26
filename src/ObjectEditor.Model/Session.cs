@@ -4,8 +4,9 @@ using ObjectEditor.GameData;
 namespace ObjectEditor.Model;
 
 /// <summary>
-/// An open map folder with the game's standard data. It keeps the map's object files and strings file as read, edits
-/// them in place (see <c>Edits.cs</c>) and resolves an object's values on demand, each time it is asked.
+/// An open map (a folder or an archive) with the game's standard data. It keeps the map's object files and strings file
+/// as read, edits them in place (see <c>Edits.cs</c>) and resolves an object's values on demand, each time it is
+/// asked.
 /// </summary>
 public sealed partial class Session
 {
@@ -16,23 +17,24 @@ public sealed partial class Session
     /// <summary>The strings file's name.</summary>
     private const string StringsName = "war3map.wts";
 
-    private readonly MapFolder _folder;
+    private readonly IMapStore _store;
     private readonly GameData.GameData _game;
     private readonly Func<ObjectKind, byte[], string, ObjectFile> _read;
 
-    // What was read from the folder at open (or reload); see Load. A save updates the baseline and the stamp.
+    // What was read from the map at open (or reload); see Load. A save updates the baseline and the stamp.
     private Dictionary<ObjectKind, MapKind> _kinds;
     private WtsFile? _strings;
     private List<string> _problems;
     private Dictionary<string, byte[]?> _baseline;
-    private DateTime _stamp;
+    private string _stamp;
     private bool _unreadable;
+    private bool _stringsReadOnly;
     private History _history = new();
 
     private Session(
-        MapFolder folder, GameData.GameData game, Func<ObjectKind, byte[], string, ObjectFile> read, Loaded loaded)
+        IMapStore store, GameData.GameData game, Func<ObjectKind, byte[], string, ObjectFile> read, Loaded loaded)
     {
-        _folder = folder;
+        _store = store;
         _game = game;
         _read = read;
         _kinds = loaded.Kinds;
@@ -41,13 +43,16 @@ public sealed partial class Session
         _baseline = loaded.Baseline;
         _stamp = loaded.Stamp;
         _unreadable = loaded.Unreadable;
+        _stringsReadOnly = loaded.StringsReadOnly;
         _search = new SearchIndex(game, _kinds, _strings);
         _savedObjects = Describe();
     }
 
     /// <summary>
-    /// The problems found when opening: one for each object file War3Net cannot read or write back exactly (its kind
-    /// is then read only), and a note when the folder is a Moonwell project's build output.
+    /// The problems found when opening: one for each object file War3Net cannot read or write back exactly or the
+    /// store may not write (its kind is then read only), one when the store may not write the strings file (it is
+    /// then never changed: edited text goes into the object files), and a note when the map is a Moonwell project's
+    /// build output.
     /// </summary>
     public IReadOnlyList<string> Problems => _problems;
 
@@ -58,26 +63,27 @@ public sealed partial class Session
     internal ObjectFile? FileOf(ObjectKind kind, bool skin) => skin ? _kinds[kind].Skin : _kinds[kind].Main;
 
     /// <summary>
-    /// Opens a map folder. Any of its files may be missing: a kind without files has only its standard objects, and
-    /// a map without <c>war3map.wts</c> shows <c>TRIGSTR_n</c> values as they are.
+    /// Opens a map, a folder or an archive (see <see cref="MapStore.Open"/>). Any of its files may be missing: a kind
+    /// without files has only its standard objects, and a map without <c>war3map.wts</c> shows <c>TRIGSTR_n</c>
+    /// values as they are.
     /// </summary>
-    public static Session Open(MapFolder map, GameData.GameData game) =>
+    public static Session Open(IMapStore map, GameData.GameData game) =>
         Open(map, game, (kind, bytes, name) => ObjectFile.Read(kind, bytes, name));
 
     /// <summary>
-    /// <see cref="Open(MapFolder, GameData.GameData)"/> with the object files read by <paramref name="read"/>, which
+    /// <see cref="Open(IMapStore, GameData.GameData)"/> with the object files read by <paramref name="read"/>, which
     /// <see cref="Reload"/> uses too: tests pass one that stands for a file War3Net cannot write back exactly.
     /// </summary>
     internal static Session Open(
-        MapFolder map, GameData.GameData game, Func<ObjectKind, byte[], string, ObjectFile> read) =>
+        IMapStore map, GameData.GameData game, Func<ObjectKind, byte[], string, ObjectFile> read) =>
         new(map, game, read, Load(map, read));
 
     /// <summary>
-    /// Reads the folder's object files (with <paramref name="read"/>) and strings file, keeping each one's bytes as
+    /// Reads the map's object files (with <paramref name="read"/>) and strings file, keeping each one's bytes as
     /// the baseline a save compares with. The stamp is taken first, so a change made while reading is seen at the
-    /// next save.
+    /// next save. Throws what the store throws when the map cannot be read (see <see cref="Reload"/>).
     /// </summary>
-    private static Loaded Load(MapFolder map, Func<ObjectKind, byte[], string, ObjectFile> read)
+    private static Loaded Load(IMapStore map, Func<ObjectKind, byte[], string, ObjectFile> read)
     {
         var stamp = map.Stamp();
         var problems = new List<string>();
@@ -98,6 +104,14 @@ public sealed partial class Session
             var kindProblems = new List<string>();
             var main = ReadFile(kind, mainName, baseline[mainName], kindProblems, read);
             var skin = ReadFile(kind, skinName, baseline[skinName], kindProblems, read);
+            foreach (var name in new[] { mainName, skinName })
+            {
+                if (map.WriteProblem(name) is { } writeProblem)
+                {
+                    kindProblems.Add(writeProblem);
+                }
+            }
+
             problems.AddRange(kindProblems);
             unreadable |= (baseline[mainName] != null && main == null) || (baseline[skinName] != null && skin == null);
             var problem = kindProblems.Count == 0 ? null : string.Join(" ", kindProblems);
@@ -107,7 +121,13 @@ public sealed partial class Session
         var stringBytes = map.Read(StringsName);
         baseline[StringsName] = stringBytes;
         var strings = stringBytes == null ? null : WtsFile.Read(stringBytes);
-        return new Loaded(kinds, strings, problems, baseline, stamp, unreadable);
+        var stringsProblem = map.WriteProblem(StringsName);
+        if (stringsProblem != null)
+        {
+            problems.Add(stringsProblem + " Edited text goes into the object files instead.");
+        }
+
+        return new Loaded(kinds, strings, problems, baseline, stamp, unreadable, stringsProblem != null);
     }
 
     /// <summary>
@@ -182,7 +202,7 @@ public sealed partial class Session
     }
 
     /// <summary>
-    /// Reads one object file from its bytes; null when the folder has none (null bytes). A problem is added to
+    /// Reads one object file from its bytes; null when the map has none (null bytes). A problem is added to
     /// <paramref name="problems"/>: a file War3Net read but cannot write back exactly is still returned, to show (its
     /// kind is then read only, so it is never saved); a file War3Net cannot read gives null.
     /// </summary>
@@ -210,8 +230,8 @@ public sealed partial class Session
     }
 
     /// <summary>
-    /// Whether the folder is a Moonwell build output: its parent is called <c>build</c> and a <c>.csproj</c> sits
-    /// beside that (in the project's own folder).
+    /// Whether the map (a folder or an archive file) is a Moonwell build output: the folder it is in is called
+    /// <c>build</c> and a <c>.csproj</c> sits beside that (in the project's own folder).
     /// </summary>
     private static bool IsMoonwellBuildOutput(string path)
     {
@@ -225,20 +245,22 @@ public sealed partial class Session
         return project != null && Directory.EnumerateFiles(project.FullName, "*.csproj").Any();
     }
 
-    /// <summary>What <see cref="Load"/> read from the folder.</summary>
+    /// <summary>What <see cref="Load"/> read from the map.</summary>
     /// <param name="Kinds">Each kind's object files.</param>
     /// <param name="Strings">The strings file, or null.</param>
     /// <param name="Problems">The problems found.</param>
-    /// <param name="Baseline">Each file's bytes as read (null when the folder has none), by name.</param>
-    /// <param name="Stamp">The folder's <see cref="MapFolder.Stamp"/> before reading.</param>
-    /// <param name="Unreadable">True when the folder has an object file War3Net cannot read.</param>
+    /// <param name="Baseline">Each file's bytes as read (null when the map has none), by name.</param>
+    /// <param name="Stamp">The map's <see cref="IMapStore.Stamp"/> before reading.</param>
+    /// <param name="Unreadable">True when the map has an object file War3Net cannot read.</param>
+    /// <param name="StringsReadOnly">True when the store may not write the strings file.</param>
     private sealed record Loaded(
         Dictionary<ObjectKind, MapKind> Kinds,
         WtsFile? Strings,
         List<string> Problems,
         Dictionary<string, byte[]?> Baseline,
-        DateTime Stamp,
-        bool Unreadable);
+        string Stamp,
+        bool Unreadable,
+        bool StringsReadOnly);
 }
 
 /// <summary>
@@ -252,7 +274,7 @@ internal sealed class MapKind(string mainName, ObjectFile? main, string skinName
     public string MainName { get; } = mainName;
 
     /// <summary>
-    /// The main file, or null when the folder has none or War3Net cannot read it. An edit sets it when the folder has
+    /// The main file, or null when the map has none or War3Net cannot read it. An edit sets it when the map has
     /// none.
     /// </summary>
     public ObjectFile? Main { get; set; } = main;
@@ -261,7 +283,7 @@ internal sealed class MapKind(string mainName, ObjectFile? main, string skinName
     public string SkinName { get; } = skinName;
 
     /// <summary>
-    /// The skin file, or null when the folder has none or War3Net cannot read it. An edit sets it when the folder has
+    /// The skin file, or null when the map has none or War3Net cannot read it. An edit sets it when the map has
     /// none.
     /// </summary>
     public ObjectFile? Skin { get; set; } = skin;
