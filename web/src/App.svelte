@@ -41,6 +41,7 @@ import Details from "./lib/Details.svelte";
 import Dialog from "./lib/Dialog.svelte";
 import { type Lookup, listKinds } from "./lib/fields.ts";
 import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "./lib/gameData.ts";
+import KindBar from "./lib/KindBar.svelte";
 import OpenMapMenu from "./lib/OpenMapMenu.svelte";
 import { type OpenEntry, openFrom } from "./lib/openMenu.ts";
 import Palette from "./lib/Palette.svelte";
@@ -56,6 +57,7 @@ import {
 import TableView, { type EditResult } from "./lib/TableView.svelte";
 import Tree from "./lib/Tree.svelte";
 import { newTableState, type TableState } from "./lib/table.ts";
+import { windowTitle } from "./lib/title.ts";
 import { hasTyped, sendTyped } from "./lib/typing.ts";
 import { nameField, savedText } from "./lib/values.ts";
 
@@ -721,6 +723,11 @@ $effect(() => {
   })();
 });
 
+// The window shows the open map's path in its title (the app copies the page's title to the window).
+$effect(() => {
+  document.title = windowTitle(map?.path ?? null);
+});
+
 // The trees of the kinds the object's lists hold, so their ids show with names.
 $effect(() => {
   const shown = current;
@@ -788,28 +795,22 @@ onMount(() => {
 <div class="grid h-full grid-cols-1 grid-rows-[44px_1fr_26px]">
   <header class="flex items-center gap-2.5 border-b border-line bg-surface px-3">
     <OpenMapMenu
-      label="Open map…"
-      buttonClass="flex shrink-0 items-center gap-2 rounded-md border border-line bg-raised px-3 py-1 text-fg hover:border-accent disabled:opacity-50"
+      buttonClass="flex shrink-0 items-center rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg disabled:opacity-50"
       disabled={view !== "ready" || opening}
       onpick={openAnother}
     />
+    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+    <KindBar {kind} disabled={!map} onkind={switchKind} />
     {#if map}
-      <span
-        class="max-w-[35%] min-w-0 truncate font-bold text-fg"
-        data-testid="map-name"
-        title={map.path}
-      >
-        {map.name}
-        <small class="ml-1.5 font-mono text-xs font-normal text-muted">{map.path}</small>
-      </span>
+      <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
       <button
         type="button"
-        class="shrink-0 rounded-md p-1 text-muted hover:bg-hover hover:text-fg"
+        class="shrink-0 rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg"
         title="Reload the map from disk"
         aria-label="Reload the map from disk"
         onclick={() => reloadMap()}
       >
-        <RotateCw size={15} />
+        <RotateCw size={17} />
       </button>
     {/if}
     <button
@@ -862,7 +863,7 @@ onMount(() => {
   {#if view === "missing" || view === "failed"}
     <main class="grid min-h-0 place-items-center" data-testid="first-start">
       <div class="flex max-w-lg flex-col gap-3 px-6">
-        <h1 class="font-heading text-2xl font-bold text-fg">Welcome to the Object Editor</h1>
+        <h1 class="font-heading text-2xl font-bold text-fg">Welcome to Moonwell Editor</h1>
         <p>
           The editor needs the game's own data to show the standard units, items and abilities. Point
           it at a game data folder (a <span class="font-mono text-fg">war3.w3mod</span> export).
@@ -924,7 +925,6 @@ onMount(() => {
           {session}
           choices={choiceLists}
           {lookup}
-          onkind={switchKind}
           onneed={ensureTree}
           onopen={openInDetails}
           onedit={editCells}
@@ -945,7 +945,6 @@ onMount(() => {
           entries={trees[kind] ?? null}
           error={treeErrors[kind] ?? ""}
           selected={picked[kind] ?? null}
-          onkind={switchKind}
           onselect={(id) => show(kind, id)}
           bind:filter={treeFilter}
         />
