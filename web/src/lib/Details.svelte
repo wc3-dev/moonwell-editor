@@ -1,8 +1,8 @@
 <script lang="ts">
 /**
- * The middle panel: the object's name, id and chain, New / Copy / Delete, the field filter and chips, then its fields
- * by category (which open and close), per-level fields as grids. The fields are editors unless the object is read
- * only.
+ * The middle panel: the object's name, id and chain, Copy and Delete, the field filter, then its fields by category
+ * (which open and close), per-level fields as grids. The fields are editors unless the object is read only. A bar
+ * floats at the bottom with New, "Changed only", "Field ids", and Collapse all and Expand all.
  */
 
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -10,17 +10,32 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import ChevronsDownUp from "@lucide/svelte/icons/chevrons-down-up";
 import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
 import Copy from "@lucide/svelte/icons/copy";
+import Hash from "@lucide/svelte/icons/hash";
 import Lock from "@lucide/svelte/icons/lock";
+import PencilLine from "@lucide/svelte/icons/pencil-line";
 import Plus from "@lucide/svelte/icons/plus";
 import Trash from "@lucide/svelte/icons/trash-2";
-import { tick } from "svelte";
+import { type Component, tick } from "svelte";
 import type { ChoiceList, FieldView, Kind, ObjectView } from "./api.ts";
 import type { MenuItem } from "./ContextMenu.svelte";
+import DiceRow from "./DiceRow.svelte";
+import { diceGroups, withTotals } from "./dice.ts";
 import FieldRow from "./FieldRow.svelte";
 import { copiedField, copyField, fits } from "./fieldClip.ts";
-import { groupFields, isChanged, type Lookup, type Row, shownValue } from "./fields.ts";
+import {
+  type ButtonPair,
+  buttonPair,
+  groupFields,
+  isChanged,
+  type Lookup,
+  namesOf,
+  type Row,
+  shownValue,
+} from "./fields.ts";
+import { fieldIcon } from "./gameIcons.ts";
 import LevelGrid from "./LevelGrid.svelte";
 import { labelColumnWidth } from "./measure.ts";
+import { t, tCount } from "./text.ts";
 import { kindText } from "./tree.ts";
 
 type Props = {
@@ -43,6 +58,10 @@ type Props = {
   onmenu: (x: number, y: number, items: MenuItem[]) => void;
   /** Shows a short message in the status bar. */
   onnotice: (text: string, warn: boolean) => void;
+  /** Changes several fields of the object as one edit; answers with why it was refused, or null. */
+  onfields: (edits: { field: FieldView; value: string }[]) => Promise<string | null>;
+  /** The icons the kind's objects use, in the tree's order, for the icon picker. */
+  kindIcons?: string[];
 };
 
 let {
@@ -60,6 +79,8 @@ let {
   ondelete,
   onmenu,
   onnotice,
+  onfields,
+  kindIcons = [],
 }: Props = $props();
 
 let root: HTMLDivElement | undefined = $state();
@@ -90,7 +111,9 @@ function copy(field: FieldView): void {
   copyField(field);
   navigator.clipboard?.writeText(field.value).catch(() => {});
   onnotice(
-    `Copied ${field.label}${field.level > 0 ? ` (level ${field.level})` : ""} · Ctrl V pastes it into a field that takes it`,
+    field.level > 0
+      ? t("details.copiedLevel", { field: field.label, level: field.level })
+      : t("details.copied", { field: field.label }),
     false,
   );
 }
@@ -98,49 +121,57 @@ function copy(field: FieldView): void {
 async function paste(field: FieldView): Promise<void> {
   const clip = copiedField();
   if (!clip) {
-    onnotice("No field is copied: select a field and press Ctrl C.", false);
+    onnotice(t("details.nothingCopied"), false);
     return;
   }
   if (!editable) {
-    onnotice(`Read only: ${view.readOnly}`, true);
+    onnotice(t("details.readOnly", { reason: view.readOnly ?? "" }), true);
     return;
   }
   if (!fits(clip, field)) {
-    onnotice(`${clip.label}'s value does not go in ${field.label}.`, true);
+    onnotice(t("details.doesNotFit", { from: clip.label, to: field.label }), true);
     return;
   }
   const error = await onset(field, clip.value);
-  onnotice(error ?? `Pasted ${clip.label}'s value into ${field.label}`, error !== null);
+  onnotice(error ?? t("details.pasted", { from: clip.label, to: field.label }), error !== null);
 }
 
 /**
- * Ctrl C, Ctrl X or Ctrl V while a field is selected and the focus is in the panel: copies the field's value, or
- * pastes the copied one into it (a field is never cut). False when no field is selected there, so the key goes to the
- * object.
+ * Ctrl C, Ctrl X or Ctrl V while a field is selected and the panel is where the user is (the page asks only then):
+ * copies the field's value, or pastes the copied one into it (a field is never cut). False when no field is selected,
+ * so the key goes to the object.
  */
 export function clipKey(key: "c" | "x" | "v"): boolean {
   const field = selectedField();
-  if (!field || !root?.contains(document.activeElement)) return false;
+  if (!field) return false;
   if (key === "c") copy(field);
   else if (key === "v") paste(field);
-  else onnotice("A field cannot be cut: Ctrl C copies its value.", false);
+  else onnotice(t("details.cannotCut"), false);
   return true;
+}
+
+/** Puts a button at a place on the command card: its X and Y, as one edit. */
+function setPair(pair: ButtonPair, x: number, y: number): Promise<string | null> {
+  return onfields([
+    { field: pair.x, value: String(x) },
+    { field: pair.y, value: String(y) },
+  ]);
 }
 
 /** The context menu of a field (one level of a per-level field). */
 function fieldMenu(field: FieldView, x: number, y: number): void {
   const clip = copiedField();
   onmenu(x, y, [
-    { label: "Copy", shortcut: "Ctrl C", run: () => copy(field) },
+    { label: t("details.menu.copy"), shortcut: "Ctrl C", run: () => copy(field) },
     {
-      label: clip ? `Paste ${clip.label}` : "Paste",
+      label: clip ? t("details.menu.pasteField", { field: clip.label }) : t("details.menu.paste"),
       shortcut: "Ctrl V",
       disabled: !clip || !editable || !fits(clip, field),
       run: () => paste(field),
     },
     { separator: true },
     {
-      label: "Reset to default",
+      label: t("details.menu.reset"),
       disabled: !editable || !field.changed,
       run: () => onreset(field),
     },
@@ -148,10 +179,45 @@ function fieldMenu(field: FieldView, x: number, y: number): void {
 }
 
 let filterInput: HTMLInputElement | undefined = $state();
+let scroller: HTMLDivElement | undefined = $state();
+
+/** A changed field's mark beside the scroll bar: how far down the fields it is, in percent. */
+type Mark = { top: number; label: string; element: HTMLElement };
+let marks = $state.raw<Mark[]>([]);
+
+// The marks follow what is drawn: measured again whenever the fields' height or the object's fields change.
+function measureMarks(): void {
+  const box = scroller;
+  if (!box || box.scrollHeight === 0) {
+    marks = [];
+    return;
+  }
+  const top = box.getBoundingClientRect().top;
+  marks = [...box.querySelectorAll<HTMLElement>("[data-changed]")].map((element) => ({
+    top: ((element.getBoundingClientRect().top - top + box.scrollTop) / box.scrollHeight) * 100,
+    label: element.getAttribute("aria-label") ?? element.textContent?.trim().split("\n")[0] ?? "",
+    element,
+  }));
+}
+
+$effect(() => {
+  void categories;
+  void closed;
+  const box = scroller;
+  if (!box) return;
+  const resized = new ResizeObserver(() => measureMarks());
+  for (const child of box.children) resized.observe(child);
+  resized.observe(box);
+  tick().then(measureMarks);
+  return () => resized.disconnect();
+});
 // Categories the user closed, by key; they stay closed from object to object.
 let closed = $state<Record<string, boolean>>({});
+// The totals of dice whose base, dice and sides the user hid, by the total's row id; they stay so from object to
+// object.
+let hiddenParts = $state<Record<string, boolean>>({});
 
-const nameOf = (listOf: string, id: string) => lookup(listOf, id)?.name;
+const nameOf = namesOf((listOf, id) => lookup(listOf, id));
 const categories = $derived(
   groupFields(view.fields, filter, changedOnly, (field) => shownValue(field, choices, nameOf)),
 );
@@ -170,8 +236,14 @@ const labelWidth = $derived.by(() => {
       .filter((row) => row.levels === null)
       .map((row) => ({ label: row.label, id: row.id })),
   );
-  return labelColumnWidth(labels, showIds);
+  // A total's base, dice and sides are set in under it.
+  const indent = view.fields.some((field) => diceGroups.some((group) => group.base === field.id))
+    ? 20
+    : 0;
+  return labelColumnWidth(labels, showIds) + indent;
 });
+
+const iconOf = (field: FieldView) => fieldIcon(field, view.fields);
 
 const editable = $derived(view.readOnly === null);
 const custom = $derived(view.baseId !== null);
@@ -195,6 +267,16 @@ export async function focusField(field: FieldView): Promise<boolean> {
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)
     element.select();
   return true;
+}
+
+/** How far the fields are scrolled, for the history to come back to. */
+export function scrollPosition(): number {
+  return scroller?.scrollTop ?? 0;
+}
+
+/** Scrolls the fields to a position the history kept. */
+export function scrollTo(top: number): void {
+  if (scroller) scroller.scrollTop = top;
 }
 
 /** Puts the cursor in the field filter (Ctrl F). */
@@ -228,44 +310,33 @@ function clearOnEscape(event: KeyboardEvent): void {
 }
 </script>
 
-<div class="pb-4" style:--label-width="{labelWidth}px" bind:this={root}>
-  <div class="sticky top-0 z-[2] border-b border-line bg-bg px-[18px] pt-3.5 pb-2.5">
+<div class="relative flex min-h-0 flex-1 flex-col" style:--label-width="{labelWidth}px" bind:this={root}>
+  <div class="shrink-0 border-b border-line bg-bg px-[18px] pt-3.5 pb-2.5">
     <div class="flex items-start gap-2">
       <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2.5 font-heading text-xl font-bold text-fg">
         <span class="truncate">{view.name}</span>
         <span class="font-mono text-[12.5px] font-normal text-muted">{view.id}</span>
       </h1>
-      {#if editable}
-        <div class="flex shrink-0 gap-1" role="group" aria-label="Object">
+      {#if editable && custom}
+        <div class="flex shrink-0 gap-1" role="group" aria-label={t("details.objectGroup")}>
           <button
             type="button"
             class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-accent hover:text-fg"
-            title="A new object based on {custom ? 'its base' : 'this object'} (Ctrl Shift N)"
-            onclick={onnew}
+            title={t("details.copyTitle")}
+            onclick={oncopy}
           >
-            <Plus size={13} />
-            New
+            <Copy size={13} />
+            {t("details.copy")}
           </button>
-          {#if custom}
-            <button
-              type="button"
-              class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-accent hover:text-fg"
-              title="A copy of this object, with the next free id (Ctrl Shift D)"
-              onclick={oncopy}
-            >
-              <Copy size={13} />
-              Copy
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-warn hover:text-warn"
-              title="Delete this object (Delete; asks first, and Ctrl Z brings it back)"
-              onclick={ondelete}
-            >
-              <Trash size={13} />
-              Delete
-            </button>
-          {/if}
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-warn hover:text-warn"
+            title={t("details.deleteTitle")}
+            onclick={ondelete}
+          >
+            <Trash size={13} />
+            {t("details.delete")}
+          </button>
         </div>
       {/if}
     </div>
@@ -288,93 +359,58 @@ function clearOnEscape(event: KeyboardEvent): void {
         {/if}
       {/each}
       · {changedCount === 0
-        ? "no fields changed"
-        : `${changedCount} ${changedCount === 1 ? "field" : "fields"} changed`}
+        ? t("details.noFieldsChanged")
+        : tCount("details.fieldsChanged", changedCount)}
     </div>
     {#if view.readOnly}
       <p class="mt-2 flex items-center gap-1.5 text-[12.5px] text-warn" data-testid="read-only">
         <Lock size={14} />
-        Read only: {view.readOnly}
+        {t("details.readOnly", { reason: view.readOnly })}
       </p>
     {/if}
-    <div class="mt-2.5 flex items-center gap-2">
-      <input
-        class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
-        placeholder="Filter fields: name, id or value (Ctrl F)…"
-        aria-label="Filter fields"
-        bind:this={filterInput}
-        bind:value={filter}
-        onkeydown={clearOnEscape}
-      />
-      <button
-        type="button"
-        class="rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespace-nowrap {changedOnly
-          ? 'border-changed text-changed'
-          : 'border-line text-muted'}"
-        aria-pressed={changedOnly}
-        onclick={() => (changedOnly = !changedOnly)}
-      >
-        Changed only
-      </button>
-      <button
-        type="button"
-        class="rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespace-nowrap {showIds
-          ? 'border-changed text-changed'
-          : 'border-line text-muted'}"
-        aria-pressed={showIds}
-        title="Ctrl D"
-        onclick={() => (showIds = !showIds)}
-      >
-        Field ids
-      </button>
-    </div>
+    <input
+      class="mt-2.5 w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+      placeholder={t("details.filterPlaceholder")}
+      aria-label={t("details.filterLabel")}
+      bind:this={filterInput}
+      bind:value={filter}
+      onkeydown={clearOnEscape}
+    />
   </div>
 
-  {#if categories.length === 0}
-    <p class="mx-[18px] mt-3.5 text-muted">
-      {changedOnly && !filter ? "The map changes no fields of this object." : "No field matches."}
-    </p>
-  {/if}
+  <!-- Only the fields scroll: the header stays above them and the bar floats over them, where it is. -->
+  <div class="relative flex min-h-0 flex-1">
+  <div class="min-h-0 flex-1 overflow-auto pb-16" bind:this={scroller}>
+    {#if categories.length === 0}
+      <p class="mx-[18px] mt-3.5 text-muted">
+        {changedOnly && !filter ? t("details.noChangedFields") : t("details.noFieldMatches")}
+      </p>
+    {/if}
 
-  <!-- The editors are made again for another object, so what was typed for one never shows on the next. -->
-  {#key `${view.kind}:${view.id}`}
-    {#each categories as category (category.key)}
-      {@const open = !closed[category.key]}
-      <div class="mx-[18px] mt-3.5 overflow-hidden rounded-[7px] border border-line">
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 bg-surface px-2.5 py-1.5 text-left font-bold text-fg"
-          aria-expanded={open}
-          onclick={() => (closed[category.key] = open)}
-        >
-          {#if open}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
-          {category.name}
-          <span class="ml-auto text-xs font-normal text-faint">
-            {category.rows.length}
-            {category.rows.length === 1 ? "field" : "fields"}
-            {#if category.rows.some(isChanged)}· <span class="text-changed">changed</span>{/if}
-          </span>
-        </button>
-        {#if open}
-          {#each runs(category.rows) as run, index (index)}
-            {#if run.grid}
-              <LevelGrid
-                rows={run.rows}
-                {showIds}
-                {choices}
-                {lookup}
-                {editable}
-                {onset}
-                {onreset}
-                {onopen}
-                {selected}
-                onselect={select}
-                onmenu={fieldMenu}
-              />
-            {:else}
-              {#each run.rows as row (row.id)}
-                <FieldRow
-                  field={row.field}
+    <!-- The editors are made again for another object, so what was typed for one never shows on the next. -->
+    {#key `${view.kind}:${view.id}`}
+      {#each categories as category (category.key)}
+        {@const open = !closed[category.key]}
+        <div class="mx-[18px] mt-3.5 overflow-hidden rounded-[7px] border border-line">
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 bg-surface px-2.5 py-1.5 text-left font-bold text-fg"
+            data-changed={(!open && category.rows.some(isChanged)) || undefined}
+            aria-expanded={open}
+            onclick={() => (closed[category.key] = open)}
+          >
+            {#if open}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+            {category.name}
+            <span class="ml-auto text-xs font-normal text-faint">
+              {tCount("details.fieldCount", category.rows.length)}
+              {#if category.rows.some(isChanged)}· <span class="text-changed">{t("details.categoryChanged")}</span>{/if}
+            </span>
+          </button>
+          {#if open}
+            {#each runs(category.rows) as run, index (index)}
+              {#if run.grid}
+                <LevelGrid
+                  rows={run.rows}
                   {showIds}
                   {choices}
                   {lookup}
@@ -382,43 +418,117 @@ function clearOnEscape(event: KeyboardEvent): void {
                   {onset}
                   {onreset}
                   {onopen}
-                  selected={selected === keyOf(row.field)}
+                  {selected}
                   onselect={select}
                   onmenu={fieldMenu}
+                  {iconOf}
                 />
-              {/each}
-            {/if}
-          {/each}
-        {/if}
-      </div>
-    {/each}
-  {/key}
+              {:else}
+                {#each withTotals(run.rows, view.fields) as row (row.id)}
+                  {#if row.dice}
+                    <DiceRow
+                      label={row.label}
+                      fields={row.dice}
+                      {showIds}
+                      {choices}
+                      {lookup}
+                      {editable}
+                      {onset}
+                      {onreset}
+                      {onopen}
+                      {onfields}
+                      {selected}
+                      onselect={select}
+                      onmenu={fieldMenu}
+                      icon={iconOf}
+                      open={!hiddenParts[row.id]}
+                      ontoggle={() => (hiddenParts[row.id] = !hiddenParts[row.id])}
+                    />
+                  {:else}
+                  <FieldRow
+                    field={row.field}
+                    {showIds}
+                    {choices}
+                    {lookup}
+                    {editable}
+                    {onset}
+                    {onreset}
+                    {onopen}
+                    selected={selected === keyOf(row.field)}
+                    onselect={select}
+                    onmenu={fieldMenu}
+                    pair={buttonPair(row.field, view.fields)}
+                    objectKind={view.kind}
+                    {kindIcons}
+                    onpair={setPair}
+                    icon={iconOf(row.field)}
+                  />
+                  {/if}
+                {/each}
+              {/if}
+            {/each}
+          {/if}
+        </div>
+      {/each}
+    {/key}
+  </div>
 
-  <!-- Floats at the bottom of the panel while the fields scroll under it. -->
-  {#if categories.length > 1}
-    <div class="pointer-events-none sticky bottom-3 mt-4 flex justify-center">
-      <div
-        class="pointer-events-auto flex gap-0.5 rounded-full border border-line bg-raised p-0.5 shadow-lg shadow-black/40"
-        role="group"
-        aria-label="Categories"
-      >
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] text-muted hover:bg-hover hover:text-fg"
-          onclick={() => collapseAll(true)}
-        >
-          <ChevronsDownUp size={14} />
-          Collapse all
-        </button>
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] text-muted hover:bg-hover hover:text-fg"
-          onclick={() => collapseAll(false)}
-        >
-          <ChevronsUpDown size={14} />
-          Expand all
-        </button>
-      </div>
-    </div>
-  {/if}
+  <!-- The changed fields' places beside the scroll bar, as a code editor marks changed lines; a click goes there. -->
+  <div class="pointer-events-none absolute inset-y-0 right-0 w-2" aria-hidden="true">
+    {#each marks as mark, index (index)}
+      <button
+        type="button"
+        tabindex="-1"
+        class="pointer-events-auto absolute right-0 h-[3px] w-2 rounded-[1px] bg-changed/80 hover:bg-changed"
+        style:top="{mark.top}%"
+        title={t("details.markTitle", { field: mark.label })}
+        onclick={() => mark.element.scrollIntoView({ block: "center" })}
+      ></button>
+    {/each}
+  </div>
+  </div>
+
+  <!-- Floats at the bottom of the panel, over the fields, and never moves (Sven, 2026-10-27): icons, named by their
+       tooltips. -->
+  <div
+    class="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-line bg-raised p-0.5 shadow-lg shadow-black/40"
+    role="toolbar"
+    aria-label={t("details.bar")}
+  >
+    {#if editable}
+      {@render barButton(
+        t("details.newObject", {
+          base: custom ? t("details.newObjectItsBase") : t("details.newObjectThis"),
+        }),
+        Plus,
+        onnew,
+      )}
+      <span class="mx-0.5 h-4 w-px bg-line" aria-hidden="true"></span>
+    {/if}
+    {@render barButton(t("details.changedOnly"), PencilLine, () => (changedOnly = !changedOnly), changedOnly)}
+    {@render barButton(t("details.fieldIds"), Hash, () => (showIds = !showIds), showIds)}
+    <span class="mx-0.5 h-4 w-px bg-line" aria-hidden="true"></span>
+    {@render barButton(t("details.collapseAll"), ChevronsDownUp, () => collapseAll(true))}
+    {@render barButton(t("details.expandAll"), ChevronsUpDown, () => collapseAll(false))}
+  </div>
 </div>
+
+{#snippet barButton(
+  label: string,
+  Icon: Component<{ size?: number }>,
+  onclick: () => void,
+  pressed?: boolean,
+)}
+  <button
+    type="button"
+    class="rounded-full p-1.5 {pressed
+      ? 'bg-accent-lo text-accent-hi'
+      : 'text-muted hover:bg-hover hover:text-fg'}"
+    title={label}
+    aria-label={label}
+    aria-pressed={pressed}
+    {onclick}
+  >
+    <Icon size={15} />
+  </button>
+{/snippet}

@@ -69,6 +69,20 @@ The app is then `src/MoonwellEditor.App/bin/Release/net10.0-windows/win-x64/publ
 A single-file exe (`-p:PublishSingleFile=true`) builds, but it is not one file yet: the page (`wwwroot`), WebView2's
 `WebView2Loader.dll` and `runtimes` stay beside it. It has not been run.
 
+## Icons and models
+
+The tree's icons and the icon and model pickers read the Warcraft III install's own storage, from
+`C:\Program Files (x86)\Warcraft III`, or the folder in `MOONWELL_EDITOR_GAME`. Without an install the editor works,
+with no icons. `MoonwellEditor.Assets.Tests` reads the install too, and checks nothing when there is none.
+
+## Interface text
+
+Every text the page writes itself (buttons, tooltips, headings, dialogs, notices, errors) is in
+`web/src/text/strings.json`, one key per text, named for where it shows (`titleBar.back`, `settings.tab.hotkeys`).
+Change the text after the colon and keep each `{name}`, which the page fills in; a count has two keys, `.one` for 1
+and `.other` for any other. Rebuild with `npm run build` (in `web`). The code reads them with `t(key)` from
+`web/src/lib/text.ts`, and `npm test` checks that each call fills the placeholders its text has.
+
 ## Tests and checks
 
 ```

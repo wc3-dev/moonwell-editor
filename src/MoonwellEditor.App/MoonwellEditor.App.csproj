@@ -6,6 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>MoonwellEditor</AssemblyName>
+    <!-- wc3.dev's mark (wc3-dev/public/favicon.svg), drawn at 16 to 256 px (Sven, 2026-10-27). -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MoonwellEditor.Assets\MoonwellEditor.Assets.csproj" />
     <ProjectReference Include="..\MoonwellEditor.GameData\MoonwellEditor.GameData.csproj" />
     <ProjectReference Include="..\MoonwellEditor.Model\MoonwellEditor.Model.csproj" />
   </ItemGroup>

@@ -13,13 +13,22 @@ namespace MoonwellEditor.Model;
 /// upgrade its race (see <c>Folders</c>).
 /// </param>
 /// <param name="Changed">True when the map has a modification of the object.</param>
+/// <param name="Icon">
+/// The path of its icon (its Art - Icon field: the map's when it changes it, else the standard one); empty for a kind
+/// without icons (destructables, doodads) or none.
+/// </param>
+/// <param name="IconModes">
+/// The icon in each graphics mode (<c>sd</c>, <c>hd</c>, <c>de</c>) when it differs by mode; null when it does not.
+/// </param>
 public sealed record TreeEntry(
     string Id,
     string? BaseId,
     string Name,
     string Suffix,
     IReadOnlyList<string> Path,
-    bool Changed);
+    bool Changed,
+    string Icon = "",
+    IReadOnlyDictionary<string, string>? IconModes = null);
 
 /// <summary>One object with every field that applies to it, resolved against the map and the standard data.</summary>
 /// <param name="Kind">The kind's key (<c>unit</c>), as <see cref="Files.ObjectKinds.Key"/> names it.</param>
@@ -85,6 +94,15 @@ public sealed record ChainLink(string Name, string Id);
 /// <param name="Modes">
 /// The standard values per graphics mode (<c>sd</c>, <c>hd</c>, <c>de</c>) when they differ; null when they do not.
 /// </param>
+/// <param name="Asset">What game file the field names (<c>icon</c>, <c>model</c>, <c>texture</c>); null for none.</param>
+/// <param name="Meta">
+/// The metadata's type as written (<c>model</c>, <c>soundLabel</c>), which says how World Editor shows the field; null
+/// when not known.
+/// </param>
+/// <param name="Data">
+/// An ability's data field letter as a number (<c>DataA</c> is 1), which its tooltips name it by
+/// (<c>&lt;AHbz,DataA1&gt;</c>); 0 for any other field.
+/// </param>
 public sealed record FieldView(
     string Id,
     string Label,
@@ -99,4 +117,7 @@ public sealed record FieldView(
     bool Changed,
     bool Skin,
     string? Warning,
-    IReadOnlyDictionary<string, string>? Modes);
+    IReadOnlyDictionary<string, string>? Modes,
+    string? Asset = null,
+    string? Meta = null,
+    int Data = 0);

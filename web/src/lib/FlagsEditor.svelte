@@ -1,11 +1,14 @@
 <script lang="ts">
 /**
  * A flags field (any values of a list): a button with the labels of the values it holds, which opens a list of
- * checkboxes. Each tick is sent at once, as the data spells the list (`air,enemies`, or bits as a number).
+ * checkboxes. Each tick is sent at once, as the data spells the list (`air,enemies`, or bits as a number). The button
+ * is a box like the other fields' and as wide as its widest single choice, and says None when nothing is ticked (Sven,
+ * 2026-10-27); more labels than fit are cut, with all of them in its tooltip.
  */
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import type { ChoiceList, FieldView } from "./api.ts";
 import Popover from "./Popover.svelte";
+import { t } from "./text.ts";
 import { formatFlags, parseFlags } from "./values.ts";
 
 type Props = {
@@ -34,8 +37,15 @@ const options = $derived([
   ...list.entries,
   ...ticked
     .filter((value) => !list.entries.some((entry) => entry.value === value))
-    .map((value) => ({ value, label: list.store === "int" ? `Bit ${value}` : value })),
+    .map((value) => ({
+      value,
+      label: list.store === "int" ? t("flags.bit", { bit: value }) : value,
+    })),
 ]);
+
+// The widest single choice, in characters of the fixed-width font (and one spare); the padding, border, gap and
+// chevron take 32 pixels.
+const width = $derived(Math.max(4, ...options.map((option) => option.label.length)) + 1);
 
 async function toggle(value: string, on: boolean): Promise<void> {
   const next = on ? [...ticked, value] : ticked.filter((each) => each !== value);
@@ -49,19 +59,20 @@ async function toggle(value: string, on: boolean): Promise<void> {
 
 <button
   type="button"
-  class="flex w-full min-w-0 items-center gap-1 rounded border px-1.5 py-[3px] text-left font-mono text-[12.5px] hover:border-line focus:border-accent focus:outline-none {field.warning
+  class="flex min-w-0 cursor-pointer items-center gap-1 rounded border py-[3px] pr-1 pl-1.5 text-left font-mono text-[12.5px] focus:border-accent focus:outline-none {field.warning
     ? 'border-warn bg-warn-lo'
-    : 'border-transparent bg-bg'} {field.changed ? 'text-changed' : 'text-fg'} {compact
-    ? 'max-w-56'
-    : ''}"
-  title={shown}
+    : 'border-line bg-raised hover:border-muted'} {field.changed ? 'text-changed' : 'text-fg'} {compact
+    ? 'w-full max-w-56'
+    : 'max-w-full'}"
+  style:width={compact ? undefined : `calc(${width}ch + 32px)`}
+  title={shown === "" ? t("flags.none") : shown}
   data-field="{field.id}:{field.level}"
   aria-haspopup="dialog"
   aria-expanded={open}
   bind:this={button}
   onclick={() => (open = !open)}
 >
-  <span class="min-w-0 flex-1 truncate">{shown === "" ? " " : shown}</span>
+  <span class="min-w-0 flex-1 truncate {shown === '' ? 'text-faint' : ''}">{shown === "" ? t("flags.none") : shown}</span>
   <ChevronDown size={12} class="shrink-0 text-faint" />
 </button>
 {#if open && button}

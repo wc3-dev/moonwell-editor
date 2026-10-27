@@ -220,6 +220,38 @@ public sealed class CommandsTests : IDisposable
     }
 
     [Fact]
+    public async Task The_title_bar_drives_the_window_through_commands()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+        var heard = new List<string>();
+        commands.MinimizeAsked += () => heard.Add("minimize");
+        commands.MaximizeAsked += () => heard.Add("maximize");
+        commands.CloseClicked += () => heard.Add("close");
+        commands.FrameColorsChanged += (surface, border) => heard.Add($"{surface} {border}");
+        commands.UiScaleChanged += percent => heard.Add($"{percent}%");
+        commands.Maximized = () => true;
+        var bridge = new Bridge(commands.Run);
+
+        await Ask(commands, "minimizeWindow");
+        await Ask(commands, "maximizeWindow");
+        await Ask(commands, "closeClicked");
+        var state = await Ask(commands, "windowState");
+        var colors = Parse(await bridge.Handle(
+            "{\"id\":1,\"command\":\"frameColors\",\"args\":{\"surface\":\"#1f1f28\",\"border\":\"#363646\"}}"));
+        var scaled = Parse(await bridge.Handle("{\"id\":1,\"command\":\"uiScale\",\"args\":{\"percent\":120}}"));
+        var badScale = Parse(await bridge.Handle("{\"id\":1,\"command\":\"uiScale\",\"args\":{\"percent\":133}}"));
+        var bad = Parse(await bridge.Handle(
+            "{\"id\":1,\"command\":\"frameColors\",\"args\":{\"surface\":\"red\",\"border\":\"#363646\"}}"));
+
+        Assert.Equal(["minimize", "maximize", "close", "#1f1f28 #363646", "120%"], heard);
+        Assert.True(scaled.GetProperty("ok").GetBoolean());
+        Assert.False(badScale.GetProperty("ok").GetBoolean());
+        Assert.True(state.GetProperty("result").GetProperty("maximized").GetBoolean());
+        Assert.True(colors.GetProperty("ok").GetBoolean());
+        Assert.False(bad.GetProperty("ok").GetBoolean());
+    }
+
+    [Fact]
     public void With_no_map_nothing_is_unsaved()
     {
         var commands = Make(_ => throw new InvalidOperationException());

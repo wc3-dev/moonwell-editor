@@ -20,8 +20,68 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.Equal(
             ["Undead", "Melee", "Special"],
             Folders.Of(ObjectKind.Unit, Standard("uloc", "undead", special: true, hero: true)));
-        Assert.Equal(["Creeps", "Melee", "Units"], Folders.Of(ObjectKind.Unit, Standard("nfor", "creeps")));
-        Assert.Equal(["Other", "Melee", "Units"], Folders.Of(ObjectKind.Unit, Standard("nxxx", "")));
+
+        // A unit of no playable race is the naga's, or Neutral Hostile or Passive by its hostilePal, whatever its race
+        // (World Editor's screens, 2026-10-27).
+        Assert.Equal(
+            ["Neutral Hostile", "Melee", "Units"],
+            Folders.Of(ObjectKind.Unit, Standard("nfor", "creeps", hostile: true)));
+        Assert.Equal(["Neutral Passive", "Melee", "Units"], Folders.Of(ObjectKind.Unit, Standard("nalb", "critters")));
+        Assert.Equal(
+            ["Neutral Passive", "Melee", "Heroes"],
+            Folders.Of(ObjectKind.Unit, Standard("Npbm", "other", hero: true)));
+        Assert.Equal(
+            ["Neutral - Naga", "Campaign", "Units"],
+            Folders.Of(ObjectKind.Unit, Standard("nmyr", "naga", campaign: true, hostile: true)));
+        Assert.Equal(["Hidden in World Editor"], Folders.Of(ObjectKind.Unit, Standard("zshv", "other", hidden: true)));
+    }
+
+    [Fact]
+    public void Other_kinds_list_a_folder_by_name_after_worlds_editors_sort_column()
+    {
+        // Compared as written, as World Editor lists Call To Arms (Town Hall) before Call to Arms (Peasant).
+        var abilities = Folders.Sorted(
+            ObjectKind.Ability,
+            [
+                Standard("Amil", "human", category: "unit", name: "Call to Arms", suffix: "(Peasant)"),
+                Standard("Aflk", "human", category: "unit", name: "Flak Cannons"),
+                Standard("Amic", "human", category: "unit", name: "Call To Arms", suffix: "(Town Hall)"),
+            ]);
+        Assert.Equal(["Amic", "Amil", "Aflk"], abilities.Select(standard => standard.Id));
+
+        // Buffs of hero abilities come before the others; tree walls (doodClass A) before canopy trees (B) and the
+        // rest (_).
+        var buffs = Folders.Sorted(
+            ObjectKind.Buff,
+            [
+                Standard("Bclf", "human", category: "0", name: "Cloud", sort: "unit"),
+                Standard("BHtc", "human", category: "0", name: "Thunder Clap", sort: "hero"),
+                Standard("BHab", "human", category: "0", name: "Brilliance Aura", sort: "hero"),
+            ]);
+        Assert.Equal(["BHab", "BHtc", "Bclf"], buffs.Select(standard => standard.Id));
+        var destructables = Folders.Sorted(
+            ObjectKind.Destructable,
+            [
+                Standard("LTbr", "", category: "D", name: "Barrel", sort: "_"),
+                Standard("ATtc", "", category: "D", name: "Ashenvale Canopy Tree", sort: "B"),
+                Standard("LTlt", "", category: "D", name: "Summer Tree Wall", sort: "A"),
+            ]);
+        Assert.Equal(["LTlt", "ATtc", "LTbr"], destructables.Select(standard => standard.Id));
+    }
+
+    [Fact]
+    public void Units_of_a_folder_go_by_their_unit_class()
+    {
+        var sorted = Folders.Sorted(
+            ObjectKind.Unit,
+            [
+                Standard("hfoo", "human", category: "HUnit02"),
+                Standard("hxxx", "human"),
+                Standard("hpea", "human", category: "HUnit01"),
+                Standard("htow", "human", building: true, category: "HBuilding01"),
+            ]);
+
+        Assert.Equal(["hpea", "hfoo", "hxxx", "htow"], sorted.Select(standard => standard.Id));
     }
 
     [Fact]
@@ -35,7 +95,7 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
     [Fact]
     public void Destructables_and_doodads_go_by_category()
     {
-        Assert.Equal(["Trees/Destructables"], Folders.Of(ObjectKind.Destructable, Standard("LTlt", "", category: "D")));
+        Assert.Equal(["Trees/Destructibles"], Folders.Of(ObjectKind.Destructable, Standard("LTlt", "", category: "D")));
         Assert.Equal(["Pathing Blockers"], Folders.Of(ObjectKind.Destructable, Standard("YTpb", "", category: "P")));
         Assert.Equal(["Bridges/Ramps"], Folders.Of(ObjectKind.Destructable, Standard("LTw0", "", category: "B")));
         string[][] doodads =
@@ -72,8 +132,8 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
     [Fact]
     public void Buffs_go_by_race_then_buff_or_effect_and_upgrades_by_race()
     {
-        Assert.Equal(["Orc", "Buffs"], Folders.Of(ObjectKind.Buff, Standard("Boar", "orc", category: "0")));
-        Assert.Equal(["Special", "Effects"], Folders.Of(ObjectKind.Buff, Standard("Xbof", "other", category: "1")));
+        Assert.Equal(["Orc", "Buff"], Folders.Of(ObjectKind.Buff, Standard("Boar", "orc", category: "0")));
+        Assert.Equal(["Special", "Effect"], Folders.Of(ObjectKind.Buff, Standard("Xbof", "other", category: "1")));
         Assert.Equal(["Undead"], Folders.Of(ObjectKind.Upgrade, Standard("Rusp", "undead")));
         Assert.Equal(["Special"], Folders.Of(ObjectKind.Upgrade, Standard("Rnsw", "naga")));
         Assert.Equal(["Special"], Folders.Of(ObjectKind.Upgrade, Standard("Rxxx", "unknown")));
@@ -91,7 +151,21 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         var session = Session.Open(MapFolder.Open(map.Folder), game);
 
         var units = session.Tree(ObjectKind.Unit);
-        Assert.Equal(["Human", "Orc", "Undead", "Night Elf"], Groups(units, []).Take(4));
+        // As World Editor's tree shows them: 926 units, Neutral Hostile 299 (280 melee, 19 campaign) and Neutral
+        // Passive 197 (143 and 54), and the two it hides apart.
+        Assert.Equal(
+            [
+                "Human", "Orc", "Undead", "Night Elf", "Neutral - Naga", "Neutral Hostile", "Neutral Passive",
+                "Hidden in World Editor",
+            ],
+            Groups(units, []));
+        Assert.Equal(926, units.Count(entry => entry.Path[0] is not ("Custom" or "Hidden in World Editor")));
+        Assert.Equal(280, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Hostile", "Melee"])));
+        Assert.Equal(19, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Hostile", "Campaign"])));
+        Assert.Equal(143, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Passive", "Melee"])));
+        Assert.Equal(54, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Passive", "Campaign"])));
+        Assert.Equal(["Units", "Buildings", "Special"], Groups(units, ["Neutral Hostile", "Melee"]));
+        Assert.Equal(19, units.Count(entry => entry.Path[0] == "Neutral - Naga"));
         Assert.Equal(["Melee", "Campaign"], Groups(units, ["Night Elf"]));
         Assert.Equal(["Units", "Buildings", "Heroes", "Special"], Groups(units, ["Night Elf", "Melee"]));
 
@@ -99,7 +173,7 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
             ["Permanent", "Charged", "Power Up", "Artifact", "Purchasable", "Campaign", "Miscellaneous", "Equipment"],
             Groups(session.Tree(ObjectKind.Item), []));
         Assert.Equal(
-            ["Trees/Destructables", "Pathing Blockers", "Bridges/Ramps"],
+            ["Trees/Destructibles", "Pathing Blockers", "Bridges/Ramps"],
             Groups(session.Tree(ObjectKind.Destructable), []));
         Assert.Equal(
             ["Props", "Structures", "Water", "Cliff/Terrain", "Environment", "Cinematic"],
@@ -120,11 +194,50 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
 
         var buffs = session.Tree(ObjectKind.Buff);
         Assert.Equal(["Human", "Orc", "Undead", "Night Elf", "Special"], Groups(buffs, []));
-        Assert.Equal(["Buffs", "Effects"], Groups(buffs, ["Special"]));
+        Assert.Equal(["Buff", "Effect"], Groups(buffs, ["Special"]));
+        Assert.Equal(
+            ["Avatar", "Banish", "Blizzard", "Blizzard (Caster)", "Brilliance Aura", "Devotion Aura"],
+            buffs.Where(entry => entry.Path.SequenceEqual(["Human", "Buff"])).Select(entry => entry.Name).Take(6));
+        Assert.Equal(
+            ["Ashenvale Tree Wall", "Barrens Tree Wall", "Black Citadel Tree Wall"],
+            session.Tree(ObjectKind.Destructable).Where(entry => entry.Path[0] == "Trees/Destructibles")
+                .Select(entry => entry.Name).Take(3));
 
         Assert.Equal(
             ["Human", "Orc", "Undead", "Night Elf", "Special"],
             Groups(session.Tree(ObjectKind.Upgrade), []));
+
+        // A folder lists its units as World Editor does, by their unitClass (Sven, 2026-10-27).
+        Assert.Equal(
+            ["hpea", "hfoo", "hkni", "hrif", "hmtm", "hgyr", "hgry", "hmpr", "hsor", "hmtt", "hspt", "hdhw"],
+            Objects(units, ["Human", "Melee", "Units"]));
+        Assert.Equal(
+            [
+                "htow", "hkee", "hcas", "hhou", "halt", "hbar", "hlum", "hbla", "harm", "hars", "hgra", "hwtw", "hgtw",
+                "hctw", "hatw", "hvlt",
+            ],
+            Objects(units, ["Human", "Melee", "Buildings"]));
+        Assert.Equal(["Hpal", "Hamg", "Hmkg", "Hblm"], Objects(units, ["Human", "Melee", "Heroes"]));
+
+        // unitui.slk files the High Elf Archmage in the campaign, though the skin text says otherwise, and World Editor
+        // shows a campaign hero by its proper name; its campaign heroes go by class, then by name (Sven's screenshot).
+        var kelen = units.Single(entry => entry.Id == "Haah");
+        Assert.Equal(["Human", "Campaign", "Heroes"], kelen.Path);
+        Assert.Equal("Kelen the Seeker", kelen.Name);
+        Assert.Equal(
+            [
+                "Garek", "Landen", "Leonid", "Anasterian Sunstrider", "Thalorien Dawnseeker", "Kelen the Seeker",
+                "Admiral Proudmoore", "Antonidas", "Antonidas", "Arthas", "Arthas", "Dagren the Orcslayer",
+                "Halahk the Lifebringer", "Ilastar", "Jaina", "Jennalla Deemspring", "Kael", "Lord Garithos",
+                "Lord Maxwell Tyrosus", "Lord Nicholas Buzan", "Magroth the Defender", "Muradin Bronzebeard",
+                "Renault Mograine", "Sally Whitemane", "Sir Gregory Edmunson", "Sylvanas Windrunner", "Tomas", "Uther",
+            ],
+            units.Where(entry => entry.Path.SequenceEqual(["Human", "Campaign", "Heroes"])).Select(entry => entry.Name));
+
+        // Each object carries its icon for the tree; a custom one its base's unless the map changes it.
+        Assert.EndsWith("BTNPeasant.blp", units.Single(entry => entry.Id == "hpea").Icon, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual("", units[0].Icon);
+        Assert.Equal("", session.Tree(ObjectKind.Doodad)[^1].Icon);
 
         // The map's custom objects stay first.
         Assert.Equal(["Custom"], units[0].Path);
@@ -138,6 +251,10 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
             .Distinct()
             .ToList();
 
+    /// <summary>The ids of the objects in the folder <paramref name="path"/>, in tree order.</summary>
+    private static List<string> Objects(IReadOnlyList<TreeEntry> tree, string[] path) =>
+        tree.Where(entry => entry.Path.SequenceEqual(path)).Select(entry => entry.Id).ToList();
+
     private static StandardObject Standard(
         string id,
         string race,
@@ -146,9 +263,14 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         bool building = false,
         bool special = false,
         string category = "",
-        bool hidden = false) =>
-        new(id, id, "", race, campaign, hero, building, special, category, hidden, null,
-            new Dictionary<string, string>(), new Dictionary<string, IReadOnlyDictionary<string, string>>());
+        bool hidden = false,
+        bool hostile = false,
+        string? name = null,
+        string suffix = "",
+        string sort = "") =>
+        new(id, name ?? id, suffix, race, campaign, hero, building, special, category, hidden, null,
+            new Dictionary<string, string>(), new Dictionary<string, IReadOnlyDictionary<string, string>>(),
+            Hostile: hostile, Sort: sort);
 
     private bool Skipped(out GameData.GameData game)
     {

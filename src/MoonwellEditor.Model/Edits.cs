@@ -13,8 +13,12 @@ public sealed partial class Session
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    /// <summary>True when there are edits that are not saved.</summary>
-    public bool Dirty => _history.Dirty;
+    /// <summary>
+    /// True when the map differs from its files as opened or last saved: edits were made since and they changed an
+    /// object (see <see cref="ChangedObjects"/>). An edit made and then undone, or changed back, leaves nothing unsaved
+    /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved").
+    /// </summary>
+    public bool Dirty => _history.Dirty && ChangedObjects() > 0;
 
     /// <summary>Undoes the last edit; false when there is none.</summary>
     public bool Undo() => Reindex(_history.Undo());
@@ -226,7 +230,7 @@ public sealed partial class Session
         }
 
         var info = target.Field;
-        var resolver = new Resolver(target.Kind, target.Data, _strings);
+        var resolver = ResolverOf(target.Kind, target.Data);
         var standardValue = resolver.StandardValue(info, target.Level, target.Standard);
 
         // A yes/no field the data has no value for is No in the game, so setting No is no change.
@@ -261,7 +265,7 @@ public sealed partial class Session
 
         if (info.PerLevel)
         {
-            var levels = new Resolver(kind, data, _strings).Levels(standard, found);
+            var levels = ResolverOf(kind, data).Levels(standard, found);
             if (level < 1 || level > levels)
             {
                 throw new EditException(

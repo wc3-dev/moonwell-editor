@@ -9,7 +9,7 @@ namespace MoonwellEditor.Model;
 /// standard value. A custom object takes its standard values from its standard base, never from the map's changes to
 /// that base, as the game does.
 /// </summary>
-internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings)
+internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings, string? valueSet = null)
 {
     private const string KeyPrefix = "WESTRING_";
 
@@ -109,6 +109,11 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings)
         }
 
         chain.Add(new ChainLink(name, id));
+        if (kind == ObjectKind.Upgrade)
+        {
+            fields = WithEffects(fields);
+        }
+
         return new ObjectView(
             ObjectKinds.Key(kind),
             id,
@@ -137,6 +142,49 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings)
         }
 
         return standard is { Name.Length: > 0 } ? standard.Name : fallback;
+    }
+
+    /// <summary>
+    /// The path of the object's icon (its Art field; an upgrade's at level 1): the map's when it sets one, else the
+    /// standard object's; empty for a kind without icons.
+    /// </summary>
+    public string Icon(StandardObject? standard, MapObject? map) => IconOf(standard, map).Path;
+
+    /// <summary>
+    /// The icon's path in each graphics mode (<c>sd</c>, <c>hd</c>, <c>de</c>) when the standard object's differs by
+    /// mode and the map does not set one (the Priest: <c>BTNPriest</c> in Classic, <c>BTNPriestV1</c> otherwise); null
+    /// when one path serves every mode.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? IconModes(StandardObject? standard, MapObject? map) =>
+        IconOf(standard, map).Modes;
+
+    private (string Path, IReadOnlyDictionary<string, string>? Modes) IconOf(StandardObject? standard, MapObject? map)
+    {
+        var id = kind switch
+        {
+            ObjectKind.Unit => "uico",
+            ObjectKind.Item => "iico",
+            ObjectKind.Ability => "aart",
+            ObjectKind.Buff => "fart",
+            ObjectKind.Upgrade => "gar1",
+            _ => null,
+        };
+        var field = id == null ? null : data.Field(id);
+        if (field == null)
+        {
+            return ("", null);
+        }
+
+        var level = field.PerLevel ? 1 : 0;
+        var value = MapValue(field, level, map);
+        if (!string.IsNullOrEmpty(value))
+        {
+            return (value, null);
+        }
+
+        return standard == null
+            ? ("", null)
+            : (StandardValue(field, level, standard), standard.Modes.GetValueOrDefault(Key(field, level)));
     }
 
     /// <summary>The object's suffix: the map's when it sets one, else the standard object's.</summary>
@@ -186,8 +234,67 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings)
             mapValue != null,
             field.Skin,
             mapValue == null ? null : Warning(field, mapValue),
-            modes);
+            modes,
+            field.Asset,
+            field.Meta,
+            field.Pointer);
     }
+
+    /// <summary>
+    /// An upgrade's effect fields as World Editor shows them: Effect N's Base, Mod and Code take the label and type of
+    /// the effect Effect N names (<c>Effect 1 - Attack Dice Bonus - Base</c>, a whole number), and those the effect
+    /// does not use are left out, unless the map changes them. Any other field is kept as it is.
+    /// </summary>
+    private List<FieldView> WithEffects(List<FieldView> fields)
+    {
+        if (data.Effects.Count == 0)
+        {
+            return fields;
+        }
+
+        var effects = fields.Where(field => EffectNumber(field.Id, "gef") != null)
+            .ToDictionary(field => EffectNumber(field.Id, "gef")!, field => field.Value, StringComparer.Ordinal);
+        var result = new List<FieldView>(fields.Count);
+        foreach (var field in fields)
+        {
+            var (number, dataType) = EffectNumber(field.Id, "gba") is { } baseNumber ? (baseNumber, "Base")
+                : EffectNumber(field.Id, "gmo") is { } modNumber ? (modNumber, "Mod")
+                : EffectNumber(field.Id, "gco") is { } codeNumber ? (codeNumber, "Code")
+                : (null, "");
+            if (number == null)
+            {
+                result.Add(field);
+                continue;
+            }
+
+            var used = data.Effects.GetValueOrDefault(effects.GetValueOrDefault(number, ""))
+                ?.FirstOrDefault(each => each.DataType == dataType);
+            if (used == null)
+            {
+                if (field.Changed)
+                {
+                    result.Add(field);
+                }
+
+                continue;
+            }
+
+            result.Add(field with
+            {
+                Label = $"Effect {number} - {used.Label}",
+                Type = used.Type,
+                Choice = used.Choice,
+                ListOf = used.ListOf,
+                Meta = used.Type,
+            });
+        }
+
+        return result;
+    }
+
+    /// <summary>The effect number of an upgrade field <c>prefix</c>N (<c>gba1</c> is 1); null for any other field.</summary>
+    private static string? EffectNumber(string id, string prefix) =>
+        id.Length == 4 && id.StartsWith(prefix, StringComparison.Ordinal) && char.IsAsciiDigit(id[3]) ? id[3..] : null;
 
     /// <summary>
     /// What is wrong with a value the map sets, by the field's rules (World Editor's limits); null when nothing is. A
@@ -257,7 +364,14 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings)
     /// </summary>
     internal string StandardValue(FieldInfo field, int level, StandardObject standard)
     {
-        var text = standard.Values.GetValueOrDefault(Key(field, level), "");
+        // The map's balance set's value where it has its own (World Editor shows the values the map's data set
+        // reads; Sven, 2026-10-27), else the base tables'.
+        var key = Key(field, level);
+        var text = valueSet != null
+                   && standard.Sets?.GetValueOrDefault(valueSet) is { } set
+                   && set.TryGetValue(key, out var own)
+            ? own
+            : standard.Values.GetValueOrDefault(key, "");
         if (field.Store is "real" or "unreal"
             && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
         {

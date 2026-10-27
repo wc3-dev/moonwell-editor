@@ -51,7 +51,19 @@ export type MapInfo = {
   problems: string[];
   /** How many custom objects it has, by kind. */
   counts: Record<Kind, number>;
+  /** Its name from its info file (a strings-file text resolved); null or absent when it has none. */
+  title?: string | null;
+  /** True for a Frozen Throne map, false for Reign of Chaos; null or absent when unknown. */
+  expansion?: boolean | null;
+  /** Its game data option, from its war3map.w3i; null when that is missing or cannot be read. */
+  options: MapOptions | null;
 };
+
+/**
+ * A map's game data option: World Editor's Data Set (Default, Custom, Melee) and Data Version (Reign of Chaos, Frozen
+ * Throne, Forsaken Kingdom), and the tables the game reads under it: `base`, `custom_v0`, `custom_v1` or `melee_v0`.
+ */
+export type MapOptions = { dataSet: string; dataVersion: string; values: string; objects: string };
 
 /** One object in a kind's tree. */
 export type TreeEntry = {
@@ -65,6 +77,10 @@ export type TreeEntry = {
   path: string[];
   /** True when the map has a modification of the object. */
   changed: boolean;
+  /** Its icon's path (`ReplaceableTextures\CommandButtons\BTNPeasant.blp`); "" or absent for none. */
+  icon?: string;
+  /** Its icon in each graphics mode (`sd`, `hd`, `de`) when that differs by mode; absent or null when not. */
+  iconModes?: Record<string, string> | null;
 };
 
 /** One link of an object's chain; `id` is "" for a link that is not an object (the kind, a hero, a building). */
@@ -98,6 +114,12 @@ export type FieldView = {
   warning: string | null;
   /** The standard values per graphics mode (`sd`, `hd`, `de`) when they differ; null when they do not. */
   modes: Record<string, string> | null;
+  /** What game file the field names: `icon`, `model` or `texture`; absent or null for none. */
+  asset?: "icon" | "model" | "texture" | null;
+  /** The metadata's type as written (`model`, `soundLabel`), which says how World Editor shows it; absent when not known. */
+  meta?: string | null;
+  /** An ability's data field letter as a number (`DataA` is 1), which its tooltips name it by; 0 or absent for others. */
+  data?: number;
 };
 
 /** One object with every field that applies to it. */
@@ -130,6 +152,8 @@ export type ChoiceEntry = {
   label: string;
   /** The other spellings the game's data uses for the value (`aliv` for `alive`); left out or empty when none. */
   alternates?: string[];
+  /** The heading the value is listed under (a building's shadow under Buildings); absent or null for none. */
+  group?: string | null;
 };
 
 /** The values World Editor offers for one type of field. */
@@ -161,6 +185,8 @@ export type FieldInfo = {
   choice: string | null;
   /** For an `objectList` or `objectRef` field, what it holds; null for other types. */
   listOf: string | null;
+  /** The metadata's type as written (`model`, `soundLabel`), which says how World Editor shows it. */
+  meta?: string;
 };
 
 /** One column of the table: a field, at a level (from 1) for a per-level field, else 0. */
@@ -315,6 +341,14 @@ export function search(query: string, limit: number): Promise<Hit[]> {
   return call<Hit[]>("search", { query, limit });
 }
 
+/**
+ * The names World Editor shows files by: by sort of file (`icon`, `model`, `pathing`, `shadow`, `splat`, `texture`),
+ * then by the file's key (`assetKey`), the objects that use it, tagged by field ("Holy Light <Research>").
+ */
+export function assetNames(): Promise<Record<string, Record<string, string[]>>> {
+  return call<Record<string, Record<string, string[]>>>("assetNames");
+}
+
 /** Every choice list, by the key a `FieldView`'s `choice` names. */
 export function choices(): Promise<Record<string, ChoiceList>> {
   return call<Record<string, ChoiceList>>("choices");
@@ -372,4 +406,66 @@ export async function closeAsking(): Promise<void> {
 /** Closes the window, unsaved edits or not. */
 export async function closeWindow(): Promise<void> {
   await call<null>("closeWindow");
+}
+
+/** The window's state, for the title bar. */
+export type WindowState = { maximized: boolean };
+
+/** Whether the window is maximized. */
+export function windowState(): Promise<WindowState> {
+  return call<WindowState>("windowState");
+}
+
+/** Listens to `windowState`, which the app sends when the window is maximized or restored. */
+export function onWindowState(handler: (state: WindowState) => void): () => void {
+  return on("windowState", (payload) => handler(payload as WindowState));
+}
+
+/** Minimizes the window. */
+export async function minimizeWindow(): Promise<void> {
+  await call<null>("minimizeWindow");
+}
+
+/** Maximizes the window, or restores it when it is maximized. */
+export async function maximizeWindow(): Promise<void> {
+  await call<null>("maximizeWindow");
+}
+
+/** Closes the window as its close button does: unsaved edits are asked about first (see `onCloseRequested`). */
+export async function closeClicked(): Promise<void> {
+  await call<null>("closeClicked");
+}
+
+/** Scales the page, in percent (one of the settings' steps). */
+export async function uiScale(percent: number): Promise<void> {
+  await call<null>("uiScale", { percent });
+}
+
+/** Gives the window's frame the theme's title bar and border colours (`#rrggbb`). */
+export async function frameColors(surface: string, border: string): Promise<void> {
+  await call<null>("frameColors", { surface, border });
+}
+
+/** Where the page loads the game's and the map's files from (the window serves this host). */
+const assetHost = "https://game.moonwelleditor";
+
+/**
+ * The URL of an icon (any texture) as PNG, by the path object data writes, in a graphics mode (`sd`, `hd`, `de`):
+ * the mode's own files first.
+ */
+export function iconUrl(path: string, mode: string): string {
+  return `${assetHost}/icon?path=${encodeURIComponent(path)}&mode=${mode}`;
+}
+
+/** The URL of a game or map file's bytes (a model, a texture), by the path object data writes, in a graphics mode. */
+export function fileUrl(path: string, mode: string): string {
+  return `${assetHost}/file?path=${encodeURIComponent(path)}&mode=${mode}`;
+}
+
+/** The game's icons or models, for the pickers; `ready` is false while the install opens or when there is none. */
+export type AssetList = { ready: boolean; error: string | null; folder: string; paths: string[] };
+
+/** Lists the game's icons or models in a graphics mode, as object data writes their paths. */
+export function assetList(kind: "icon" | "model", mode: string): Promise<AssetList> {
+  return call<AssetList>("assetList", { kind, mode });
 }

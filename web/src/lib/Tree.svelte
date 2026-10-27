@@ -6,8 +6,19 @@
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import { tick, untrack } from "svelte";
-import type { Kind, TreeEntry } from "./api.ts";
-import { customKey, groupKeys, groupName, kindNames, nextObject, treeLines } from "./tree.ts";
+import { iconUrl, type Kind, type TreeEntry } from "./api.ts";
+import { graphics } from "./graphics.svelte.ts";
+import { prefs } from "./prefs.svelte.ts";
+import { t } from "./text.ts";
+import {
+  customKey,
+  groupKeys,
+  groupName,
+  kindNames,
+  nextObject,
+  standardKey,
+  treeLines,
+} from "./tree.ts";
 
 type Props = {
   kind: Kind;
@@ -21,6 +32,11 @@ type Props = {
   oncontext: (id: string, x: number, y: number) => void;
   /** The filter text (name or id); the Table view filters its rows by it too. */
   filter?: string;
+  /**
+   * True while the tree is where the user is (Ctrl C copies its object): the selection shows strong; otherwise it
+   * shows which object is open, faintly (Sven, 2026-10-27).
+   */
+  active?: boolean;
 };
 
 let {
@@ -31,21 +47,20 @@ let {
   onselect,
   oncontext,
   filter = $bindable(""),
+  active = true,
 }: Props = $props();
 
 const rowHeight = 26;
-// The Standard heading and the Custom group look the same (Sven, 2026-10-27).
-const headingClass = "flex items-end pb-1 text-xs tracking-[.06em] text-muted uppercase";
 const overscan = 12;
 
-// Groups the user opened or closed, by `kind:path`; any other is closed, except Custom, which starts open.
+// Groups the user opened or closed, by `kind:path`; any other is closed, except Custom and Standard, which start open.
 let toggled = $state<Record<string, boolean>>({});
 let scroller: HTMLDivElement | undefined = $state();
 let scrollTop = $state(0);
 let height = $state(0);
 
 function isOpen(key: string): boolean {
-  return toggled[key] ?? key === customKey(kind);
+  return toggled[key] ?? (key === customKey(kind) || key === standardKey(kind));
 }
 
 const lines = $derived(entries ? treeLines(entries, kind, filter, isOpen) : []);
@@ -116,8 +131,8 @@ function clearOnEscape(event: KeyboardEvent): void {
   <div class="border-b border-line px-2.5 py-2">
     <input
       class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
-      placeholder="Filter the tree (name or id)…"
-      aria-label="Filter the tree"
+      placeholder={t("tree.filterPlaceholder")}
+      aria-label={t("tree.filterLabel")}
       bind:value={filter}
       onkeydown={clearOnEscape}
     />
@@ -126,15 +141,15 @@ function clearOnEscape(event: KeyboardEvent): void {
   {#if error}
     <p class="px-2.5 text-warn">{error}</p>
   {:else if !entries}
-    <p class="px-2.5 text-muted">Loading the tree…</p>
+    <p class="px-2.5 text-muted">{t("tree.loading")}</p>
   {:else if lines.length === 0}
-    <p class="px-2.5 text-muted">Nothing matches “{filter}”.</p>
+    <p class="px-2.5 text-muted">{t("tree.noMatch", { filter })}</p>
   {/if}
 
   <div
     class="min-h-0 flex-1 overflow-auto outline-none"
     role="tree"
-    aria-label="{kindNames[kind]} tree"
+    aria-label={t("tree.label", { kind: kindNames[kind] })}
     tabindex="0"
     bind:this={scroller}
     bind:clientHeight={height}
@@ -144,15 +159,12 @@ function clearOnEscape(event: KeyboardEvent): void {
     <div class="relative" style:height="{lines.length * rowHeight}px">
       <div class="absolute inset-x-0 top-0" style:transform="translateY({first * rowHeight}px)">
         {#each visible as line (line.key)}
-          {#if line.type === "heading"}
-            <div class="{headingClass} px-2.5" style:height="{rowHeight}px">
-              {line.text}
-            </div>
-          {:else if line.type === "group" && line.depth < 0}
-            <!-- Custom: a heading like Standard, with its arrow in the margin so the two words line up. -->
+          {#if line.type === "group" && line.depth < 0}
+            <!-- Custom and Standard: the same heading, which opens and closes, its arrow in the groups' arrow column
+                 (Sven, 2026-10-27). -->
             <button
               type="button"
-              class="{headingClass} relative w-full pr-2.5 pl-2.5 text-left"
+              class="flex w-full items-center gap-1.5 pr-2.5 pl-2.5 text-left text-xs tracking-[.06em] text-muted uppercase hover:text-fg"
               style:height="{rowHeight}px"
               aria-expanded={line.open}
               onclick={() => {
@@ -160,8 +172,8 @@ function clearOnEscape(event: KeyboardEvent): void {
                 focusTree();
               }}
             >
-              <span class="absolute bottom-1 left-0 flex h-4 w-2.5 items-center justify-center">
-                {#if line.open}<ChevronDown size={10} />{:else}<ChevronRight size={10} />{/if}
+              <span class="flex w-3 shrink-0 items-center text-faint">
+                {#if line.open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
               </span>
               {line.name}
               <span class="ml-auto font-mono text-[11px] tracking-normal text-faint normal-case">{line.count}</span>
@@ -178,7 +190,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                 focusTree();
               }}
             >
-              <span class="w-3 text-faint">
+              <span class="flex w-3 shrink-0 items-center text-faint">
                 {#if line.open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
               </span>
               {groupName(line.name)}
@@ -193,7 +205,9 @@ function clearOnEscape(event: KeyboardEvent): void {
               aria-selected={entry.id === selected}
               class="flex w-full items-center gap-1.5 pr-2.5 text-left whitespace-nowrap {entry.id ===
               selected
-                ? 'bg-accent/16 text-fg'
+                ? active
+                  ? 'bg-accent/25 text-fg shadow-[inset_2px_0_0_var(--accent)]'
+                  : 'bg-hover text-fg'
                 : 'hover:bg-hover'}"
               style:height="{rowHeight}px"
               style:padding-left="{10 + line.depth * 16}px"
@@ -208,6 +222,27 @@ function clearOnEscape(event: KeyboardEvent): void {
               }}
             >
               <span class="w-3 shrink-0"></span>
+              <!-- Its icon, as World Editor shows one beside each object (Sven, 2026-10-27). -->
+              {#if entry.icon}
+                <!-- With the setting on, a frame in the theme's colours covers the game's own icon border; only
+                     here, in the tree (Sven, 2026-10-27). -->
+                <span class="relative size-[18px] shrink-0">
+                  <img
+                    src={iconUrl(entry.iconModes?.[graphics.mode] ?? entry.icon, graphics.mode)}
+                    alt=""
+                    class="block size-full rounded-[2px]"
+                    loading="lazy"
+                    draggable="false"
+                    onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = "hidden")}
+                  />
+                  {#if prefs.iconFrames}
+                    <span
+                      class="pointer-events-none absolute inset-0 rounded-[2px] shadow-[inset_0_0_0_1px_var(--faint)]"
+                      aria-hidden="true"
+                    ></span>
+                  {/if}
+                </span>
+              {/if}
               <span class="truncate {entry.baseId ? 'text-accent-hi' : ''}">
                 {entry.name}
                 {#if entry.suffix}<span class="text-muted">{entry.suffix}</span>{/if}
@@ -215,7 +250,7 @@ function clearOnEscape(event: KeyboardEvent): void {
               {#if entry.changed && !entry.baseId}
                 <span
                   class="size-1.5 shrink-0 rounded-full bg-changed"
-                  title="The map changes this standard object"
+                  title={t("tree.changedStandard")}
                 ></span>
               {/if}
               <span class="ml-auto pl-2 font-mono text-[12.5px] text-faint">{entry.id}</span>

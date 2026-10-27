@@ -3,9 +3,11 @@
  * Per-level fields as a grid: one row per field, its levels (a doodad's variations) across. When the object can be
  * edited, each cell is the level's editor, with ↺ when the level is changed.
  */
-import type { ChoiceList, FieldView, Kind } from "./api.ts";
+import { type ChoiceList, type FieldView, iconUrl, type Kind } from "./api.ts";
 import FieldEditor from "./FieldEditor.svelte";
-import { isChanged, type Lookup, type Row, shownValue } from "./fields.ts";
+import { isChanged, type Lookup, namesOf, type Row, shownValue } from "./fields.ts";
+import { graphics } from "./graphics.svelte.ts";
+import { t } from "./text.ts";
 
 type Props = {
   rows: Row[];
@@ -22,6 +24,8 @@ type Props = {
   onselect: (field: FieldView) => void;
   /** A right click on a level's cell, for its context menu. */
   onmenu: (field: FieldView, x: number, y: number) => void;
+  /** The game's interface icon a field's row shows before its name (mana for a mana cost); undefined for none. */
+  iconOf?: (field: FieldView) => string | undefined;
 };
 
 let {
@@ -36,6 +40,7 @@ let {
   selected,
   onselect,
   onmenu,
+  iconOf = () => undefined,
 }: Props = $props();
 
 function menuOf(field: FieldView, event: MouseEvent): void {
@@ -47,7 +52,7 @@ function menuOf(field: FieldView, event: MouseEvent): void {
 // Why a cell's last value was refused, by `field:level`.
 let errors = $state<Record<string, string>>({});
 
-const nameOf = (listOf: string, id: string) => lookup(listOf, id)?.name;
+const nameOf = namesOf((listOf, id) => lookup(listOf, id));
 const columns = $derived(
   Array.from(
     { length: Math.max(0, ...rows.map((row) => row.levels?.length ?? 0)) },
@@ -56,8 +61,8 @@ const columns = $derived(
 );
 
 function cellTitle(field: FieldView, shown: string): string {
-  const lines = [`Level ${field.level}: ${shown}`];
-  if (field.changed) lines.push(`Standard: ${standardOf(field)}`);
+  const lines = [t("levelGrid.cellTitle", { level: field.level, value: shown })];
+  if (field.changed) lines.push(t("field.standard", { value: standardOf(field) }));
   if (field.warning) lines.push(field.warning);
   return lines.join("\n");
 }
@@ -87,10 +92,13 @@ async function reset(field: FieldView): Promise<void> {
       </thead>
       <tbody>
         {#each rows as row (row.id)}
-          <tr>
+          <tr data-changed={isChanged(row) || undefined}>
             <th class="border border-line px-2 py-0.5 text-left font-normal whitespace-nowrap">
               <span class="inline-flex items-center gap-1.5">
                 <span class="h-3.5 w-1 rounded-sm {isChanged(row) ? 'bg-changed' : ''}"></span>
+                {#if iconOf(row.field)}
+                  <img src={iconUrl(iconOf(row.field) ?? "", graphics.mode)} alt="" class="size-4" draggable="false" />
+                {/if}
                 {row.label}
                 {#if showIds}<span class="font-mono text-[12.5px] text-faint">{row.id}</span>{/if}
               </span>
@@ -100,11 +108,12 @@ async function reset(field: FieldView): Promise<void> {
               {@const key = `${field.id}:${field.level}`}
               {#if editable}
                 <td
-                  class="group border p-0 align-top {field.warning || errors[key]
+                  class="group border p-0 align-middle {field.warning || errors[key]
                     ? 'border-warn'
                     : 'border-line'} {selected === key ? 'bg-accent/10 outline outline-1 -outline-offset-1 outline-accent/60' : ''}"
                   title={field.warning ?? undefined}
                   onfocusin={() => onselect(field)}
+                  onpointerdown={() => onselect(field)}
                   oncontextmenu={(event) => menuOf(field, event)}
                 >
                   <span class="flex items-center">
@@ -123,9 +132,11 @@ async function reset(field: FieldView): Promise<void> {
                       <button
                         type="button"
                         class="px-1 text-xs text-changed opacity-40 group-hover:opacity-100 hover:text-fg focus:opacity-100"
-                        title="Level {field.level} back to the standard value: {standardOf(field) ||
-                          '(empty)'}"
-                        aria-label="Reset {row.label} level {field.level}"
+                        title={t("levelGrid.resetTitle", {
+                          level: field.level,
+                          value: standardOf(field) || t("field.empty"),
+                        })}
+                        aria-label={t("levelGrid.resetLabel", { field: row.label, level: field.level })}
                         onclick={() => reset(field)}
                       >
                         ↺

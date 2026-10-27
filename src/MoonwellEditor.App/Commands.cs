@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MoonwellEditor.Files;
 using MoonwellEditor.Model;
+using ChoiceList = MoonwellEditor.GameData.ChoiceList;
 using Data = MoonwellEditor.GameData.GameData;
 
 namespace MoonwellEditor.App;
@@ -35,12 +36,21 @@ public sealed record Startup(string? Map);
 /// <param name="Archive">True for an archive (<c>.w3x</c>, <c>.w3m</c>), false for a folder.</param>
 /// <param name="Problems">What was wrong with its files (see <see cref="Session.Problems"/>).</param>
 /// <param name="Counts">How many custom objects it has, by kind key (<c>unit</c>).</param>
+/// <param name="Title">The map's name from its info file (Scenario > Map Properties); null when it has none.</param>
+/// <param name="Expansion">True for a Frozen Throne map, false for Reign of Chaos; null when unknown.</param>
+/// <param name="Options">
+/// Its game data option (World Editor's Data Set and Data Version, and the tables the game reads under it); null when
+/// its <c>war3map.w3i</c> is missing or cannot be read.
+/// </param>
 public sealed record MapInfo(
     string Name,
     string Path,
     bool Archive,
     IReadOnlyList<string> Problems,
-    IReadOnlyDictionary<string, int> Counts);
+    IReadOnlyDictionary<string, int> Counts,
+    MapOptions? Options,
+    string? Title = null,
+    bool? Expansion = null);
 
 /// <summary>The open map and where it stands, for a page that was loaded again (the <c>currentMap</c> command).</summary>
 /// <param name="Map">The open map, as <c>openMap</c> gave it.</param>
@@ -56,6 +66,7 @@ public sealed record CurrentMap(MapInfo Map, SessionState Session);
 /// <param name="PerLevel">True when the field has a value for each level.</param>
 /// <param name="Choice">For a <c>choice</c> field, the key of its list in <c>choices</c>; null for other types.</param>
 /// <param name="ListOf">For an object list or reference, what it holds; null for other types.</param>
+/// <param name="Meta">The metadata's type as written (<c>model</c>), which says how World Editor shows the field.</param>
 public sealed record FieldDescription(
     string Id,
     string Label,
@@ -64,7 +75,19 @@ public sealed record FieldDescription(
     string Type,
     bool PerLevel,
     string? Choice,
-    string? ListOf);
+    string? ListOf,
+    string Meta = "");
+
+/// <summary>The game's files of a kind, for the icon and model pickers (the <c>assetList</c> command).</summary>
+/// <param name="Ready">True once the Warcraft III install is open.</param>
+/// <param name="Error">Why it could not be opened; null when it was, or while it opens.</param>
+/// <param name="Folder">The install's folder.</param>
+/// <param name="Paths">The files, as object data writes their paths; empty until the install is open.</param>
+public sealed record AssetList(bool Ready, string? Error, string Folder, IReadOnlyList<string> Paths);
+
+/// <summary>The window's state, for the page's title bar (the <c>windowState</c> command and event).</summary>
+/// <param name="Maximized">True when the window is maximized.</param>
+public sealed record WindowState(bool Maximized);
 
 /// <summary>What <c>setCells</c> answers with.</summary>
 /// <param name="Changed">How many cells changed (a cell that already had its value changes nothing).</param>
@@ -89,6 +112,10 @@ public sealed class Commands
 
     private string? _source;
     private Data? _data;
+
+    // The names World Editor shows files by, made once per game data.
+    private (Data Data, Dictionary<string, Dictionary<string, List<string>>> Names)? _assetNames;
+    private (Data Data, IReadOnlyDictionary<string, ChoiceList> Lists)? _choices;
     private string? _error;
     private int _generation;
     private int _version;
@@ -148,6 +175,45 @@ public sealed class Commands
     /// </summary>
     public event Action? CloseApproved;
 
+    /// <summary>Raised when the page's title bar minimizes the window (the <c>minimizeWindow</c> command).</summary>
+    public event Action? MinimizeAsked;
+
+    /// <summary>
+    /// Raised when the page's title bar maximizes the window, or restores it when it is maximized (the
+    /// <c>maximizeWindow</c> command).
+    /// </summary>
+    public event Action? MaximizeAsked;
+
+    /// <summary>
+    /// Raised when the page's title bar closes the window (the <c>closeClicked</c> command): the window closes as with
+    /// any close, asking the page about unsaved edits first.
+    /// </summary>
+    public event Action? CloseClicked;
+
+    /// <summary>
+    /// Raised when the page puts on a theme (the <c>frameColors</c> command): its title bar colour and its border colour,
+    /// as <c>#rrggbb</c>, for the window's frame.
+    /// </summary>
+    public event Action<string, string>? FrameColorsChanged;
+
+    /// <summary>
+    /// The steps the page can be scaled to, in percent (the <c>uiScale</c> command; Sven, 2026-10-27: 80, 100 and 120
+    /// for now).
+    /// </summary>
+    public static readonly int[] UiScales = [80, 100, 120];
+
+    /// <summary>Raised when the page asks for another scale (the <c>uiScale</c> command), in percent.</summary>
+    public event Action<int>? UiScaleChanged;
+
+    /// <summary>The icons and models of the game and the open map; null when the window has none (the tests).</summary>
+    public GameAssets? Assets { get; set; }
+
+    /// <summary>The open map's files; null until a map is open.</summary>
+    public IMapStore? Store => _store;
+
+    /// <summary>Whether the window is maximized, for the page's title bar (the <c>windowState</c> command).</summary>
+    public Func<bool> Maximized { get; set; } = () => false;
+
     /// <summary>True when a map is open with edits that are not saved.</summary>
     public bool Dirty => _session?.Dirty ?? false;
 
@@ -203,6 +269,12 @@ public sealed class Commands
     /// </exception>
     public Task<object?> Run(string command, JsonElement args)
     {
+        // The lists World Editor offers from the install's files (ground textures) wait for the install to open.
+        if (command == "choices" && Assets is { Ready: false, Error: null } assets)
+        {
+            return assets.Loading.ContinueWith(_ => Run(command, args), TaskScheduler.Default).Unwrap();
+        }
+
         try
         {
             return Task.FromResult(RunNow(command, args));
@@ -244,12 +316,20 @@ public sealed class Commands
             "save" => Changed(Map().Save()),
             "reload" => Reload(Flag(args, "discard")),
             "search" => Map().Search(Text(args, "query"), Number(args, "limit")),
-            "choices" => NeedGameData().Choices,
+            "choices" => ChoicesOf(NeedGameData()),
+            "assetNames" => AssetNamesOf(NeedGameData()),
             "fields" => Fields(Kind(args)),
             "table" => TableOf(args),
             "setCells" => SetCells(args),
             "closeAsking" => Raise(CloseAsking),
             "closeWindow" => Raise(CloseApproved),
+            "minimizeWindow" => Raise(MinimizeAsked),
+            "maximizeWindow" => Raise(MaximizeAsked),
+            "closeClicked" => Raise(CloseClicked),
+            "windowState" => new WindowState(Maximized()),
+            "frameColors" => FrameColors(Text(args, "surface"), Text(args, "border")),
+            "uiScale" => UiScale(Number(args, "percent")),
+            "assetList" => AssetsOf(Text(args, "kind"), OptionalText(args, "mode") ?? "de"),
             _ => throw new UnknownCommandException(command),
         };
 
@@ -280,6 +360,7 @@ public sealed class Commands
         var store = MapStore.Open(path);
         var session = Session.Open(store, data);
         _store = store;
+        Assets?.MapChanged();
         _session = session;
         try
         {
@@ -298,6 +379,7 @@ public sealed class Commands
         var session = Map();
         RefuseUnsaved(discard, "reload the map");
         session.Reload();
+        Assets?.MapChanged();
         return Changed(Info(_store!, session));
     }
 
@@ -330,7 +412,16 @@ public sealed class Commands
         }
 
         var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(store.Path));
-        return new MapInfo(name, store.Path, store.IsArchive, session.Problems, counts);
+        var header = MapOptions.Header(store);
+        return new MapInfo(
+            name,
+            store.Path,
+            store.IsArchive,
+            session.Problems,
+            counts,
+            MapOptions.Read(store),
+            header is { } known ? session.Text(known.Name) : null,
+            header?.Expansion);
     }
 
     // An object of a read-only kind is shown too: its view says why it cannot be edited.
@@ -356,14 +447,88 @@ public sealed class Commands
         return Changed(ObjectOf(kind, id));
     }
 
+    /// <summary>
+    /// The game data's lists, with the lists World Editor offers for fields the data keeps as text (the <c>choices</c>
+    /// command): <c>shadowTexture</c> from the standard objects, and <c>uberSplat</c> from the install's splat table
+    /// and World Editor's strings, when the install is open (Sven, 2026-10-27).
+    /// </summary>
+    private IReadOnlyDictionary<string, ChoiceList> ChoicesOf(Data data)
+    {
+        lock (_lock)
+        {
+            if (_choices is { } made && ReferenceEquals(made.Data, data))
+            {
+                return made.Lists;
+            }
+        }
+
+        var lists = new Dictionary<string, ChoiceList>(data.Choices, StringComparer.Ordinal)
+        {
+            ["shadowTexture"] = OfferedLists.Shadows(data),
+        };
+        var assets = Assets;
+        if (assets is { Ready: true })
+        {
+            var splats = OfferedLists.Splats(
+                assets.File(@"Splats\UberSplatData.slk", "sd"),
+                OfferedLists.Strings(assets.File(@"UI\WorldEditStrings.txt", "sd")));
+            if (splats != null)
+            {
+                lists["uberSplat"] = splats;
+            }
+        }
+
+        lock (_lock)
+        {
+            // Without the install the splats are asked for again next time.
+            if (assets is not { Ready: false })
+            {
+                _choices = (data, lists);
+            }
+        }
+
+        return lists;
+    }
+
     // The kind's fields in World Editor's order: by category, then by sort key, then by id.
+    /// <summary>
+    /// The names World Editor shows an icon, model or texture by (<see cref="AssetNames.Of"/>), by sort of file, then
+    /// by file key (the <c>assetNames</c> command).
+    /// </summary>
+    private Dictionary<string, Dictionary<string, List<string>>> AssetNamesOf(Data data)
+    {
+        lock (_lock)
+        {
+            if (_assetNames is { } made && ReferenceEquals(made.Data, data))
+            {
+                return made.Names;
+            }
+        }
+
+        var names = AssetNames.Of(data);
+        lock (_lock)
+        {
+            _assetNames = (data, names);
+        }
+
+        return names;
+    }
+
     private List<FieldDescription> Fields(ObjectKind kind)
     {
         var fields = new List<FieldDescription>();
         foreach (var field in NeedGameData().Kind(kind).Fields)
         {
             fields.Add(new FieldDescription(
-                field.Id, field.Label, field.Category, field.Sort, field.Type, field.PerLevel, field.Choice, field.ListOf));
+                field.Id,
+                field.Label,
+                field.Category,
+                field.Sort,
+                field.Type,
+                field.PerLevel,
+                field.Choice,
+                field.ListOf,
+                field.Meta));
         }
 
         fields.Sort((a, b) =>
@@ -427,6 +592,44 @@ public sealed class Commands
         Map().Delete(Kind(args), Text(args, "id"));
         return Changed<object?>(null);
     }
+
+    private AssetList AssetsOf(string kind, string mode)
+    {
+        if (kind is not ("icon" or "model"))
+        {
+            throw BadRequest($"The kind {kind} is not icon or model.");
+        }
+
+        var assets = Assets;
+        return assets == null
+            ? new AssetList(false, "This window shows no game files.", "", [])
+            : new AssetList(assets.Ready, assets.Error, assets.GameFolder, assets.List(kind, mode));
+    }
+
+    private object? UiScale(int percent)
+    {
+        if (Array.IndexOf(UiScales, percent) < 0)
+        {
+            throw BadRequest($"The scale {percent}% is not one of {string.Join(", ", UiScales)}.");
+        }
+
+        UiScaleChanged?.Invoke(percent);
+        return null;
+    }
+
+    private object? FrameColors(string surface, string border)
+    {
+        if (!IsColor(surface) || !IsColor(border))
+        {
+            throw BadRequest("frameColors takes two colours as #rrggbb.");
+        }
+
+        FrameColorsChanged?.Invoke(surface, border);
+        return null;
+    }
+
+    private static bool IsColor(string text) =>
+        text.Length == 7 && text[0] == '#' && text.Skip(1).All(char.IsAsciiHexDigit);
 
     private static object? Raise(Action? handler)
     {

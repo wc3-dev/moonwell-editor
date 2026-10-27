@@ -310,8 +310,9 @@ resolves a value on demand:
   reference. A string that was inline stays inline; a new string is written inline (Moonwell writes strings inline
   and the game reads them). *(Agent's call.)*
 
-The tree, as in World Editor: Custom (this map's new objects) first, then Standard by race, then Melee / Campaign,
-then Units / Buildings / Heroes / Special for units. The object's header shows its chain (Unit › Hero › Paladin ›
+The tree, as in World Editor: Standard by race, then Melee / Campaign, then Units / Buildings / Heroes / Special for
+units, then Custom (this map's new objects) last (corrected 2026-10-27 from World Editor's screen, which had been
+read as Custom first). The object's header shows its chain (Unit › Hero › Paladin ›
 Champion). *(The "Unreal-style object types plus components" was read as a class chain plus a unit's abilities as
 components. Sven, 2026-10-27: that was about Moonwell, not this app. The right panel shows **Uses**, every object
 the object's fields name, and **Used by**, every object whose fields name it.)*
@@ -384,6 +385,133 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
 - **Layout** (see the mockup): a top bar with the map name, the search box and the views (Details, Table, Compare);
   a left tree with the seven kinds and a filter; the details panel in the middle; a right panel with components,
   "used by" and the tooltip preview; a status bar with unsaved changes and the game data version.
+- **Sven, 2026-10-27:**
+  - The title bar is the page's own, thin as Windows draws a maximized window's (23 px), maximized or not: Windows
+    draws the caption of a window that is not maximized 8 px taller and cannot be made thinner. The window keeps its
+    frame (resize borders, snapping, shadow, rounded corners); the bar is a WebView2 drag region, and a 4 px strip
+    above the page resizes from the top edge while the window is not maximized.
+  - The details panel lays fields out as World Editor does: the value starts right after the widest name, at the
+    left of a box as wide as the value (a multi-line text takes the row), with ↺ after it. Checkboxes and selects
+    have the theme's look.
+  - A bar floats at the bottom of the details panel and never moves: New, "Changed only", "Field ids", Collapse all
+    and Expand all, as icons named by their tooltips. Copy and Delete stay at the top right.
+  - In the tree, Standard opens and closes like Custom, and both headings look the same.
+  - A folder lists its units by `unitClass` in `unitui.slk` (`HUnit01`, `HUnit02`...), World Editor's order, and a
+    unit's campaign and special come from that table too: the skin text gives the High Elf Archmage (`Haah`)
+    campaign 0 against the table's 1, so it is in Human > Campaign > Heroes. World Editor shows a campaign hero by
+    its proper name (Haah as Kelen the Seeker), and sorts units of one class (or none) by that name; a class of one
+    space (Garek's) comes first.
+  - An ability's Effects (`effectList`) are buff ids, as its Buffs are: the editor types them as a buff list
+    (Moonwell's reader leaves `effectList` a plain text).
+  - The title bar has back and forward at the left (and the mouse's back and forward buttons walk the history too).
+    Uses and Used by open and close; the tooltip preview's place is back, for a later version.
+  - Button positions get a command card (4 wide, 3 high): a click sets X and Y as one edit; other values are typed.
+  - Settings (the gear in the header): a theme (Vitesse Dark, Kanagawa Wave and Dragon, Gruvbox Dark, Dracula,
+    Catppuccin Mocha and Macchiato, Tokyo Night, Nord, One Dark, Rose Pine, Everforest Dark, Solarized Dark),
+    remembered in the window's storage, and the open map's details, with its Data Set and Data Version from
+    `war3map.w3i` and the tables the game reads under them. The values shown are still the base tables'.
+  - The logo is wc3.dev's mark (`wc3-dev/public/favicon.svg`), as the exe's icon, the page's and the title bar's.
+  - Icons and models come from the Warcraft III install's CASC storage (the usual folder, or
+    `MOONWELL_EDITOR_GAME`), read by the editor's own reader (`MoonwellEditor.Assets`, ported from a scratch reader;
+    CascLib's .NET wrapper is an alpha with a native DLL), the map's imports first. The tree shows each object's
+    icon; icon fields show theirs and get a picker of the game's command and passive buttons; model fields get a
+    picker with a turning preview (war3-model, with the CAMS and LITE chunks of the game's MDX 1800 models left out).
+  - The values and objects follow the map's Data Set and Data Version, as World Editor's do: the values of the
+    balance set the option reads (Moonwell's reader gives each object's differences per set), and no standard object
+    that set leaves out. The Shaman's hit points read 350, 260, 335 and 355 under the four options, as seen in the
+    game. Values show as World Editor shows them: True or False, a list by its objects' names, a real with three
+    decimals (a real typed as `0.150` is not a change from `0.15`).
+  - A graphics mode (Classic, Reforged, Definitive Edition; the default is Definitive Edition, remembered): icons and
+    models come from the mode's own tier first (`_HD.w3mod`, `_DE.w3mod`), and a value the game keeps per mode is the
+    mode's (the Priest's icon is `BTNPriest` in Classic, `BTNPriestV1` otherwise). The icon picker lists the mode's
+    tier too.
+  - The right panel opens with the object's model (a team colour to pick from the 24 players') and its tooltip as the
+    game shows it, then Uses and Used by; each opens and closes.
+  - The title bar: the logo, back and forward (held or right-clicked, a list of the history; going back puts the
+    fields' scroll where it was), the map's name from its info file, Folder or Archive, Exp or RoC (an archive by its
+    extension, a folder by its info file's format), then its path. Its buttons share one hover and reach the top:
+    the window's top edge is a drag region the window hit-tests as its border.
+  - Settings in tabs: General (graphics mode, theme as a dropdown with each palette), Hotkeys (every action's keys,
+    changed by pressing the new one; remembered), Map, Game data.
+  - Changed fields are marked beside the details' scroll bar. Ctrl C copies from the panel last used (a selected
+    field in the details, else the object); the tree's selection looks strong only while the tree is in use.
+  - The new-object dialog is titled after its base ("New Sorceress hsor") and checks the id as it is typed. The
+    button-position card says only "Button Position". The editor opens with an alpha notice (backups; close the map
+    in World Editor) until "Don't show this again".
+  - The editor shows the data World Editor shows. Its Object Editor (3.0.1, Asset Mode DE) was compared with the
+    editor field by field on a copy of `we-heavy-archive`'s map (Peasant, Priest, Sorceress, Paladin, Town Hall,
+    Shaman, Claws of Attack +12, Holy Light, Storm Bolt, Devotion Aura's buff, Iron Forged Swords, Ghoul Frenzy, the
+    Ashenvale and Summer Tree Walls, Wooden Coffin, Cave City Cliff). What World Editor showed:
+    - **The unit tree**: Human, Orc, Undead, Night Elf, then Neutral - Naga, then the rest by `hostilePal` in
+      `unitui.slk` (1: Neutral Hostile, 299 units; else Neutral Passive, 197), whatever their race (the tavern
+      heroes are Neutral Passive); 926 units, leaving out the two whose `hiddenInEditor` is 1 (the editor files them
+      under Hidden in World Editor, as it does the hidden abilities). A unit whose `inEditor` is 0 is shown.
+    - **Every other folder** lists by name, compared as written (Call To Arms (Town Hall) before Call to Arms
+      (Peasant)): a buff folder the buffs of hero abilities first (`sort`), a destructable or doodad folder by
+      `doodClass` first (tree walls, then canopy trees, then the rest; the sunken ruins' props after the other props).
+      Buff folders are Buff and Effect; the kind is Destructibles, its folder Trees/Destructibles. A doodad shows no
+      suffix (the data's "(Default)" is not shown). Standard Units come before Custom Units.
+    - **A field that holds nothing** shows 0 (a whole number), 0.000 (a real), False, None (one value of a list, and a
+      file, sound or order field: a model, an icon, a texture, a pathing or shadow texture, a sound, an order string),
+      and nothing for text, flags, object lists and lists of models. The editor shows it as the box's dim placeholder,
+      so nothing is written until a value is typed.
+    - **Reals** show three decimals in every kind, abilities' levels and upgrade effects included (Holy Light 200.000,
+      cooldown 5.500); no field showed two.
+    - **Lists**: a choice value by its other spelling too (`invu` as Invulnerable, `enemy` as Enemy); tilesets by name
+      (All for `*`; its screen gave P Cityscape Ruins, e Lordaeron Capital, R Lordaeron Capital Ruins, u Undercity);
+      a destructable's and a doodad's Category by name (Trees/Destructibles, Props); a unit's Normal Skin and Hero
+      Skin as abilities, by their names without suffixes (Harvest, Call to Arms, Repair); an upgrade by its first
+      level's suffix (Glyph of Fortification (Upgrade 1)).
+    - **Upgrade effects**: Effect N's Base, Mod and Code take the label and type the effect gives them in
+      `units/upgradeeffectmetadata.slk` (Effect 1 - Attack Dice Bonus - Base and - Increment, whole numbers; Ghoul
+      Frenzy's Attack Speed Bonus (%) - Base, a real), and only those the effect uses show (none for an effect of
+      None). The editor keeps one that the map changes.
+    - **Files by name**: an icon, model, texture, pathing map, shadow or ground texture field shows the names of every
+      standard object whose field of that sort holds the same file, in the order of the kind's table (the Paladin's
+      icon: Paladin, Admiral Proudmoore, Dagren the Orcslayer, ...), tagged by the field they come from
+      (`Archmage <Special>`, `Paladin <Score Screen>`, `Priest <Caster>`, `Holy Light <Normal>` and `<Research>`,
+      `Storm Bolt <Missile>`, a buff's `<Target>`, a destructable's or doodad's `<Base>`; a unit's model and projectile
+      art untagged), cut with ", ..." once the next name would pass about 128
+      characters, and its path when no object holds it (the Town Hall's portrait). Icons are named by units, items
+      and abilities, not upgrades (Iron Forged Swords' icon shows the Steel Sword item); a unit's model is not named
+      when its Extra Versions is set (the Priest's and the Sorceress's show their paths). The editor shows the path
+      while the box is being edited, and on hover. The agent's readings: the tags of the fields not seen (an
+      ability's Caster, Special, Effect, Area Effect art), leaving out the abilities Reforged added (version 2: the
+      Steel Sword's icon is shared by seventy of them, which World Editor did not list), and the 128.
+    - **Differences that stay**: the editor groups fields by category in World Editor's metadata order, where World
+      Editor lists them in one alphabetical list ("Art - Model File"); Caster Upgrade Tips show as the data writes them
+      (`"- Purge","- Purge|n- Lightning Shield"`, where World Editor drops the quotes); and World Editor names a few
+      objects the export lacks (Holy Light (Item) with a Research icon), so the end of a long list of names can
+      differ. An object whose strings the export files under another case (`[Boac]` for the Command Aura buff `BOac`)
+      had no name until Moonwell.GameData 0.3.0-preview.2 (Sven, 2026-10-27: merged and published), which reads them
+      whatever the case, as World Editor does.
+  - The fields' editors (later the same day): a value's box has a background and border of its own; a whole number
+    or a real is a number box with the browser's arrows (they send the value once they stop; the wheel scrolls the
+    panel, never steps a box); an extended tooltip is a box of several lines. A dropdown is the editor's own, as wide
+    as its widest choice, its choices with the game's icons where they have one (armor and attack types, hero
+    attributes); a flags field is a box as wide as its widest single choice that says None when nothing is ticked.
+    The UI scale has 80, 100 and 120% for now.
+  - The game's interface icons (the Human interface's, from the install) beside what they stand for: gold, lumber,
+    food and mana on the fields that hold them (found by the words in their labels) and on the tooltip's cost line;
+    the unit's own armor and attack type on its defense and damage fields.
+  - Dice totals: a unit's Attack 1 and Attack 2 damage and its gold and lumber bounties show as the range the game
+    rolls (Attack 1 - Damage 12 - 13: base + dice to base + dice × sides), with the base, number of dice and sides per
+    die under it. A range typed in sets the three as one edit, keeping the number of dice when it splits the range
+    evenly, else the most that do; one number is dice of 1 side. *(Agent's call: World Editor has no such row; the
+    rule for the dice is the agent's.)*
+  - Ground Texture is a dropdown of the install's splats (`Splats\UberSplatData.slk`) by World Editor's names for
+    them (`WESTRING_UBERSPLAT_<code>`), by name, after None. Shadow Texture (Building) and a destructable's shadow are
+    a dropdown of the shadows the standard buildings and destructables use, under Buildings and Destructibles, each
+    named by the objects that use it. *(Agent's calls, not seen in World Editor: the order, and naming a shadow by its
+    objects.)*
+  - Ctrl and the wheel move the model up and down; the side panel's model has a list of its animations.
+  - The tooltip editor (an object's context menu, or Edit by the tooltip preview): the tooltip as the game shows it,
+    its texts edited in place (coloured text in its colour, a placeholder such as `<AHhb,Dur1>` as a chip named for
+    the value with the value it has), each naming its field when hovered. A toolbar colours the selection (a colour
+    picker, six of the game's colours, no colour) and puts in an ability's values at the level shown (a percentage
+    as `,%`). The icon, hotkey and costs show but are edited in their fields. Save sends the changed texts as one
+    edit, a colour as `|cAARRGGBB ... |r` and a line break as the text already breaks its lines (`|n` when it has
+    none). An ability's turned-off tooltip shows only when it has one.
 - **Keys** (first set): Ctrl K search, Ctrl S save, Ctrl Z / Ctrl Y undo and redo, Ctrl D field ids (as in World
   Editor), Ctrl F filter fields, Ctrl Shift N new object from the selected one, F2 rename, Delete delete, Alt ←/→ back
   and forward through visited objects.
@@ -434,7 +562,7 @@ anti-goals hold.
 
 1. Licence and repository for the public release (a GitHub repository, pushing and publishing are each his call).
 2. ~~Publishing `Moonwell.GameData` to nuget.org.~~ Done: 0.3.0-preview.1, by Moonwell's v0.3.0-preview.1 release
-   (2026-10-27).
+   (2026-10-27); the editor uses 0.3.0-preview.2 (text sections whatever their case).
 3. What annoys him most in the Object Editor, if anything beyond the goals above.
 
 ## Calls to check

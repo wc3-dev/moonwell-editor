@@ -3,17 +3,19 @@
  * data spells it, and what is checked before a value is sent to the app.
  */
 import type { ChoiceList, FieldView, Kind, ObjectView, SaveReport } from "./api.ts";
-import { listIds, listKinds } from "./fields.ts";
+import { entryOf, listFor, listIds, listKinds } from "./fields.ts";
+import { t, tCount } from "./text.ts";
 
 /** The editors a field can get. */
 export type Editor = "number" | "toggle" | "select" | "flags" | "ids" | "text";
 
 /**
- * The editor for a field: a number box, a toggle (true or false), a select (one value of a list), checkboxes (any
- * values of a list), chips with a picker (an object list), or a text box for anything else, also a choice whose list
- * is not known.
+ * The editor for a field: a number box, a toggle (true or false), a select (one value of a list, also a text field
+ * World Editor offers a list for), checkboxes (any values of a list), chips with a picker (an object list), or a text
+ * box for anything else, also a choice whose list is not known.
  */
 export function editorFor(field: FieldView, choices: Record<string, ChoiceList> | null): Editor {
+  if (field.type === "string" && listFor(field, choices)) return "select";
   switch (field.type) {
     case "int":
     case "float":
@@ -33,6 +35,15 @@ export function editorFor(field: FieldView, choices: Record<string, ChoiceList> 
   }
 }
 
+// The extended tooltips (a unit's or item's, an ability's normal, turned-off and learn ones, an upgrade's, a buff's),
+// which get a box of several lines (Sven, 2026-10-27).
+const extendedTooltips = new Set(["utub", "aub1", "auu1", "arut", "gub1", "fube"]);
+
+/** True for an extended tooltip field. */
+export function isExtendedTooltip(field: Pick<FieldView, "id">): boolean {
+  return extendedTooltips.has(field.id);
+}
+
 /**
  * The values a flags field holds: the entries' values as the list spells them, then any the list does not know, as
  * written. For a list stored as a number, the numbers of its set bits (value n is bit n).
@@ -47,10 +58,7 @@ export function parseFlags(value: string, list: ChoiceList): string[] {
     }
     return bits;
   }
-  return listIds(value).map(
-    (text) =>
-      list.entries.find((entry) => entry.value.toLowerCase() === text.toLowerCase())?.value ?? text,
-  );
+  return listIds(value).map((text) => entryOf(list, text)?.value ?? text);
 }
 
 /**
@@ -86,13 +94,13 @@ export function checkValue(field: FieldView, text: string): Checked {
     if (wholeNumber.test(trimmed) && number >= -2147483648 && number <= 2147483647) {
       return { ok: true, value: trimmed };
     }
-    return { ok: false, problem: `${field.label} takes a whole number, not "${text}".` };
+    return { ok: false, problem: t("value.notWhole", { field: field.label, text }) };
   }
   if (field.type === "float") {
     if (realNumber.test(trimmed) && Number.isFinite(Number(trimmed))) {
       return { ok: true, value: trimmed };
     }
-    return { ok: false, problem: `${field.label} takes a number (such as 1.5), not "${text}".` };
+    return { ok: false, problem: t("value.notReal", { field: field.label, text }) };
   }
   return { ok: true, value: text };
 }
@@ -146,11 +154,11 @@ export function noticeTitle(notice: { text: string; title?: string }): string {
  */
 export function savedText(report: SaveReport): string {
   const count = report.written.length;
-  if (count === 0) return "Nothing to save";
-  const parts = [`Saved ${count} ${count === 1 ? "file" : "files"}`];
+  if (count === 0) return t("save.nothing");
+  const parts = [tCount("save.saved", count)];
   if (report.backup !== "") {
     const folders = report.backup.split(/[\\/]/).filter(Boolean);
-    parts.push(`backup in ${folders.slice(-2).join("\\")}`);
+    parts.push(t("save.backup", { folder: folders.slice(-2).join("\\") }));
   }
   if (report.note !== "") parts.push(report.note);
   return parts.join(" · ");

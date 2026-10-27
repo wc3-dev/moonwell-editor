@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -8,8 +9,14 @@ public sealed class MainForm : Form
 {
     private const string Host = "app.moonwelleditor";
 
+    // The game's and the map's icons and models, which the page loads from here (see GameAssets).
+    private const string AssetHost = "game.moonwelleditor";
+
     // Made again when the browser process ends (see OnProcessFailed).
     private WebView2 _web = NewWeb();
+
+    // Whether the window is maximized, as the page's title bar was last told.
+    private volatile bool _maximized;
     private readonly Commands _commands;
     private readonly Bridge _bridge;
 
@@ -34,9 +41,12 @@ public sealed class MainForm : Form
     public MainForm(string? startupMap = null)
     {
         Text = "Moonwell Editor";
+        // The exe's icon (wc3.dev's mark), for the taskbar and Alt Tab.
+        Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);
         ClientSize = new Size(1400, 860);
         MinimumSize = new Size(900, 600);
-        BackColor = Color.FromArgb(0x12, 0x12, 0x12);
+        // The title bar's colour (Vitesse Dark's surface), which shows in the top edge's resize strip (see TitleBar).
+        BackColor = Color.FromArgb(0x18, 0x18, 0x18);
         Controls.Add(_web);
 
         var appData = Path.Combine(
@@ -49,6 +59,9 @@ public sealed class MainForm : Form
             startupMap,
             AskForArchive);
         _bridge = new Bridge(_commands.Run);
+        _commands.Assets = new GameAssets(
+            Environment.GetEnvironmentVariable("MOONWELL_EDITOR_GAME") ?? Assets.GameFiles.DefaultFolder,
+            () => _commands.Store);
         _commands.GameDataChanged += state => Notify("gameData", state);
         _commands.SessionChanged += state => Notify("sessionChanged", state);
         _commands.CloseAsking += () => OnWindowThread(_closeGuard.PageAsking);
@@ -56,6 +69,25 @@ public sealed class MainForm : Form
         {
             _closeGuard.Approve();
             Close();
+        });
+        _commands.MinimizeAsked += () => OnWindowThread(() => WindowState = FormWindowState.Minimized);
+        _commands.MaximizeAsked += () => OnWindowThread(() =>
+            WindowState = WindowState == FormWindowState.Maximized
+                ? FormWindowState.Normal
+                : FormWindowState.Maximized);
+        _commands.CloseClicked += () => OnWindowThread(Close);
+        _commands.Maximized = () => _maximized;
+        _commands.UiScaleChanged += percent => OnWindowThread(() =>
+        {
+            if (_web.CoreWebView2 != null)
+            {
+                _web.ZoomFactor = percent / 100.0;
+            }
+        });
+        _commands.FrameColorsChanged += (surface, border) => OnWindowThread(() =>
+        {
+            BackColor = ColorTranslator.FromHtml(surface);
+            TitleBar.SetBorder(Handle, ColorTranslator.FromHtml(border));
         });
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
@@ -72,6 +104,48 @@ public sealed class MainForm : Form
     {
         base.OnHandleCreated(e);
         TitleBar.Style(Handle);
+    }
+
+    /// <inheritdoc />
+    protected override void WndProc(ref Message m)
+    {
+        // The client area takes the caption's place (see TitleBar): Windows works out the frame, then the top is put
+        // back where the window starts.
+        if (m.Msg == TitleBar.CalcSizeMessage && m.WParam != IntPtr.Zero)
+        {
+            var windowTop = Marshal.ReadInt32(m.LParam, 4);
+            base.WndProc(ref m);
+            Marshal.WriteInt32(m.LParam, 4, TitleBar.ClientTop(Handle, windowTop));
+            m.Result = IntPtr.Zero;
+            return;
+        }
+
+        base.WndProc(ref m);
+
+        // The top few pixels resize the window from its top edge while it is not maximized. The page marks them as a
+        // drag region, which WebView2 hands to the window to hit-test (Sven, 2026-10-27: the title bar's buttons reach
+        // the top, so no strip of the window's own shows above them).
+        if (m.Msg == TitleBar.HitTestMessage && m.Result is 1 or 2 && WindowState != FormWindowState.Maximized)
+        {
+            var point = PointToClient(new Point(unchecked((short)(long)m.LParam), unchecked((short)((long)m.LParam >> 16))));
+            var strip = LogicalToDeviceUnits(TitleBar.ResizeStrip);
+            if (point.Y < strip)
+            {
+                m.Result = TitleBar.HitTest(point, ClientSize.Width, strip, LogicalToDeviceUnits(16));
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        var maximized = WindowState == FormWindowState.Maximized;
+        if (maximized != _maximized)
+        {
+            _maximized = maximized;
+            Notify("windowState", new WindowState(maximized));
+        }
     }
 
     /// <summary>Sends a message (for example from <see cref="Bridge.Event"/>) to the page. Call it from the UI thread.</summary>
@@ -207,6 +281,14 @@ public sealed class MainForm : Form
 
         var core = _web.CoreWebView2;
 
+        // The page's title bar is a drag region (CSS app-region: drag), which WebView2 makes the window's caption.
+        core.Settings.IsNonClientRegionSupportEnabled = true;
+
+        // The page is never zoomed by Ctrl and the wheel, Ctrl + and -, or a pinch: its scale is the settings' UI scale
+        // (the uiScale command; Sven, 2026-10-27).
+        core.Settings.IsZoomControlEnabled = false;
+        core.Settings.IsPinchZoomEnabled = false;
+
         // Only the app's own pages may use the bridge, and the window never leaves them (a link to the web is ignored).
         _origins.Add($"https://{Host}/");
         core.WebMessageReceived += (_, e) =>
@@ -247,6 +329,8 @@ public sealed class MainForm : Form
             }
         };
         core.ProcessFailed += OnProcessFailed;
+        core.AddWebResourceRequestedFilter($"https://{AssetHost}/*", CoreWebView2WebResourceContext.All);
+        core.WebResourceRequested += (_, e) => ServeAsset(environment, e);
 
 #if !DEBUG
         // The page is not a web page to reload or go back from: a reload would drop what is typed, and the page would
@@ -279,6 +363,42 @@ public sealed class MainForm : Form
         var wwwroot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
         core.SetVirtualHostNameToFolderMapping(Host, wwwroot, CoreWebView2HostResourceAccessKind.Allow);
         core.Navigate($"https://{Host}/index.html");
+    }
+
+    // https://game.moonwelleditor/icon?path=... answers with the icon as PNG, /file?path=... with the file's bytes, 404
+    // when there is none. Read on a background thread: the first icons wait for the install to open.
+    private void ServeAsset(CoreWebView2Environment environment, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        var assets = _commands.Assets;
+        var uri = new Uri(e.Request.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var path = query["path"];
+        var mode = query["mode"] is "sd" or "hd" or "de" ? query["mode"]! : "de";
+        if (assets == null || string.IsNullOrWhiteSpace(path) || uri.AbsolutePath is not ("/icon" or "/file"))
+        {
+            e.Response = environment.CreateWebResourceResponse(null, 404, "Not Found", "");
+            return;
+        }
+
+        var deferral = e.GetDeferral();
+        var icon = uri.AbsolutePath == "/icon";
+        Task.Run(async () =>
+        {
+            await assets.Loading;
+            return icon ? assets.Icon(path, mode) : assets.File(path, mode);
+        }).ContinueWith(task => OnWindowThread(() =>
+        {
+            var bytes = task.IsCompletedSuccessfully ? task.Result : null;
+            e.Response = bytes == null
+                ? environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *")
+                : environment.CreateWebResourceResponse(
+                    new MemoryStream(bytes),
+                    200,
+                    "OK",
+                    $"Content-Type: {(icon ? "image/png" : "application/octet-stream")}\r\n"
+                    + "Access-Control-Allow-Origin: *\r\nCache-Control: max-age=3600");
+            deferral.Complete();
+        }));
     }
 
     // The page's process ended or hung: the page is loaded again, and shows the open map through the currentMap
