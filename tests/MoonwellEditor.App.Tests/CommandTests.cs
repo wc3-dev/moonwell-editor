@@ -126,6 +126,9 @@ public sealed class CommandTests(GameDataFixture fixture, ITestOutputHelper outp
         var saved = Result(await Ask(bridge, "object", new { kind = "unit", id = "hfoo" }));
         Assert.Equal("500", Field(saved, "uhpm", 0).GetProperty("value").GetString());
 
+        var users = Result(await Ask(bridge, "usedBy", new { kind = "unit", id = "hfoo" }));
+        Assert.Contains(users.EnumerateArray(), user => user.GetProperty("id").GetString() == "hbar");
+
         var hits = Result(await Ask(bridge, "search", new { query = "hfoo", limit = 5 }));
         Assert.Equal("hfoo", hits[0].GetProperty("id").GetString());
         Assert.Equal("unit", hits[0].GetProperty("kind").GetString());

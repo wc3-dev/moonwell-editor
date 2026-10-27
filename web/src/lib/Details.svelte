@@ -4,17 +4,24 @@
  * by category (which open and close), per-level fields as grids. The fields are editors unless the object is read
  * only.
  */
+
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
+import ChevronsDownUp from "@lucide/svelte/icons/chevrons-down-up";
+import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
 import Copy from "@lucide/svelte/icons/copy";
 import Lock from "@lucide/svelte/icons/lock";
 import Plus from "@lucide/svelte/icons/plus";
 import Trash from "@lucide/svelte/icons/trash-2";
 import { tick } from "svelte";
 import type { ChoiceList, FieldView, Kind, ObjectView } from "./api.ts";
+import type { MenuItem } from "./ContextMenu.svelte";
 import FieldRow from "./FieldRow.svelte";
+import { copiedField, copyField, fits } from "./fieldClip.ts";
 import { groupFields, isChanged, type Lookup, type Row, shownValue } from "./fields.ts";
 import LevelGrid from "./LevelGrid.svelte";
+import { labelColumnWidth } from "./measure.ts";
+import { kindText } from "./tree.ts";
 
 type Props = {
   view: ObjectView;
@@ -32,6 +39,10 @@ type Props = {
   oncopy: () => void;
   /** Deletes this custom object (asks first). */
   ondelete: () => void;
+  /** Opens a context menu at the pointer. */
+  onmenu: (x: number, y: number, items: MenuItem[]) => void;
+  /** Shows a short message in the status bar. */
+  onnotice: (text: string, warn: boolean) => void;
 };
 
 let {
@@ -47,7 +58,94 @@ let {
   onnew,
   oncopy,
   ondelete,
+  onmenu,
+  onnotice,
 }: Props = $props();
+
+let root: HTMLDivElement | undefined = $state();
+// The selected field and level, as `field:level` (Sven, 2026-10-27); it goes with the object.
+let selected = $state<string | null>(null);
+let selectedOf = "";
+$effect.pre(() => {
+  const of = `${view.kind}:${view.id}`;
+  if (of !== selectedOf) {
+    selectedOf = of;
+    selected = null;
+  }
+});
+
+function keyOf(field: FieldView): string {
+  return `${field.id}:${field.level}`;
+}
+
+function select(field: FieldView): void {
+  selected = keyOf(field);
+}
+
+function selectedField(): FieldView | undefined {
+  return view.fields.find((field) => keyOf(field) === selected);
+}
+
+function copy(field: FieldView): void {
+  copyField(field);
+  navigator.clipboard?.writeText(field.value).catch(() => {});
+  onnotice(
+    `Copied ${field.label}${field.level > 0 ? ` (level ${field.level})` : ""} · Ctrl V pastes it into a field that takes it`,
+    false,
+  );
+}
+
+async function paste(field: FieldView): Promise<void> {
+  const clip = copiedField();
+  if (!clip) {
+    onnotice("No field is copied: select a field and press Ctrl C.", false);
+    return;
+  }
+  if (!editable) {
+    onnotice(`Read only: ${view.readOnly}`, true);
+    return;
+  }
+  if (!fits(clip, field)) {
+    onnotice(`${clip.label}'s value does not go in ${field.label}.`, true);
+    return;
+  }
+  const error = await onset(field, clip.value);
+  onnotice(error ?? `Pasted ${clip.label}'s value into ${field.label}`, error !== null);
+}
+
+/**
+ * Ctrl C, Ctrl X or Ctrl V while a field is selected and the focus is in the panel: copies the field's value, or
+ * pastes the copied one into it (a field is never cut). False when no field is selected there, so the key goes to the
+ * object.
+ */
+export function clipKey(key: "c" | "x" | "v"): boolean {
+  const field = selectedField();
+  if (!field || !root?.contains(document.activeElement)) return false;
+  if (key === "c") copy(field);
+  else if (key === "v") paste(field);
+  else onnotice("A field cannot be cut: Ctrl C copies its value.", false);
+  return true;
+}
+
+/** The context menu of a field (one level of a per-level field). */
+function fieldMenu(field: FieldView, x: number, y: number): void {
+  const clip = copiedField();
+  onmenu(x, y, [
+    { label: "Copy", shortcut: "Ctrl C", run: () => copy(field) },
+    {
+      label: clip ? `Paste ${clip.label}` : "Paste",
+      shortcut: "Ctrl V",
+      disabled: !clip || !editable || !fits(clip, field),
+      run: () => paste(field),
+    },
+    { separator: true },
+    {
+      label: "Reset to default",
+      disabled: !editable || !field.changed,
+      run: () => onreset(field),
+    },
+  ]);
+}
 
 let filterInput: HTMLInputElement | undefined = $state();
 // Categories the user closed, by key; they stay closed from object to object.
@@ -60,6 +158,20 @@ const categories = $derived(
 const changedCount = $derived(
   groupFields(view.fields, "", true).reduce((sum, category) => sum + category.rows.length, 0),
 );
+
+// The values start just past the widest name of the object's fields shown one per row, filtered or not, so they
+// stay put while the filter changes (measured once the fonts are in).
+let fontsReady = $state(false);
+document.fonts?.ready.then(() => (fontsReady = true));
+const labelWidth = $derived.by(() => {
+  void fontsReady;
+  const labels = groupFields(view.fields, "", false).flatMap((category) =>
+    category.rows
+      .filter((row) => row.levels === null)
+      .map((row) => ({ label: row.label, id: row.id })),
+  );
+  return labelColumnWidth(labels, showIds);
+});
 
 const editable = $derived(view.readOnly === null);
 const custom = $derived(view.baseId !== null);
@@ -103,6 +215,11 @@ function runs(rows: Row[]): { grid: boolean; rows: Row[] }[] {
   return result;
 }
 
+/** Closes every category (true) or opens every one (false); they stay so from object to object. */
+function collapseAll(collapse: boolean): void {
+  closed = collapse ? Object.fromEntries(categories.map((category) => [category.key, true])) : {};
+}
+
 function clearOnEscape(event: KeyboardEvent): void {
   if (event.key === "Escape" && filter) {
     event.stopPropagation();
@@ -111,7 +228,7 @@ function clearOnEscape(event: KeyboardEvent): void {
 }
 </script>
 
-<div class="pb-10">
+<div class="pb-4" style:--label-width="{labelWidth}px" bind:this={root}>
   <div class="sticky top-0 z-[2] border-b border-line bg-bg px-[18px] pt-3.5 pb-2.5">
     <div class="flex items-start gap-2">
       <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2.5 font-heading text-xl font-bold text-fg">
@@ -156,7 +273,7 @@ function clearOnEscape(event: KeyboardEvent): void {
       {#each view.chain as link, index (index)}
         {#if index > 0}<span class="mx-0.5">›</span>{/if}
         {#if index === view.chain.length - 1 && link.id}
-          <b class="font-semibold text-accent-hi">{link.name}</b>
+          <b class="font-semibold {kindText[view.kind]}">{link.name}</b>
         {:else if link.id}
           <button
             type="button"
@@ -250,6 +367,9 @@ function clearOnEscape(event: KeyboardEvent): void {
                 {onset}
                 {onreset}
                 {onopen}
+                {selected}
+                onselect={select}
+                onmenu={fieldMenu}
               />
             {:else}
               {#each run.rows as row (row.id)}
@@ -262,6 +382,9 @@ function clearOnEscape(event: KeyboardEvent): void {
                   {onset}
                   {onreset}
                   {onopen}
+                  selected={selected === keyOf(row.field)}
+                  onselect={select}
+                  onmenu={fieldMenu}
                 />
               {/each}
             {/if}
@@ -270,4 +393,32 @@ function clearOnEscape(event: KeyboardEvent): void {
       </div>
     {/each}
   {/key}
+
+  <!-- Floats at the bottom of the panel while the fields scroll under it. -->
+  {#if categories.length > 1}
+    <div class="pointer-events-none sticky bottom-3 mt-4 flex justify-center">
+      <div
+        class="pointer-events-auto flex gap-0.5 rounded-full border border-line bg-raised p-0.5 shadow-lg shadow-black/40"
+        role="group"
+        aria-label="Categories"
+      >
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] text-muted hover:bg-hover hover:text-fg"
+          onclick={() => collapseAll(true)}
+        >
+          <ChevronsDownUp size={14} />
+          Collapse all
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] text-muted hover:bg-hover hover:text-fg"
+          onclick={() => collapseAll(false)}
+        >
+          <ChevronsUpDown size={14} />
+          Expand all
+        </button>
+      </div>
+    </div>
+  {/if}
 </div>

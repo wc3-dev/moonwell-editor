@@ -1,7 +1,6 @@
 <script lang="ts">
 import FolderOpen from "@lucide/svelte/icons/folder-open";
 import RotateCw from "@lucide/svelte/icons/rotate-cw";
-import Search from "@lucide/svelte/icons/search";
 import { onMount } from "svelte";
 import {
   type CellEdit,
@@ -15,7 +14,6 @@ import {
   deleteObject,
   type FieldRef,
   type FieldView,
-  type Hit,
   type Kind,
   type MapInfo,
   nextId,
@@ -37,6 +35,7 @@ import {
   undo,
 } from "./lib/api.ts";
 import { BridgeError, call, on } from "./lib/bridge.ts";
+import ContextMenu, { type MenuItem } from "./lib/ContextMenu.svelte";
 import Details from "./lib/Details.svelte";
 import Dialog from "./lib/Dialog.svelte";
 import { type Lookup, listKinds } from "./lib/fields.ts";
@@ -44,7 +43,6 @@ import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "./l
 import KindBar from "./lib/KindBar.svelte";
 import OpenMapMenu from "./lib/OpenMapMenu.svelte";
 import { type OpenEntry, openFrom } from "./lib/openMenu.ts";
-import Palette from "./lib/Palette.svelte";
 import SidePanel from "./lib/SidePanel.svelte";
 import StatusBar, { type Notice } from "./lib/StatusBar.svelte";
 import {
@@ -75,7 +73,12 @@ type Creating = {
   id: string;
   error: string;
   busy: boolean;
+  /** For a paste: the object copied (or cut, to be deleted once its copy is made); absent for a new object. */
+  from?: Clip;
 };
+
+/** An object copied or cut (Ctrl C, Ctrl X, the context menu), for Ctrl V to paste as a new custom object. */
+type Clip = { kind: Kind; id: string; name: string; baseId: string; cut: boolean };
 
 /** The object the delete dialog asks about. */
 type Deleting = { kind: Kind; id: string; name: string; baseId: string | null };
@@ -111,9 +114,13 @@ let tableView: { focusFilter(): void } | undefined = $state();
 let fieldFilter = $state("");
 let changedOnly = $state(false);
 let showIds = $state(false);
-let paletteOpen = $state(false);
-let details: { focusFilter(): void; focusField(field: FieldView): Promise<boolean> } | undefined =
-  $state();
+let details:
+  | {
+      focusFilter(): void;
+      focusField(field: FieldView): Promise<boolean>;
+      clipKey(key: "c" | "x" | "v"): boolean;
+    }
+  | undefined = $state();
 
 let notice = $state.raw<Notice | null>(null);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -122,6 +129,8 @@ let unsaved = $state.raw<Unsaved | null>(null);
 // The message of a save refused because the map changed on disk; "" when there is none to show.
 let diskChanged = $state("");
 let creating = $state<Creating | null>(null);
+let clipboard = $state.raw<Clip | null>(null);
+let menu = $state.raw<{ x: number; y: number; items: MenuItem[] } | null>(null);
 let deleting = $state.raw<Deleting | null>(null);
 let closing = false;
 // The app's commands that change the map run one after another, in the order asked (a save after the edit typed).
@@ -468,18 +477,121 @@ async function create(): Promise<void> {
   if (!asked || asked.busy) return;
   asked.busy = true;
   asked.error = "";
-  const { kind: each, baseId, baseName } = asked;
+  const { kind: each, baseId, baseName, from } = asked;
   const typed = asked.id.trim();
+  const wanted = typed === "" ? undefined : typed;
   try {
-    const id = await queued(() => createObject(each, baseId, typed === "" ? undefined : typed));
+    const id = await queued(() =>
+      from ? copyObject(each, from.id, wanted) : createObject(each, baseId, wanted),
+    );
     creating = null;
+    if (from?.cut) {
+      // A cut object goes once its copy is made: it moved to the new id.
+      await queued(() => deleteObject(each, from.id));
+      clipboard = null;
+    }
     await refreshTrees(each);
     await show(each, id);
-    say(`Made ${id}, based on ${baseName}`);
+    say(
+      from
+        ? `${from.cut ? "Moved" : "Pasted"} ${from.name} (${from.id}) as ${id}`
+        : `Made ${id}, based on ${baseName}`,
+    );
   } catch (error) {
     asked.error = message(error);
     asked.busy = false;
   }
+}
+
+/** The tree entry of an object, when its kind's tree is loaded. */
+function entryOf(each: Kind, id: string): TreeEntry | undefined {
+  return trees[each]?.find((entry) => entry.id === id);
+}
+
+/** Ctrl C, or Ctrl X with `cut` (custom objects only): keeps the object for Ctrl V. */
+function clip(each: Kind, id: string, cut: boolean): void {
+  const entry = entryOf(each, id);
+  if (!entry) return;
+  if (cut && !entry.baseId) {
+    say("Only custom objects can be cut.");
+    return;
+  }
+  clipboard = { kind: each, id, name: entry.name, baseId: entry.baseId ?? id, cut };
+  say(`${cut ? "Cut" : "Copied"} ${entry.name} (${id}) · Ctrl V pastes it as a new object`);
+}
+
+/** Ctrl V: the id dialog for a copy of the object copied or cut, with the next free id. */
+async function paste(): Promise<void> {
+  const from = clipboard;
+  if (!from || !map) {
+    say("Nothing is copied: copy an object first (Ctrl C).");
+    return;
+  }
+  let id = "";
+  let error = "";
+  try {
+    id = await nextId(from.kind, from.baseId);
+  } catch (problem) {
+    error = message(problem);
+  }
+  const baseName = names[from.kind]?.get(from.baseId) ?? from.baseId;
+  creating = { kind: from.kind, baseId: from.baseId, baseName, id, error, busy: false, from };
+}
+
+/** Puts every field the map changes on the object back to its standard (or base) value, as one edit. */
+async function resetObject(each: Kind, id: string): Promise<void> {
+  try {
+    const view = current?.kind === each && current.id === id ? current : await object(each, id);
+    if (view.readOnly) {
+      say(`Read only: ${view.readOnly}`, { warn: true });
+      return;
+    }
+    const edits = view.fields
+      .filter((field) => field.changed)
+      .map((field) => ({ id, field: field.id, level: field.level, value: null }));
+    if (edits.length === 0) {
+      say(`${view.name} has no changed fields.`);
+      return;
+    }
+    await queued(() => setCells(each, edits));
+    await Promise.all([refreshTrees(each), refreshObject()]);
+    const count = `${edits.length} ${edits.length === 1 ? "field" : "fields"}`;
+    say(`Reset ${count} of ${view.name} · Ctrl Z brings them back`);
+  } catch (error) {
+    say(message(error), { warn: true });
+  }
+}
+
+/** The context menu of an object in the tree; the object is shown first, so every entry acts on it. */
+async function objectMenu(each: Kind, id: string, x: number, y: number): Promise<void> {
+  const entry = entryOf(each, id);
+  if (!entry) return;
+  const custom = entry.baseId !== null;
+  menu = {
+    x,
+    y,
+    items: [
+      { label: "Copy", shortcut: "Ctrl C", run: () => clip(each, id, false) },
+      { label: "Cut", shortcut: "Ctrl X", disabled: !custom, run: () => clip(each, id, true) },
+      {
+        label: clipboard ? `Paste ${clipboard.name}` : "Paste",
+        shortcut: "Ctrl V",
+        disabled: !clipboard || clipboard.kind !== each,
+        run: paste,
+      },
+      { separator: true },
+      { label: "Rename", shortcut: "F2", run: focusName },
+      {
+        label: "Reset to defaults",
+        disabled: !entry.changed && !custom,
+        run: () => resetObject(each, id),
+      },
+      { separator: true },
+      { label: "New based on this…", shortcut: "Ctrl Shift N", run: startNew },
+      { label: "Delete…", shortcut: "Del", disabled: !custom, danger: true, run: askDelete },
+    ],
+  };
+  await show(each, id);
 }
 
 /** Copies the custom object shown, with the next free id, and shows the copy. */
@@ -616,28 +728,6 @@ function openInDetails(each: Kind, id: string): void {
   show(each, id);
 }
 
-async function pick(hit: Hit): Promise<void> {
-  paletteOpen = false;
-  page = "details";
-  if (!hit.field) {
-    await show(hit.kind, hit.id);
-    return;
-  }
-  // A field hit filters the details panel to the field, on an object of the field's kind.
-  fieldFilter = hit.field;
-  changedOnly = false;
-  if (current?.kind === hit.kind) return;
-  const id = picked[hit.kind];
-  if (id) {
-    await show(hit.kind, id);
-    return;
-  }
-  kind = hit.kind;
-  await ensureTree(hit.kind);
-  const first = trees[hit.kind]?.[0];
-  if (first) await show(hit.kind, first.id);
-}
-
 /**
  * The keys that act differently in the table: Ctrl F goes to its filter. The grid takes F2, Ctrl D and Delete for its
  * cells (and they never reach here); anywhere else in the table they, and the details view's other keys for the
@@ -665,7 +755,6 @@ function tableKey(event: KeyboardEvent, key: string): boolean {
 }
 
 function onkeydown(event: KeyboardEvent): void {
-  if (paletteOpen) return; // the palette has its own keys
   if (unsaved || diskChanged || creating || deleting) return; // and so do the dialogs
   const key = event.key.toLowerCase();
   const ctrl = event.ctrlKey && !event.altKey;
@@ -680,12 +769,16 @@ function onkeydown(event: KeyboardEvent): void {
     if (typingIn(event.target)) return; // the box's own undo
     event.preventDefault();
     undoOrRedo(key === "y" || event.shiftKey);
+  } else if (ctrl && !event.shiftKey && (key === "c" || key === "x" || key === "v")) {
+    if (page !== "details" || !map || typingIn(event.target) || inPopup(event.target)) return;
+    if (key !== "v" && (window.getSelection()?.toString() ?? "") !== "") return; // copying text
+    event.preventDefault();
+    if (details?.clipKey(key)) return; // a selected field's value
+    if (key === "v") paste();
+    else if (current) clip(current.kind, current.id, key === "x");
   } else if (event.key === "F2") {
     event.preventDefault();
     focusName();
-  } else if (event.ctrlKey && !event.altKey && key === "k") {
-    event.preventDefault();
-    if (map) paletteOpen = true;
   } else if (event.ctrlKey && !event.altKey && key === "f") {
     event.preventDefault();
     details?.focusFilter();
@@ -790,7 +883,7 @@ onMount(() => {
 });
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} oncontextmenu={(event) => !typingIn(event.target) && event.preventDefault()} />
 
 <div class="grid h-full grid-cols-1 grid-rows-[44px_1fr_26px]">
   <header class="flex items-center gap-2.5 border-b border-line bg-surface px-3">
@@ -813,20 +906,7 @@ onMount(() => {
         <RotateCw size={17} />
       </button>
     {/if}
-    <button
-      type="button"
-      class="mx-auto flex max-w-[520px] flex-1 cursor-text items-center gap-2 rounded-md border border-line bg-bg px-2.5 py-[5px] text-left text-muted disabled:cursor-default disabled:opacity-50"
-      disabled={!map}
-      onclick={() => (paletteOpen = true)}
-    >
-      <Search size={14} />
-      <span class="truncate">Search objects, ids, fields, values…</span>
-      <span
-        class="ml-auto shrink-0 rounded border border-line px-1.5 font-mono text-[11px] whitespace-nowrap"
-        >Ctrl K</span
-      >
-    </button>
-    <div class="flex shrink-0 gap-0.5" role="group" aria-label="Views">
+    <div class="ml-auto flex shrink-0 gap-0.5" role="group" aria-label="Views">
       {#each [{ key: "details", name: "Details" }, { key: "table", name: "Table" }] as const as each (each.key)}
         <button
           type="button"
@@ -946,6 +1026,7 @@ onMount(() => {
           error={treeErrors[kind] ?? ""}
           selected={picked[kind] ?? null}
           onselect={(id) => show(kind, id)}
+          oncontext={(id, x, y) => objectMenu(kind, id, x, y)}
           bind:filter={treeFilter}
         />
       </aside>
@@ -970,16 +1051,18 @@ onMount(() => {
             onnew={startNew}
             oncopy={copyShown}
             ondelete={askDelete}
+            onmenu={(x, y, items) => (menu = { x, y, items })}
+            onnotice={(text, warn) => say(text, { warn })}
           />
         {:else}
           <p class="mx-[18px] mt-3.5 text-muted">
-            Pick an object in the tree, or search with Ctrl K.
+            Pick an object in the tree.
           </p>
         {/if}
       </section>
       <aside
         class="min-h-0 overflow-auto border-l border-line bg-surface p-3"
-        aria-label="Components"
+        aria-label="Uses and used by"
       >
         {#if current}
           <SidePanel view={current} {lookup} onopen={(each, id) => show(each, id)} />
@@ -999,10 +1082,6 @@ onMount(() => {
   />
 </div>
 
-{#if paletteOpen}
-  <Palette onpick={pick} onclose={() => (paletteOpen = false)} />
-{/if}
-
 {#snippet button(text: string, onclick: () => void, look: "primary" | "plain" | "danger" = "plain")}
   <button
     type="button"
@@ -1018,12 +1097,26 @@ onMount(() => {
   </button>
 {/snippet}
 
+{#if menu}
+  <ContextMenu {...menu} onclose={() => (menu = null)} />
+{/if}
+
 {#if creating}
   {@const asked = creating}
-  <Dialog title="New {asked.kind}" oncancel={() => (creating = null)}>
+  <Dialog
+    title={asked.from ? `Paste ${asked.from.name}` : `New ${asked.kind}`}
+    oncancel={() => (creating = null)}
+  >
     <p class="m-0">
-      Based on <b class="font-semibold text-fg">{asked.baseName}</b>
-      <span class="font-mono text-[12.5px] text-muted">{asked.baseId}</span>
+      {#if asked.from}
+        {asked.from.cut ? "Moves" : "A copy of"}
+        <b class="font-semibold text-fg">{asked.from.name}</b>
+        <span class="font-mono text-[12.5px] text-muted">{asked.from.id}</span>, based on
+        {asked.baseName}
+      {:else}
+        Based on <b class="font-semibold text-fg">{asked.baseName}</b>
+        <span class="font-mono text-[12.5px] text-muted">{asked.baseId}</span>
+      {/if}
     </p>
     <label class="mt-3 flex items-center gap-2">
       Id
@@ -1048,7 +1141,7 @@ onMount(() => {
     {/if}
     {#snippet actions()}
       {@render button("Cancel", () => (creating = null))}
-      {@render button(asked.busy ? "Making…" : "Make", create, "primary")}
+      {@render button(asked.busy ? "Making…" : asked.from ? "Paste" : "Make", create, "primary")}
     {/snippet}
   </Dialog>
 {/if}
