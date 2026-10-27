@@ -10,6 +10,8 @@ cd web
 npm install
 ```
 
+The game data is read by Moonwell's `Moonwell.GameData` package, restored from nuget.org like the other packages.
+
 ## Run the app with live reload
 
 Two terminals. The first runs the Vite dev server (it stays on port 5173):
@@ -64,8 +66,8 @@ The app is then `src/MoonwellEditor.App/bin/Release/net10.0-windows/win-x64/publ
 10 Desktop Runtime (the SDK includes it); `--self-contained true` bundles .NET instead, for a PC without it, at about
 70 MB more.
 
-A single-file exe (`-p:PublishSingleFile=true`) does not build yet: Moonwell's generator code, linked in from wc3-cs,
-reads `Assembly.Location`, which is always empty in a single-file app, and warnings are errors.
+A single-file exe (`-p:PublishSingleFile=true`) builds, but it is not one file yet: the page (`wwwroot`), WebView2's
+`WebView2Loader.dll` and `runtimes` stay beside it. It has not been run.
 
 ## Tests and checks
 
