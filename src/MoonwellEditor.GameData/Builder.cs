@@ -1,6 +1,5 @@
 using Moonwell.GameData;
 using MoonwellEditor.Files;
-using War3Net.IO.Slk;
 using MoonwellObject = Moonwell.GameData.StandardObject;
 
 namespace MoonwellEditor.GameData;
@@ -53,9 +52,14 @@ internal static class Builder
     // The metadata types the editor gives a list of its own (above), as a choice.
     private static readonly string[] OwnLists = ["tilesetList", "destructableCategory", "doodadCategory"];
 
-    public static GameData Build(string folder)
+    /// <summary>
+    /// Makes the game data from the tables, with the rows of the two tables Moonwell's records do not use
+    /// (<see cref="UnitUi"/>, <see cref="UpgradeEffects"/>).
+    /// </summary>
+    /// <param name="tables">The install's tables.</param>
+    /// <param name="source">The install's folder.</param>
+    public static GameData Build(GameTables tables, string source)
     {
-        var tables = ExportTables.Read(folder);
         var listed = Choices.All(tables, null);
         var fieldsOf = new Dictionary<Kind, IReadOnlyList<Field>>();
         var objectsOf = new Dictionary<Kind, IReadOnlyList<MoonwellObject>>();
@@ -92,11 +96,11 @@ internal static class Builder
                 kind,
                 fields,
                 objectsOf[kind],
-                kind == Kind.Unit ? UnitUiOf(folder) : [],
-                kind == Kind.Upgrade ? EffectsOf(tables, folder, lists) : null);
+                kind == Kind.Unit ? UnitUiOf(tables.Table(UnitUi)) : [],
+                kind == Kind.Upgrade ? EffectsOf(tables, tables.Table(UpgradeEffects), lists) : null);
         }
 
-        return new GameData(folder, kinds, lists);
+        return new GameData(source, tables.Build?.Version, kinds, lists);
     }
 
     /// <summary>The kind as the Object Editor names it.</summary>
@@ -113,7 +117,7 @@ internal static class Builder
     };
 
     private static KindData KindDataOf(
-        ExportTables tables,
+        GameTables tables,
         Kind kind,
         IReadOnlyList<Field> fields,
         IReadOnlyList<MoonwellObject> objects,
@@ -129,7 +133,7 @@ internal static class Builder
         var infos = fields.Select(field => Info(field, meta[field.Id])).ToList();
         var levelField = fields.FirstOrDefault(field => field.Name == LevelCountName)?.Id;
         var objectKind = KindOf(kind);
-        var readers = fields.Select(field => new FieldReader(field, meta[field.Id])).ToList();
+        var infoOf = infos.ToDictionary(info => info.Id, StringComparer.Ordinal);
         var baseTable = tables.Objects(kind, null);
         var baseRows = Index(baseTable);
         var places = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -144,7 +148,7 @@ internal static class Builder
         {
             var obj = objects[index];
             var rows = PrimaryRows(tables, kind, obj, baseRows, setRows);
-            var standard = Object(tables, objectKind, levelField, obj, rows, infos, readers, unitUi.GetValueOrDefault(obj.Id));
+            var standard = Object(tables, objectKind, obj, rows, infoOf, unitUi.GetValueOrDefault(obj.Id));
             result.Add(standard with { Row = places.TryGetValue(obj.Id, out var place) ? place : baseTable.Count + index });
         }
 
@@ -173,10 +177,10 @@ internal static class Builder
             field.DataPointer,
             field.Skin,
             field.Specific,
-            Codes(Cell(meta, "notSpecific")),
-            Cell(meta, "useUnit") == "1",
-            Cell(meta, "useHero") == "1",
-            Cell(meta, "useBuilding") == "1",
+            field.NotSpecific,
+            field.ForUnit,
+            field.ForHero,
+            field.ForBuilding,
             field.Rules.Min,
             field.Rules.Max,
             field.Rules.MaxLength,
@@ -199,7 +203,7 @@ internal static class Builder
     /// first balance set's it exists in.
     /// </summary>
     private static ObjectRows PrimaryRows(
-        ExportTables tables,
+        GameTables tables,
         Kind kind,
         MoonwellObject obj,
         Dictionary<string, ObjectRows> baseRows,
@@ -220,33 +224,18 @@ internal static class Builder
     }
 
     private static StandardObject Object(
-        ExportTables tables,
+        GameTables tables,
         ObjectKind kind,
-        string? levelField,
         MoonwellObject obj,
         ObjectRows rows,
-        List<FieldInfo> infos,
-        List<FieldReader> readers,
+        Dictionary<string, FieldInfo> infos,
         Dictionary<string, string>? ui)
     {
-        var row = new ModeRow(rows);
-        var building = kind == ObjectKind.Unit && FieldReader.Clean(row.Get("isbldg", "de")?.Value) == "1";
         // World Editor files a unit by unitui.slk's own campaign and special, which the skin text may contradict (it
         // gives the High Elf Archmage, Haah, campaign 0 against the table's 1), and lists a folder's units by its
         // unitClass (HUnit01, HUnit02...), the classic order (Sven, 2026-10-27).
         var campaign = ui?.GetValueOrDefault("campaign") is { } inTable ? inTable == "1" : obj.Campaign;
-        var special = (ui?.GetValueOrDefault("special") ?? FieldReader.Clean(row.Get("special", "de")?.Value)) == "1";
-        var suffix = Resolved(tables, FieldReader.Clean(row.Get("EditorSuffix", "de")?.Value) ?? "");
-        // An upgrade keeps a suffix per level; World Editor names it by its first (Glyph of Fortification (Upgrade 1)).
-        // A doodad has no suffix field, and World Editor shows none (the data's "(Default)" is not shown: Wooden Coffin).
-        if (kind == ObjectKind.Upgrade)
-        {
-            suffix = suffix.Split(',')[0].Trim();
-        }
-        else if (kind == ObjectKind.Doodad)
-        {
-            suffix = "";
-        }
+        var special = (ui?.GetValueOrDefault("special") ?? Clean(Read(rows, "special"))) == "1";
         var categoryColumn = kind switch
         {
             ObjectKind.Item => "class",
@@ -257,14 +246,14 @@ internal static class Builder
         };
         var category = kind == ObjectKind.Unit ? ui?.GetValueOrDefault("unitClass") ?? ""
             : categoryColumn == null ? ""
-            : FieldReader.Clean(row.Get(categoryColumn, "de")?.Value) ?? "";
+            : Clean(Read(rows, categoryColumn)) ?? "";
         // World Editor leaves out the abilities whose useInEditor is 0 and the units whose hiddenInEditor is 1 (the
         // Shoveler and Sammy's cube), files a unit of no playable race by its hostilePal (Neutral Hostile or Passive),
         // and lists a buff folder by sort (hero, then unit) and a destructable or doodad folder by doodClass before
         // the names (World Editor's screens, 2026-10-27).
         var hidden = kind switch
         {
-            ObjectKind.Ability => FieldReader.Clean(row.Get("useInEditor", "de")?.Value) == "0",
+            ObjectKind.Ability => Clean(Read(rows, "useInEditor")) == "0",
             ObjectKind.Unit => ui?.GetValueOrDefault("hiddenInEditor") == "1",
             _ => false,
         };
@@ -276,10 +265,14 @@ internal static class Builder
             _ => null,
         };
         // Kept as written: a doodClass of _ (most of them) comes after A and B.
-        var sort = sortColumn == null ? "" : row.Get(sortColumn, "de")?.Value.Trim() ?? "";
+        var sort = sortColumn == null ? "" : Read(rows, sortColumn)?.Trim() ?? "";
         // World Editor shows a campaign hero by its proper name (Haah, the High Elf Archmage, as Kelen the Seeker).
-        var properName = FieldReader.Clean(row.Get("Propernames", "de")?.Value)?.Split(',')[0].Trim();
+        var properName = Clean(Read(rows, "Propernames"))?.Split(',')[0].Trim();
         var name = campaign && obj.IsHero && !string.IsNullOrEmpty(properName) ? Resolved(tables, properName) : obj.Name;
+        // Moonwell's suffix is the one World Editor shows: the comma list's first entry, its bracket closed (nvr0's
+        // "(ruined, two story)" is "(ruined)"; Sven, 2026-10-28), an upgrade's first level's, none for a doodad.
+        var suffix = obj.EditorSuffix;
+
         var standard = new StandardObject(
             obj.Id,
             name,
@@ -287,7 +280,7 @@ internal static class Builder
             obj.Race,
             campaign,
             obj.IsHero,
-            building,
+            obj.Building,
             special,
             category,
             hidden,
@@ -298,46 +291,30 @@ internal static class Builder
             obj.MissingFrom,
             hostile,
             sort,
-            Version: FieldReader.Clean(row.Get("version", "de")?.Value) ?? "");
-        return standard with { Modes = Modes(row, standard, kind, levelField, infos, readers) };
+            Version: Clean(Read(rows, "version")) ?? "",
+            Own: obj.Own);
+        return standard with { Modes = Modes(obj, standard, kind, infos) };
     }
 
-    /// <summary>The values of the fields that apply to the object that differ between the graphics modes.</summary>
+    /// <summary>
+    /// Moonwell's values per graphics mode (<see cref="MoonwellObject.Modes"/>), of the fields that apply to the object
+    /// by <see cref="KindData.Applies(ObjectKind, FieldInfo, StandardObject)"/>.
+    /// </summary>
     private static Dictionary<string, IReadOnlyDictionary<string, string>> Modes(
-        ModeRow row,
-        StandardObject obj,
+        MoonwellObject obj,
+        StandardObject standard,
         ObjectKind kind,
-        string? levelField,
-        List<FieldInfo> infos,
-        List<FieldReader> readers)
+        Dictionary<string, FieldInfo> infos)
     {
         var modes = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
-        int? levels = levelField == null ? null : KindData.Levels(levelField, obj);
-        for (var i = 0; i < infos.Count; i++)
+        foreach (var (key, values) in obj.Modes)
         {
-            // Only the skin files key values by mode, and they hold no column per level.
-            if (!row.HasModes(readers[i].Column) || !KindData.Applies(kind, infos[i], obj))
+            // A key is the field's id, or id:level for a field of each level (aart:1).
+            var colon = key.IndexOf(':');
+            if (infos.TryGetValue(colon < 0 ? key : key.Substring(0, colon), out var info)
+                && KindData.Applies(kind, info, standard))
             {
-                continue;
-            }
-
-            var byMode = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-            foreach (var mode in ModeRow.Modes)
-            {
-                byMode[mode] = new Dictionary<string, string>(StringComparer.Ordinal);
-                readers[i].Read(row, mode, levels, byMode[mode]);
-            }
-
-            foreach (var key in byMode.Values.SelectMany(values => values.Keys).Distinct().ToList())
-            {
-                var values = ModeRow.Modes.ToDictionary(
-                    mode => mode,
-                    mode => byMode[mode].GetValueOrDefault(key, ""),
-                    StringComparer.Ordinal);
-                if (values.Values.Distinct(StringComparer.Ordinal).Count() > 1)
-                {
-                    modes[key] = values;
-                }
+                modes[key] = values;
             }
         }
 
@@ -346,89 +323,54 @@ internal static class Builder
 
     /// <summary>
     /// The <see cref="UnitUiColumns"/> of each unit in the base <c>unitui.slk</c>, as the table writes them (a cell it
-    /// leaves empty is absent); empty when the folder has no such table.
+    /// leaves empty is absent); empty when the tables have no such table.
     /// </summary>
-    private static Dictionary<string, Dictionary<string, string>> UnitUiOf(string folder)
+    private static Dictionary<string, Dictionary<string, string>> UnitUiOf(IReadOnlyList<MetaRow>? table)
     {
         var result = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-        var path = Path.Combine(folder, UnitUi);
-        if (!File.Exists(path))
+        foreach (var row in table ?? [])
         {
-            return result;
-        }
-
-        SylkTable table;
-        using (var stream = File.OpenRead(path))
-        {
-            table = new SylkParser(keepText: true).Parse(stream);
-        }
-
-        // The first column with a name holds the ids, as Moonwell reads its tables.
-        int? idColumn = null;
-        var columns = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var x = 0; x <= table.Columns; x++)
-        {
-            if (table[x, 0] is not string name)
-            {
-                continue;
-            }
-
-            idColumn ??= x;
-            if (Array.IndexOf(UnitUiColumns, name) >= 0)
-            {
-                columns[name] = x;
-            }
-        }
-
-        for (var y = 1; idColumn != null && y <= table.Rows; y++)
-        {
-            if (table[idColumn.Value, y] is not string { Length: > 0 } id)
-            {
-                continue;
-            }
-
             var cells = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var (name, x) in columns)
+            foreach (var name in UnitUiColumns)
             {
                 // The class is kept as written: a class of one space (Garek's) comes before HHero01, as World Editor
                 // lists them.
-                var cell = table[x, y]?.ToString();
-                if ((name == "unitClass" ? cell : FieldReader.Clean(cell)) is { Length: > 0 } value)
+                var cell = row.Columns.GetValueOrDefault(name);
+                if ((name == "unitClass" ? cell : Clean(cell)) is { Length: > 0 } value)
                 {
                     cells[name] = value;
                 }
             }
 
-            result[id] = cells;
+            result[row.Id] = cells;
         }
 
         return result;
     }
 
-    /// <summary>A list the editor makes itself, its labels from the export's World Editor strings.</summary>
-    private static ChoiceList OwnList(ExportTables tables, bool flags, (string Value, string Key)[] entries) =>
+    /// <summary>A list the editor makes itself, its labels from the World Editor strings.</summary>
+    private static ChoiceList OwnList(GameTables tables, bool flags, (string Value, string Key)[] entries) =>
         new(flags, "string", entries.Select(entry => new ChoiceEntry(entry.Value, tables.Label(entry.Key), [])).ToList());
 
     /// <summary>
     /// The fields each upgrade effect uses, from <see cref="UpgradeEffects"/>: their data type, World Editor's label,
     /// and how they are typed (a whole number, a real, a choice of <paramref name="lists"/>, an ability or a unit).
-    /// Empty when the folder has no such table.
+    /// Empty when the tables have no such table.
     /// </summary>
     private static Dictionary<string, IReadOnlyList<UpgradeEffectField>> EffectsOf(
-        ExportTables tables,
-        string folder,
+        GameTables tables,
+        IReadOnlyList<MetaRow>? effects,
         IReadOnlyDictionary<string, ChoiceList> lists)
     {
         var found = new Dictionary<string, List<UpgradeEffectField>>(StringComparer.Ordinal);
-        foreach (var row in Rows(Path.Combine(folder, UpgradeEffects)))
+        foreach (var row in effects ?? [])
         {
-            if (row.GetValueOrDefault("effectID") is not { Length: > 0 } effect
-                || row.GetValueOrDefault("dataType") is not { Length: > 0 } dataType)
+            if (Cell(row, "effectID") is not { Length: > 0 } effect || Cell(row, "dataType") is not { Length: > 0 } dataType)
             {
                 continue;
             }
 
-            var metaType = row.GetValueOrDefault("type", "");
+            var metaType = Cell(row, "type");
             var (type, choice, listOf) = metaType switch
             {
                 "int" => ("int", (string?)null, (string?)null),
@@ -438,7 +380,7 @@ internal static class Builder
                 _ when lists.ContainsKey(metaType) => ("choice", metaType, null),
                 _ => ("int", null, null),
             };
-            var label = tables.Label(row.GetValueOrDefault("displayName", ""));
+            var label = tables.Label(Cell(row, "displayName"));
             if (!found.TryGetValue(effect, out var fields))
             {
                 found[effect] = fields = [];
@@ -449,50 +391,6 @@ internal static class Builder
 
         return found.ToDictionary(
             pair => pair.Key, IReadOnlyList<UpgradeEffectField> (pair) => pair.Value, StringComparer.Ordinal);
-    }
-
-    /// <summary>The rows of a table, each by its column names, the cells as written; empty when there is no file.</summary>
-    private static List<Dictionary<string, string>> Rows(string path)
-    {
-        var result = new List<Dictionary<string, string>>();
-        if (!File.Exists(path))
-        {
-            return result;
-        }
-
-        SylkTable table;
-        using (var stream = File.OpenRead(path))
-        {
-            table = new SylkParser(keepText: true).Parse(stream);
-        }
-
-        var columns = new Dictionary<int, string>();
-        for (var x = 0; x <= table.Columns; x++)
-        {
-            if (table[x, 0] is string name)
-            {
-                columns[x] = name;
-            }
-        }
-
-        for (var y = 1; y <= table.Rows; y++)
-        {
-            var cells = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var (x, name) in columns)
-            {
-                if (table[x, y]?.ToString()?.Trim() is { Length: > 0 } cell)
-                {
-                    cells[name] = cell;
-                }
-            }
-
-            if (cells.Count > 0)
-            {
-                result.Add(cells);
-            }
-        }
-
-        return result;
     }
 
     private static Dictionary<string, ObjectRows> Index(IReadOnlyList<ObjectRows> rows)
@@ -507,20 +405,50 @@ internal static class Builder
     }
 
     /// <summary>
-    /// The label of a <c>WESTRING_</c> key, or the empty string when the export has none; any other text as it is.
+    /// The label of a <c>WESTRING_</c> key, or the empty string when the tables have none; any other text as it is.
     /// </summary>
-    private static string Resolved(ExportTables tables, string text)
+    private static string Resolved(GameTables tables, string text)
     {
         var label = tables.Label(text);
         return label == text && text.StartsWith(KeyPrefix, StringComparison.Ordinal) ? "" : label;
     }
 
-    /// <summary>A choice value's label, or its text when the export has no label for it.</summary>
+    /// <summary>A choice value's label, or its text when the tables have no label for it.</summary>
     private static string LabelOf(ChoiceMember member) => member.Label.Length > 0 ? member.Label : member.Text;
 
     private static string Cell(MetaRow meta, string column) =>
         meta.Columns.TryGetValue(column, out var value) ? value.Trim() : "";
 
-    private static List<string> Codes(string cell) =>
-        cell.Split(',', '.').Select(part => part.Trim()).Where(code => code.Length > 0).ToList();
+    /// <summary>
+    /// The value of a key in the object's rows as Moonwell reads its values (Definitive Edition's reading): the key's
+    /// <c>:de</c> value, else its <c>:hd</c> value, else its own; a key is looked up as spelled and, failing that,
+    /// without regard to case when one key matches. Null for none.
+    /// </summary>
+    private static string? Read(ObjectRows rows, string key)
+    {
+        foreach (var spelling in (string[])[key + ":de", key + ":hd", key])
+        {
+            if (rows.Values.TryGetValue(spelling, out var value))
+            {
+                return value;
+            }
+
+            var matches = rows.Values.Where(pair => string.Equals(pair.Key, spelling, StringComparison.OrdinalIgnoreCase))
+                .Take(2)
+                .ToList();
+            if (matches.Count == 1)
+            {
+                return matches[0].Value;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>A cell's value, trimmed: null when empty or a table's placeholder <c>-</c> or <c>_</c>.</summary>
+    private static string? Clean(string? cell)
+    {
+        var value = cell?.Trim();
+        return string.IsNullOrEmpty(value) || value == "-" || value == "_" ? null : value;
+    }
 }

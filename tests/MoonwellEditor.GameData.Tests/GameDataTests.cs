@@ -1,32 +1,25 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Moonwell.GameData;
 using MoonwellEditor.Files;
 using Xunit.Abstractions;
 
 namespace MoonwellEditor.GameData.Tests;
 
 /// <summary>
-/// The game data folder named by <c>MOONWELL_EDITOR_GAME_DATA</c>, loaded once into a fresh cache folder (so the first
-/// load is a build with Moonwell's generator), for every test of <see cref="GameDataTests"/>.
+/// The game data of the Warcraft III install on this computer (MOONWELL_WAR3, else the usual folder), loaded once into
+/// a fresh cache folder (so the first load is a build with Moonwell's reader), for every test of
+/// <see cref="GameDataTests"/> and <see cref="InstallDataTests"/>.
 /// </summary>
 public sealed class GameDataFixture : IDisposable
 {
-    /// <summary>The environment variable that names the game data folder.</summary>
-    public const string Variable = "MOONWELL_EDITOR_GAME_DATA";
-
     public GameDataFixture()
     {
-        var folder = Environment.GetEnvironmentVariable(Variable);
-        if (string.IsNullOrEmpty(folder))
+        var folder = GameInstall.Find();
+        if (folder == null)
         {
-            Reason = $"{Variable} is not set; set it to a game data folder (war3.w3mod) to run this test";
-            return;
-        }
-
-        if (!Directory.Exists(folder))
-        {
-            Reason = $"{Variable} names {folder}, which does not exist; skipped";
+            Reason = $"No Warcraft III install in {string.Join(", ", GameInstall.Places())}; set {GameInstall.Variable} to run this test";
             return;
         }
 
@@ -40,7 +33,7 @@ public sealed class GameDataFixture : IDisposable
     /// <summary>Why the tests cannot run, or null when <see cref="Data"/> is loaded.</summary>
     public string? Reason { get; }
 
-    /// <summary>The game data folder.</summary>
+    /// <summary>The install's folder.</summary>
     public string Folder { get; } = "";
 
     /// <summary>The cache folder of this run, empty before the first load.</summary>
@@ -97,6 +90,28 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
         var strength = units.Field("ustr")!;
         Assert.True(units.Applies(strength, units.Object("Hpal")!));
         Assert.False(units.Applies(strength, units.Object("hfoo")!));
+    }
+
+    [Fact]
+    public void A_field_listed_by_the_abilitys_id_belongs_to_it()
+    {
+        if (Skipped(out var data))
+        {
+            return;
+        }
+
+        // Cargo Capacity (Car1) is listed for Sch2 to Sch5 by their ids, though their code (Amtc) lists no field of its
+        // own; World Editor shows it on Sch2 (Sven, 2026-10-28).
+        var abilities = data.Kind(ObjectKind.Ability);
+        var capacity = abilities.Field("Car1")!;
+        Assert.True(abilities.Applies(capacity, abilities.Object("Sch2")!));
+        // An ability that neither its id nor its code lists does not get it.
+        Assert.False(abilities.Applies(capacity, abilities.Object("AHhb")!));
+        // A field listed by the id takes the column from one listed by the code: AIls (code Alsh) has Idps on DataA,
+        // not Lsh1.
+        var ils = abilities.Object("AIls")!;
+        Assert.True(abilities.Applies(abilities.Field("Idps")!, ils));
+        Assert.False(abilities.Applies(abilities.Field("Lsh1")!, ils));
     }
 
     [Fact]
@@ -214,6 +229,23 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
     }
 
     [Fact]
+    public void A_suffix_is_the_first_entry_of_its_list_with_its_bracket_closed()
+    {
+        if (Skipped(out var data))
+        {
+            return;
+        }
+
+        // As World Editor shows them, in the tree and in the Text - Editor Suffix field (Sven, 2026-10-28).
+        var units = data.Kind(ObjectKind.Unit);
+        Assert.Equal("(ruined)", units.Object("nvr0")!.Suffix);
+        Assert.Equal("(Morphed)", units.Object("Eevm")!.Suffix);
+        var abilities = data.Kind(ObjectKind.Ability);
+        Assert.Equal("(New)", abilities.Object("Afrc")!.Suffix);
+        Assert.Equal("(Neutral Hostile 3)", abilities.Object("Awrg")!.Suffix);
+    }
+
+    [Fact]
     public void Object_details()
     {
         if (Skipped(out var data))
@@ -281,8 +313,7 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
         // Left otherwise as written, the copy is used, so the test tells using a cache from building again.
         Assert.Equal("999", FootmanHitPoints(_ => { }));
         Assert.Equal("420", FootmanHitPoints(cache => cache["Code"] = Guid.NewGuid().ToString("N")));
-        Assert.Equal("420", FootmanHitPoints(cache => cache["Newest"] = cache["Newest"]!.GetValue<long>() - 1));
-        Assert.Equal("420", FootmanHitPoints(cache => cache["Files"] = cache["Files"]!.GetValue<int>() + 1));
+        Assert.Equal("420", FootmanHitPoints(cache => cache["Stamp"] = "build 00000000000000000000000000000000"));
     }
 
     /// <summary>
@@ -324,7 +355,8 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
     }
 
     /// <summary>Everything a <see cref="GameData"/> holds, as JSON, for comparing two loads.</summary>
-    private static string Snapshot(GameData data)
+    /// <summary>The data as JSON, with the folder it was read from unless <paramref name="source"/> is false.</summary>
+    internal static string Snapshot(GameData data, bool source = true)
     {
         var kinds = Enum.GetValues<ObjectKind>().Select(kind => new
         {
@@ -333,6 +365,8 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
             data.Kind(kind).Fields,
             data.Kind(kind).Objects,
         });
-        return JsonSerializer.Serialize(new { data.Source, data.Choices, Kinds = kinds });
+        return source
+            ? JsonSerializer.Serialize(new { data.Source, data.Choices, Kinds = kinds })
+            : JsonSerializer.Serialize(new { data.Choices, Kinds = kinds });
     }
 }
