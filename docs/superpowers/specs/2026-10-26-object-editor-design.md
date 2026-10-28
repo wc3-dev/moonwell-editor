@@ -437,7 +437,8 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
     field in the details, else the object); the tree's selection looks strong only while the tree is in use.
   - The new-object dialog is titled after its base ("New Sorceress hsor") and checks the id as it is typed. The
     button-position card says only "Button Position". The editor opens with an alpha notice (backups; close the map
-    in World Editor) until "Don't show this again".
+    in World Editor), its warning sign on the title's row; only Settings → General → Start turns it off (Sven,
+    2026-10-28; until then the notice had its own "Don't show this again").
   - The editor shows the data World Editor shows. Its Object Editor (3.0.1, Asset Mode DE) was compared with the
     editor field by field on a copy of `we-heavy-archive`'s map (Peasant, Priest, Sorceress, Paladin, Town Hall,
     Shaman, Claws of Attack +12, Holy Light, Storm Bolt, Devotion Aura's buff, Iron Forged Swords, Ghoul Frenzy, the
@@ -535,6 +536,38 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
   - The side panel kept shaking on the Footman: at one height its scroll bar came and went, which changed its width,
     the model's size with it, and so its height. The panel keeps the scroll bar's room, and a new size no longer loads
     the model again.
+  - A total of dice starts with its three fields hidden. It is selected on its own (not its base): Ctrl C copies its
+    range, and Ctrl V or its context menu pastes a copied range into any total (Attack 1's 12 — 13 onto Attack 2).
+  - The text and number boxes show only their value, as the tooltip editor's texts do: no border or background, a
+    dashed border on hover and the accent's while typing; an empty one shows its placeholder (World Editor's empty
+    value, such as 0 or None, else "(empty)"). Dropdowns, flags and object lists keep their boxes.
+  - The model kept drawing nothing after the Footman's Decay Flesh: war3-model draws the classic material of an HD
+    model (the Footman's material 7, seen only in Decay Flesh) with its HD shader, which then lacks a normal and an ORM
+    texture, and throws. Such a material is drawn with flat ones, and a frame that throws no longer stops the drawing.
+  - Custom objects sit under Custom in the same folders as the standard ones (Human › Melee › Units...), by their own
+    values where the map sets them: a unit's race, campaign, special, building and Display as Neutral Hostile, a hero
+    by its id's capital letter; an item's class; a destructable's or doodad's category; an ability's race and Hero or
+    Item Ability; a buff's race and Is an Effect; an upgrade's race. Within a folder they go in World Editor's order.
+    *(Agent's calls: which fields count, not compared with World Editor field by field.)*
+- **Sven, 2026-10-28, the dependency pass:** libraries take over code the editor kept itself, where one does the job
+  well; the rest stays the editor's own (the tree's and table's drawing of only the rows in view, the hotkeys, the
+  spreadsheet paste, the search).
+  - Bits UI: the dropdowns, the menus (the right-click one and ☰), the popovers and the dialogs, which keep their looks.
+    They gain typed letters in menus, lists that open above near the window's bottom, a popover that follows its
+    button as the page scrolls (it closed before) and hides while the button is out of view, Esc closing one layer at
+    a time, and the focus going back to what opened a dialog. *(Agent's calls: the four components keep their names
+    and props, so the rest of the page did not change; the scroll behaviour; a menu no longer closes when the window
+    loses the focus.)*
+  - Pfim: the DDS icons, in place of the editor's own DXT decoder. Its colours differ from the old decoder's by at
+    most 2 in 255 (rounding), the alpha not at all, over the install's 1,280 DDS icons.
+  - TipTap: the tooltip editor's texts, in place of the editor's own editable-text code; `richText.ts` still reads
+    and writes the markup. The texts gain their own undo and redo. *(Agent's calls: copying a text gives the game's
+    markup and a paste is read as markup, so colours and placeholders survive both; a paste was plain text before.)*
+  - A bits field (Extra Versions, Pick Flags...) reads its values as the game's data spells them, each bit's own value
+    (1, 2, 4): before, the editor read 6 as bits 1 and 2, so it ticked the wrong entries and wrote the wrong bits. A bit
+    World Editor does not list but the standard data uses (Extra Versions' 4, which 20 standard units hold, the Priest's
+    6) is not offered or shown, as World Editor shows none, and stays in the value when the others are ticked (Sven's
+    choice). What the game does with that bit is not known.
 - **Keys** (first set): Ctrl K search, Ctrl S save, Ctrl Z / Ctrl Y undo and redo, Ctrl D field ids (as in World
   Editor), Ctrl F filter fields, Ctrl Shift N new object from the selected one, F2 rename, Delete delete, Alt ←/→ back
   and forward through visited objects.
@@ -545,8 +578,10 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
 
 - C#: .NET 10, nullable on, warnings as errors, implicit usings, `.editorconfig` as Moonwell's (4 spaces, LF).
   `Moonwell.War3Net.Build.Core` from nuget.org; `Microsoft.Web.WebView2` for the window. xUnit for tests, as Moonwell.
+  `War3Net.Drawing.Blp` and Pfim (Sven, 2026-10-28) read the icons.
 - Front end: Svelte 5, TypeScript, Vite, Tailwind CSS 4, Lucide, fontsource. Exact versions pinned. Biome (2 spaces,
-  100 columns). Vitest, with the bridge mocked.
+  100 columns). Vitest, with the bridge mocked. Bits UI for the popups and TipTap for the tooltip texts (Sven,
+  2026-10-28); war3-model and dds-parser for the model preview.
 - npm (no pnpm), LF line ends.
 - Release: a self-contained Windows build (`dotnet publish`), about 60-100 MB; WebView2 is part of Windows 10 and 11.
 

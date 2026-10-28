@@ -5,7 +5,7 @@ import GitCompareArrows from "@lucide/svelte/icons/git-compare-arrows";
 import Menu from "@lucide/svelte/icons/menu";
 import Table2 from "@lucide/svelte/icons/table-2";
 import { onMount, tick } from "svelte";
-import AlphaNotice, { alphaUnderstood } from "./lib/AlphaNotice.svelte";
+import AlphaNotice from "./lib/AlphaNotice.svelte";
 import {
   type CellEdit,
   type ChoiceList,
@@ -113,8 +113,8 @@ let zone = $state<"tree" | "details">("tree");
 let settingsOpen = $state(false);
 // The question before a reload from disk with nothing unsaved.
 let confirmingReload = $state(false);
-// The alpha notice the editor opens with, until the user ticks "Don't show this again" (Sven, 2026-10-27).
-let alphaOpen = $state(!alphaUnderstood());
+// The alpha notice the editor opens with, until Settings turns it off (Sven, 2026-10-27; 2026-10-28).
+let alphaOpen = $state(prefs.alphaNotice);
 // The hotkeys, which the settings change.
 let keymap = $state(loadKeymap());
 // Put on before the first paint, so the page never shows the default theme first.
@@ -823,7 +823,7 @@ function typingIn(target: EventTarget | null): boolean {
 
 /** True when a key goes to a popover or dialog (a list of choices, a checkbox), not to the object shown. */
 function inPopup(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[role="dialog"]') !== null;
+  return target instanceof Element && target.closest('[role="dialog"], [data-popup]') !== null;
 }
 
 /** Shows an object, and remembers it in the history unless the history is being walked. */
@@ -942,7 +942,8 @@ function onkeydown(event: KeyboardEvent): void {
     return; // and so do the dialogs
   if (page === "table" && tableKey(event)) return;
   if (event.key === "Escape") {
-    showProblems = false;
+    // An Esc that closed a list or a menu is spent (Bits UI marks it).
+    if (!event.defaultPrevented) showProblems = false;
     return;
   }
   // The keys of the keymap, which the settings change (Sven, 2026-10-27).
