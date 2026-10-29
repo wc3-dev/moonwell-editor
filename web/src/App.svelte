@@ -1,9 +1,15 @@
 <script lang="ts">
+import AudioLines from "@lucide/svelte/icons/audio-lines";
+import BookOpen from "@lucide/svelte/icons/book-open";
+import Bot from "@lucide/svelte/icons/bot";
 import Columns3 from "@lucide/svelte/icons/columns-3";
 import FolderOpen from "@lucide/svelte/icons/folder-open";
 import GitCompareArrows from "@lucide/svelte/icons/git-compare-arrows";
 import Menu from "@lucide/svelte/icons/menu";
+import MountainSnow from "@lucide/svelte/icons/mountain-snow";
+import Package from "@lucide/svelte/icons/package";
 import Table2 from "@lucide/svelte/icons/table-2";
+import Workflow from "@lucide/svelte/icons/workflow";
 import { onMount, tick } from "svelte";
 import AboutDialog from "./lib/AboutDialog.svelte";
 import AlphaNotice from "./lib/AlphaNotice.svelte";
@@ -53,6 +59,8 @@ import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "./l
 import { graphics, viewInMode } from "./lib/graphics.svelte.ts";
 import KindBar from "./lib/KindBar.svelte";
 import { actionOf, loadKeymap, shownKey } from "./lib/keymap.ts";
+import MapView from "./lib/MapView.svelte";
+import { picking } from "./lib/map/pick.ts";
 import OpenMapMenu from "./lib/OpenMapMenu.svelte";
 import { type OpenEntry, openEntries, openFrom } from "./lib/openMenu.ts";
 import { prefs } from "./lib/prefs.svelte.ts";
@@ -160,8 +168,20 @@ const shown = $derived(current ? viewInMode(current, graphics.mode) : null);
 let objectError = $state("");
 let choiceLists = $state.raw<Record<string, ChoiceList> | null>(null);
 
-// Which view the middle of the window shows: the selected object's details, or the kind's table.
-let page = $state<"details" | "table">("details");
+// Which view the middle of the window shows: the selected object's details, the kind's table, or the map (the
+// Terrain Editor button; read only for now).
+let page = $state<"details" | "table" | "map">("details");
+// While something asks the map for a pick (the trigger editor), the map shows; then the page it came from again.
+let beforePick: "details" | "table" | null = null;
+$effect(() => {
+  if ($picking.kind !== null && page !== "map" && map) {
+    beforePick = page;
+    page = "map";
+  } else if ($picking.kind === null && beforePick) {
+    page = beforePick;
+    beforePick = null;
+  }
+});
 // The table view is an experimental feature (Sven, 2026-10-29): turning them off goes back to the details.
 $effect(() => {
   if (!prefs.experimental && page === "table") page = "details";
@@ -981,6 +1001,8 @@ function onkeydown(event: KeyboardEvent): void {
   )
     return; // and so do the dialogs
   if (page === "table" && tableKey(event)) return;
+  // On the map, the view takes its own keys; of the window's, only Save and Settings run there.
+  if (page === "map" && !["save", "settings"].includes(actionOf(event, keymap) ?? "")) return;
   if (event.key === "Escape") {
     // An Esc that closed a list or a menu is spent (Bits UI marks it). Otherwise it also lets go of a button clicked
     // last (a kind, a view), which would show its focus ring (Sven, 2026-10-29).
@@ -1190,6 +1212,35 @@ onMount(() => {
         <GitCompareArrows size={17} />
       </button>
     </div>
+    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+    <!-- World Editor's other editors, shown before they exist (Sven, 2026-10-29). -->
+    <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.editors")}>
+      <!-- The Terrain Editor shows the map, read only, for now (Sven, 2026-10-29). -->
+      <button
+        type="button"
+        class="rounded-[5px] p-1.5 {page === 'map'
+          ? 'bg-accent-lo text-accent-hi'
+          : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
+        title={t("header.terrainEditor")}
+        aria-label={t("header.terrainEditor")}
+        aria-pressed={page === "map"}
+        disabled={!map}
+        onclick={() => (page = "map")}
+      >
+        <MountainSnow size={17} />
+      </button>
+      {#each [{ name: t("header.triggerEditor"), Icon: Workflow }, { name: t("header.soundEditor"), Icon: AudioLines }, { name: t("header.campaignEditor"), Icon: BookOpen }, { name: t("header.aiEditor"), Icon: Bot }, { name: t("header.assetManager"), Icon: Package }] as each (each.name)}
+        <button
+          type="button"
+          class="rounded-[5px] p-1.5 text-muted opacity-50"
+          disabled
+          title={t("header.comingSoon", { name: each.name })}
+          aria-label={each.name}
+        >
+          <each.Icon size={17} />
+        </button>
+      {/each}
+    </div>
     <button
       type="button"
       class="ml-auto shrink-0 rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg"
@@ -1250,6 +1301,14 @@ onMount(() => {
       </div>
     </main>
   {:else}
+    {#if page === "map"}
+      <main class="min-h-0" aria-label={t("main.map")}>
+        <!-- A map opened or reloaded is a new object: the view is made again and reads it. -->
+        {#key map}
+          <MapView mode={graphics.mode} />
+        {/key}
+      </main>
+    {/if}
     {#if page === "table"}
       <main class="min-h-0" aria-label={t("main.table")}>
         <TableView
@@ -1270,10 +1329,10 @@ onMount(() => {
         />
       </main>
     {/if}
-    <!-- The details view stays in the page while the table shows, so it comes back as it was. -->
+    <!-- The details view stays in the page while the table or the map shows, so it comes back as it was. -->
     <main
-      class="grid min-h-0 grid-cols-[290px_1fr_300px] max-[1100px]:grid-cols-[230px_1fr_240px] {page ===
-      'table'
+      class="grid min-h-0 grid-cols-[290px_1fr_300px] max-[1100px]:grid-cols-[230px_1fr_240px] {page !==
+      'details'
         ? 'hidden'
         : ''}"
     >
