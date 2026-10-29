@@ -67,6 +67,11 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
     public ObjectView View(string id, StandardObject? standard, MapObject? map, string? readOnly)
     {
         var custom = map is { Custom: true };
+        if (standard != null)
+        {
+            standard = data.ByOwnId(standard, id);
+        }
+
         var name = Name(standard, map, id);
         var levels = Levels(standard, map);
         var fields = new List<FieldView>();
@@ -237,7 +242,8 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
             modes,
             field.Asset,
             field.Meta,
-            field.Pointer);
+            field.Pointer,
+            field.MaxLength);
     }
 
     /// <summary>
@@ -281,7 +287,7 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
 
             result.Add(field with
             {
-                Label = $"Effect {number} - {used.Label}",
+                Label = Texts.Get("app.field.effect", ("number", number), ("label", used.Label)),
                 Type = used.Type,
                 Choice = used.Choice,
                 ListOf = used.ListOf,
@@ -310,29 +316,29 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
             var min = field.Min ?? (field.NoNegative ? 0 : null);
             if (field.Max is { } max && number > max)
             {
-                warnings.Add($"Above World Editor's limit of {Number(max)}.");
+                warnings.Add(Texts.Get("app.limit.above", ("limit", Number(max))));
             }
 
             if (min is { } low && number < low)
             {
-                warnings.Add($"Below World Editor's limit of {Number(low)}.");
+                warnings.Add(Texts.Get("app.limit.below", ("limit", Number(low))));
             }
         }
 
         if (field.MaxLength is { } length && value.Length > length)
         {
-            warnings.Add($"Longer than World Editor's limit of {Number(length)} characters.");
+            warnings.Add(Texts.Get("app.limit.tooLong", ("limit", Number(length))));
         }
 
         // A list's entries are separated by commas.
         if (field.MaxEntries is { } entries && value.Length > 0 && value.Split(',').Length > entries)
         {
-            warnings.Add($"More than World Editor's limit of {Number(entries)} entries.");
+            warnings.Add(Texts.Get("app.limit.tooMany", ("limit", Number(entries))));
         }
 
         if (field.Required && value.Length == 0)
         {
-            warnings.Add("May not be empty.");
+            warnings.Add(Texts.Get("app.limit.empty"));
         }
 
         return warnings.Count == 0 ? null : string.Join(" ", warnings);

@@ -107,6 +107,11 @@ async function reset(field: FieldView): Promise<void> {
                   title={field.warning ?? undefined}
                   onfocusin={() => onselect(field)}
                   onpointerdown={() => onselect(field)}
+                  ondblclick={async (event) => {
+                    // A double click turns a True or False cell, as on a field's row (Sven, 2026-10-29).
+                    if (field.type !== "bool" || (event.target as Element).closest("[aria-pressed]")) return;
+                    errors[key] = (await onset(field, field.value === "1" ? "0" : "1")) ?? "";
+                  }}
                   oncontextmenu={(event) => menuOf(field, event)}
                 >
                   <span class="flex items-center">
@@ -116,6 +121,8 @@ async function reset(field: FieldView): Promise<void> {
                         {choices}
                         {lookup}
                         compact
+                        selected={selected === key}
+                        {showIds}
                         {onset}
                         {onopen}
                         bind:error={errors[key]}

@@ -1,8 +1,9 @@
 <script lang="ts">
 /**
  * The tooltip editor (Sven, 2026-10-27): the object's tooltip as the game shows it, its texts editable in place. Each
- * text names its field when hovered or edited. The toolbar colours the selected text (a colour picker, a few of the
- * game's colours, and no colour) and, for an ability, puts in the placeholders that show its values (`<AHhb,Dur1>`),
+ * text names its field above its box when hovered or edited. The toolbar colours the selected text (the colours the
+ * game's own tooltips use, no colour, and up to eight colours of the user's own, each picked with the picker) and, for
+ * an ability, puts in the placeholders that show its values (`<AHhb,Dur1>`),
  * which show as chips named for what they stand for. The icon, hotkey and costs show as the game shows them but are
  * edited in their fields. An object with levels is edited a level at a time; Save sends every changed text as one
  * edit.
@@ -12,6 +13,7 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
 import { type FieldView, iconUrl, type ObjectView } from "./api.ts";
+import ColorPicker from "./ColorPicker.svelte";
 import Dialog from "./Dialog.svelte";
 import { uiIcons } from "./gameIcons.ts";
 import { graphics } from "./graphics.svelte.ts";
@@ -142,14 +144,68 @@ const shownBoxes = $derived(
 let drafts = $state<Record<string, string>>({});
 let editors = $state<Record<string, RichText | undefined>>({});
 let active = $state<string | null>(null);
+// The text the mouse is over, and the one with the cursor: the first is named above its box, else the second.
+let hovered = $state<string | null>(null);
+let focused = $state<string | null>(null);
+const named = $derived.by(() => {
+  const key = hovered ?? focused;
+  for (const box of shownBoxes) {
+    const part = box.parts.find((each) => keyOf(each.field) === key);
+    if (part) return { box: box.key, field: part.field };
+  }
+  return null;
+});
 let error = $state("");
 let saving = $state(false);
 
 const keyOf = (field: FieldView) => `${field.id}:${field.level}`;
 
-// The colours of the toolbar: the gold the game marks hotkeys and levels with, and a few others its tooltips use.
-const swatches = ["#ffcc00", "#ff8c00", "#ff4040", "#40ff40", "#66ccff", "#bf80ff"];
-let picked = $state("#ffcc00");
+// The colours the game's own tooltips use, most used first (counted in the game's ability and item texts, Sven,
+// 2026-10-29), so they are kept at hand.
+const presets = [
+  { css: "#ffcc00", name: t("tooltipEditor.colour.gold") },
+  { css: "#c3dbff", name: t("tooltipEditor.colour.autocast") },
+  { css: "#aeaeae", name: t("tooltipEditor.colour.common") },
+  { css: "#40da00", name: t("tooltipEditor.colour.uncommon") },
+  { css: "#6295e3", name: t("tooltipEditor.colour.rare") },
+  { css: "#7c2abb", name: t("tooltipEditor.colour.epic") },
+  { css: "#f28302", name: t("tooltipEditor.colour.legendary") },
+  { css: "#ffff00", name: t("tooltipEditor.colour.quest") },
+  { css: "#87ceeb", name: t("tooltipEditor.colour.consumable") },
+];
+
+// The user's own colours, after the divider: + picks a new one (until there are `maxOwn`), and a click on one colours
+// the selection and opens the picker to change it (Sven, 2026-10-29). The picker is the editor's own: WebView2's could
+// not pick a colour. They are remembered in the window's storage.
+const maxOwn = 8;
+const ownKey = "moonwell-editor.tooltip-colours";
+let own = $state<string[]>(savedOwn());
+// The picker, open under + (index null, a new colour) or under one of the user's colours.
+let picking = $state<{ index: number | null; anchor: HTMLElement } | null>(null);
+
+function savedOwn(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ownKey) ?? "[]") as unknown;
+    return Array.isArray(saved)
+      ? saved
+          .filter(
+            (each): each is string => typeof each === "string" && /^#[0-9a-f]{6}$/i.test(each),
+          )
+          .slice(0, maxOwn)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function setOwn(next: string[]): void {
+  own = next;
+  try {
+    localStorage.setItem(ownKey, JSON.stringify(next));
+  } catch {
+    // Not remembered: the next start has none.
+  }
+}
 
 // The ability's fields a placeholder can name, by the game's key, with their names.
 const insertable = $derived.by(() => {
@@ -231,16 +287,15 @@ const changedCount = $derived(
 
 {#snippet text(part: Part & { field: FieldView }, look: string)}
   {@const key = keyOf(part.field)}
-  <!-- Hovered or edited, a text names its field (Sven, 2026-10-27). -->
+  <!-- Hovered or edited, a text names its field above its box, where it covers nothing (Sven, 2026-10-29). -->
   <div
-    class="group relative -mx-1 rounded px-1 outline-1 outline-transparent outline-dashed hover:outline-white/30 focus-within:outline-accent"
+    class="-mx-1 rounded px-1 outline-1 outline-transparent outline-dashed hover:outline-white/30 focus-within:outline-accent"
+    role="group"
+    onmouseenter={() => (hovered = key)}
+    onmouseleave={() => (hovered = null)}
+    onfocusin={() => (focused = key)}
+    onfocusout={() => (focused = null)}
   >
-    <span
-      class="pointer-events-none absolute -top-2.5 right-1 z-10 hidden rounded border border-line bg-surface px-1.5 font-sans text-[10.5px] font-normal whitespace-nowrap text-muted group-hover:block group-focus-within:block"
-    >
-      {part.field.label} · <span class="font-mono">{part.field.id}</span>{#if part.field.level > 0}
-        · {t("tooltipEditor.levelTag", { level: part.field.level })}{/if}
-    </span>
     {#key key}
       <RichText
         bind:this={editors[key]}
@@ -248,6 +303,7 @@ const changedCount = $derived(
         single={part.single}
         {describe}
         label={part.field.label}
+        limit={part.field.maxLength}
         class={look}
         onfocus={() => (active = key)}
         onchange={(markup) => (drafts[key] = markup)}
@@ -258,46 +314,61 @@ const changedCount = $derived(
 
 <Dialog title={t("tooltipEditor.title", { name: view.name })} note={view.id} oncancel={onclose} large>
   <!-- The toolbar: colours for the selected text, and an ability's values to put in. -->
-  <div class="mb-3 flex flex-wrap items-center gap-1.5" role="toolbar" aria-label={t("tooltipEditor.toolbar")}>
-    <label
-      class="flex cursor-pointer items-center gap-1.5 rounded border border-line bg-raised px-1.5 py-0.5 text-[12.5px] hover:border-muted"
-      title={t("tooltipEditor.pickColour")}
-    >
-      <input type="color" class="size-5 cursor-pointer border-0 bg-transparent p-0" bind:value={picked} />
-      <span class="font-mono text-faint">{picked}</span>
-    </label>
-    <button
-      type="button"
-      class="rounded border border-line bg-raised px-2 py-0.5 text-[12.5px] text-fg hover:border-accent"
-      onpointerdown={(event) => event.preventDefault()}
-      onclick={() => colorSelection(picked)}
-    >
-      {t("tooltipEditor.applyColour")}
-    </button>
-    {#each swatches as swatch (swatch)}
+  <div class="mb-2 flex flex-wrap items-center gap-1.5" role="toolbar" aria-label={t("tooltipEditor.toolbar")}>
+    {#each presets as preset (preset.css)}
       <button
         type="button"
         class="size-5 rounded border border-line hover:border-fg"
-        style:background-color={swatch}
-        title={t("tooltipEditor.colourTitle", { colour: swatch })}
-        aria-label={t("tooltipEditor.colourTitle", { colour: swatch })}
+        style:background-color={preset.css}
+        title={t("tooltipEditor.presetTitle", { name: preset.name, colour: preset.css })}
+        aria-label={t("tooltipEditor.colourTitle", { colour: preset.name })}
         onpointerdown={(event) => event.preventDefault()}
-        onclick={() => {
-          picked = swatch;
-          colorSelection(swatch);
-        }}
+        onclick={() => colorSelection(preset.css)}
       ></button>
     {/each}
     <button
       type="button"
-      class="flex items-center gap-1 rounded border border-line bg-raised px-2 py-0.5 text-[12.5px] text-fg hover:border-accent"
+      class="flex size-5 items-center justify-center rounded border border-line text-muted hover:border-fg hover:text-fg"
       title={t("tooltipEditor.noColourTitle")}
+      aria-label={t("tooltipEditor.noColourTitle")}
       onpointerdown={(event) => event.preventDefault()}
       onclick={() => colorSelection(null)}
     >
-      <Eraser size={13} />
-      {t("tooltipEditor.noColour")}
+      <Eraser size={12} />
     </button>
+    <span class="mx-1 h-4 w-px bg-line" aria-hidden="true"></span>
+    <!-- The user's own colours, then + while there is room; the picker opens under the one clicked. -->
+    {#each own as colour, index (index)}
+      <button
+        type="button"
+        class="size-5 rounded border hover:border-fg {picking?.index === index ? 'border-fg' : 'border-line'}"
+        style:background-color={colour}
+        title={t("tooltipEditor.ownTitle", { colour })}
+        aria-label={t("tooltipEditor.ownTitle", { colour })}
+        aria-haspopup="dialog"
+        onpointerdown={(event) => event.preventDefault()}
+        onclick={(event) => {
+          colorSelection(colour);
+          picking = { index, anchor: event.currentTarget };
+        }}
+      ></button>
+    {/each}
+    {#if own.length < maxOwn}
+      <button
+        type="button"
+        class="flex size-5 items-center justify-center rounded border border-dashed text-muted hover:border-accent hover:text-fg {picking?.index ===
+        null
+          ? 'border-accent'
+          : 'border-line'}"
+        title={t("tooltipEditor.addColour", { max: maxOwn })}
+        aria-label={t("tooltipEditor.addColour", { max: maxOwn })}
+        aria-haspopup="dialog"
+        onpointerdown={(event) => event.preventDefault()}
+        onclick={(event) => (picking = { index: null, anchor: event.currentTarget })}
+      >
+        <Plus size={12} />
+      </button>
+    {/if}
     {#if insertable.length > 0}
       <span class="mx-1 h-4 w-px bg-line" aria-hidden="true"></span>
       <button
@@ -338,6 +409,24 @@ const changedCount = $derived(
     {/if}
   </div>
 
+  <!-- Opened anew for each colour clicked. -->
+  {#key picking}
+    {#if picking}
+      {@const at = picking.index}
+      <Popover anchor={picking.anchor} onclose={() => (picking = null)}>
+      <ColorPicker
+        value={at === null ? (own.at(-1) ?? "#ffcc00") : (own[at] ?? "#ffffff")}
+        action={at === null ? t("colourPicker.add") : t("colourPicker.change")}
+        onpick={(css) => {
+          setOwn(at === null ? [...own, css] : own.map((each, index) => (index === at ? css : each)));
+          colorSelection(css);
+          picking = null;
+        }}
+      />
+    </Popover>
+    {/if}
+  {/key}
+
   {#if inserting && insertButton}
     <Popover anchor={insertButton} onclose={() => (inserting = false)}>
       <div class="flex flex-col" role="menu" aria-label={t("tooltipEditor.insert")}>
@@ -368,9 +457,23 @@ const changedCount = $derived(
   {/if}
 
   {#each shownBoxes as box (box.key)}
-    {#if box.key !== "main"}
-      <p class="mt-4 mb-1 text-[12px] tracking-[.06em] text-faint uppercase">{boxNames[box.key]}</p>
-    {/if}
+    <div class="mb-1 flex h-4 items-baseline gap-2 text-[12px] {box.key === 'main' ? '' : 'mt-3'}">
+      {#if box.key !== "main"}
+        <span class="tracking-[.06em] text-faint uppercase">{boxNames[box.key]}</span>
+      {/if}
+      {#if named?.box === box.key}
+        <span class="ml-auto truncate text-muted">
+          {named.field.label} · <span class="font-mono">{named.field.id}</span>{#if named.field.level > 0}
+            · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
+          {#if named.field.maxLength}
+            {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
+            · <span class="font-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
+              >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
+            >
+          {/if}
+        </span>
+      {/if}
+    </div>
     <div class="rounded-md border border-line bg-black/85 px-3 py-2.5 text-[13px] leading-snug text-white shadow-lg">
       {#if box.key === "main" && tip}
         <div class="flex items-start gap-2">

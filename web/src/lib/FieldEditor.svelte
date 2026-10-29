@@ -1,12 +1,15 @@
 <script lang="ts">
 /**
  * The editor of one field at one level, by its type (see `editorFor`): a number or text box (Enter or leaving it
- * sends the value, Esc puts the value back), a toggle, a select, the flags' checkboxes, or an object list's chips
+ * sends the value, Esc puts the value back), True or False (a click turns it), a select, the flags' checkboxes, or an object list's chips
  * and picker. A value the app refuses keeps what was typed, with the reason in `error`. The table's cell editor starts
  * it with what was typed into the cell (`initial`), and sends or drops the typed value itself (`commit`, `cancel`).
  */
+import ChevronDown from "@lucide/svelte/icons/chevron-down";
+import ChevronUp from "@lucide/svelte/icons/chevron-up";
 import { onDestroy, untrack } from "svelte";
 import type { ChoiceList, FieldView, Kind } from "./api.ts";
+import { calculate, isArithmetic } from "./calc.ts";
 import FlagsEditor from "./FlagsEditor.svelte";
 import {
   assetText,
@@ -37,6 +40,10 @@ type Props = {
   error?: string;
   /** Text the box starts with as typed (a number or text box only); null or undefined starts from the value. */
   initial?: string | null;
+  /** True when the field is the one selected: its boxes show their border, not only on hover. */
+  selected?: boolean;
+  /** True when the field ids are shown (Ctrl D): an object list's chips show their objects' ids. */
+  showIds?: boolean;
 };
 
 let {
@@ -48,6 +55,8 @@ let {
   onopen,
   error = $bindable(),
   initial = null,
+  selected = false,
+  showIds = false,
 }: Props = $props();
 
 // What the user typed and has not sent yet (or that was refused); null shows the field's value.
@@ -108,6 +117,7 @@ const options = $derived.by((): SelectOption[] =>
 );
 // A number box's arrows send the value once they stop.
 let stepping: ReturnType<typeof setTimeout> | undefined;
+let numberBox: HTMLInputElement | undefined = $state();
 // A real shows with three decimals, and a file by the names of the objects that use it while the box is not being
 // edited (its path while it is), as World Editor shows them (Sven, 2026-10-27).
 let focused = $state(false);
@@ -122,19 +132,21 @@ const title = $derived(
 );
 // Values start at the left of their box, and a box in the details panel is as wide as its value (between 8 characters
 // and the column), as World Editor shows them (Sven, 2026-10-27); a level grid's cell fills its column. The box has a
-// background and border of its own, so it shows as a box on the row (Sven, 2026-10-27). A box that is typed in (a
-// number, a text) shows only its value, as the tooltip editor's texts do: a dashed border on hover, the accent's while
-// it has the cursor, and its placeholder when it is empty (Sven, 2026-10-28). A dropdown keeps its box (`tone`).
-const tone = $derived(
-  `${error || field.warning ? "border-warn bg-warn-lo" : `${compact ? "border-transparent" : "border-line"} bg-raised hover:border-muted`} ${
-    field.changed ? "text-changed" : "text-fg"
-  }`,
-);
+// background and border of its own, so it shows as a box on the row (Sven, 2026-10-27). Every box (a number, a text,
+// True or False, a dropdown) shows only its value, as the tooltip editor's texts do: a dashed border on hover, the
+// accent's while it has the cursor, and its placeholder when it is empty (Sven, 2026-10-28); a dropdown keeps its
+// arrow (Sven, 2026-10-29). The selected field's boxes show a solid border, as they do with the cursor in them (Sven,
+// 2026-10-29).
 const quiet = $derived(
-  `${error || field.warning ? "border-warn bg-warn-lo" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
+  `${error || field.warning ? "border-warn bg-warn-lo" : selected ? "border-muted bg-transparent" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
     field.changed ? "text-changed" : "text-fg"
   }`,
 );
+// True and False, both kept in the box so it is as wide for either (Sven, 2026-10-29).
+const toggleWords = $derived([
+  shownValue({ ...field, value: "1" }, choices, nameOf),
+  shownValue({ ...field, value: "0" }, choices, nameOf),
+]);
 const boxClass = $derived(
   `min-w-0 rounded border py-[3px] font-mono text-[12.5px] outline-none placeholder:text-faint focus:border-solid focus:border-accent ${
     compact ? "w-full" : "field-sizing-content min-w-[8ch] max-w-full"
@@ -162,7 +174,17 @@ export async function commit(): Promise<boolean> {
   if (draft === null) return true;
   if (draft === refused) return false;
   if (draft === sending && pending) return pending;
-  const typed = draft;
+  let typed = draft;
+  // A number box works out arithmetic typed into it (Sven, 2026-10-29): `10*2+5`, or `*2` on the value it holds.
+  if (editor === "number" && isArithmetic(typed)) {
+    const result = calculate(typed, Number(field.value) || 0);
+    if (result === null) {
+      error = t("field.notArithmetic", { text: typed });
+      return false;
+    }
+    typed = String(field.type === "int" ? Math.round(result) : Math.round(result * 1e6) / 1e6);
+    setDraft(typed);
+  }
   const checked = checkValue(field, typed);
   if (!checked.ok) {
     error = checked.problem;
@@ -190,12 +212,6 @@ export async function commit(): Promise<boolean> {
   return taken && draft === null;
 }
 
-// A toggle the app refused shows the field's value again.
-async function choose(element: HTMLInputElement, value: string): Promise<void> {
-  if (await send(value)) return;
-  element.checked = field.value === "1";
-}
-
 /** Drops what was typed (and its error): the box shows the value again. */
 export function cancel(): void {
   setDraft(null);
@@ -204,7 +220,10 @@ export function cancel(): void {
 }
 
 function onkeydown(event: KeyboardEvent): void {
-  if (event.key === "Enter" && !(multiline && event.shiftKey)) {
+  if (editor === "number" && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+    event.preventDefault();
+    step(event.key === "ArrowUp" ? 1 : -1);
+  } else if (event.key === "Enter" && !(multiline && event.shiftKey)) {
     event.preventDefault();
     commit();
   } else if (event.key === "Escape" && (draft !== null || error)) {
@@ -212,6 +231,19 @@ function onkeydown(event: KeyboardEvent): void {
     event.stopPropagation();
     cancel();
   }
+}
+
+// The number box's arrows (Sven, 2026-10-29): a step of 1 up or down, sent once they stop, as the browser's own did.
+function step(by: number): void {
+  if (!numberBox) return;
+  const now = numberBox.value === "" ? 0 : Number(numberBox.value);
+  if (!Number.isFinite(now)) return;
+  const next = String(Math.round((now + by) * 1e6) / 1e6);
+  numberBox.value = next;
+  setDraft(next);
+  refused = null;
+  clearTimeout(stepping);
+  stepping = setTimeout(commit, 400);
 }
 
 function oninput(event: Event): void {
@@ -222,41 +254,50 @@ function oninput(event: Event): void {
 
 <span class="block min-w-0 {compact ? '' : 'max-w-full'}" {title}>
   {#if editor === "toggle"}
-    <!-- No line height of its own: in the mono font's line the text sat a pixel low against the box (Sven,
-         2026-10-27). -->
-    <label class="inline-flex cursor-pointer items-center gap-2 px-1.5 py-[3px] font-mono text-[12.5px] leading-none {field.changed
-        ? 'text-changed'
-        : 'text-fg'}">
-      <input
-        type="checkbox"
-        class="accent-accent"
-        checked={field.value === "1"}
-        data-field="{field.id}:{field.level}"
-        onchange={(event) => choose(event.currentTarget, event.currentTarget.checked ? "1" : "0")}
-      />
-      {shown}
-    </label>
+    <!-- The word alone, with no checkbox and no box; a click turns it (Sven, 2026-10-29). -->
+    <button
+      type="button"
+      class="inline-grid cursor-pointer rounded border border-transparent px-1.5 py-[3px] text-left font-mono text-[12.5px] outline-none focus-visible:border-accent {error ||
+      field.warning
+        ? 'text-warn'
+        : field.changed
+          ? 'text-changed'
+          : 'text-fg'}"
+      aria-pressed={field.value === "1"}
+      aria-label={field.label}
+      data-field="{field.id}:{field.level}"
+      onclick={() => send(field.value === "1" ? "0" : "1")}
+    >
+      {#each toggleWords as word (word)}
+        <span class="invisible col-start-1 row-start-1" aria-hidden="true">{word}</span>
+      {/each}
+      <span class="col-start-1 row-start-1">{shown}</span>
+    </button>
   {:else if editor === "select" && list}
     <Select
       {options}
       value={entryOf(list, field.value)?.value ?? field.value}
       missing={field.value === "" ? emptyText(field, choices) : field.value}
       label={field.label}
-      {tone}
+      tone={quiet}
       {compact}
+      snug
       field="{field.id}:{field.level}"
       onpick={(value) => send(value)}
     />
   {:else if editor === "flags" && list}
-    <FlagsEditor {field} {list} {shown} {compact} onset={send} />
+    <FlagsEditor {field} {list} {shown} {compact} tone={quiet} onset={send} />
   {:else if editor === "ids"}
-    <IdsEditor {field} {lookup} {compact} onset={send} {onopen} />
+    <IdsEditor {field} {lookup} {compact} {showIds} onset={send} {onopen} />
   {:else if editor === "number"}
+    <span class="group/number relative inline-flex max-w-full align-top {compact ? 'w-full' : ''}">
+    <!-- A text box, so arithmetic can be typed (Sven, 2026-10-29); its arrows and the arrow keys step it. -->
     <input
-      type="number"
-      class="{boxClass} px-1.5"
+      inputmode="decimal"
+      spellcheck="false"
+      class="{boxClass} pr-4 pl-1.5"
       style:width="calc({numberWidth}ch + 30px)"
-      step={field.type === "int" ? 1 : "any"}
+      bind:this={numberBox}
       value={draft ?? boxValue}
       {placeholder}
       data-field="{field.id}:{field.level}"
@@ -264,23 +305,34 @@ function oninput(event: Event): void {
       aria-invalid={!!error}
       {oninput}
       {onkeydown}
-      onchange={() => {
-        clearTimeout(stepping);
-        stepping = setTimeout(commit, 400);
-      }}
-      onwheel={(event) => {
-        // The wheel scrolls the panel: it never steps a box that has the cursor.
-        if (document.activeElement === event.currentTarget) event.currentTarget.blur();
-      }}
       onblur={() => {
         clearTimeout(stepping);
         commit();
       }}
     />
+    <!-- The box's arrows, shown while it is hovered or has the cursor; a click keeps the cursor where it was. -->
+    <span
+      class="absolute inset-y-px right-px flex w-3.5 flex-col opacity-0 group-hover/number:opacity-100 group-focus-within/number:opacity-100"
+    >
+      {#each [{ by: 1, Icon: ChevronUp, name: t("field.stepUp") }, { by: -1, Icon: ChevronDown, name: t("field.stepDown") }] as arrow (arrow.by)}
+        <button
+          type="button"
+          tabindex="-1"
+          class="flex flex-1 cursor-pointer items-center justify-center text-faint hover:text-fg"
+          aria-label={arrow.name}
+          onmousedown={(event) => event.preventDefault()}
+          onclick={() => step(arrow.by)}
+        >
+          <arrow.Icon size={11} strokeWidth={2.5} />
+        </button>
+      {/each}
+    </span>
+    </span>
   {:else if multiline}
     <textarea
-      class="{boxClass} block min-h-[4.5em] w-full resize-y px-1.5"
+      class="{boxClass} block min-h-[4.5em] w-full resize-none px-1.5"
       rows="3"
+      maxlength={field.maxLength ?? undefined}
       value={draft ?? field.value}
       {placeholder}
       data-field="{field.id}:{field.level}"
@@ -299,6 +351,7 @@ function oninput(event: Event): void {
         ? Math.max(4, Math.min(24, Math.max((draft ?? boxValue).length, placeholder.length) + 1))
         : undefined}
       spellcheck={editor === "text"}
+      maxlength={editor === "text" ? (field.maxLength ?? undefined) : undefined}
       data-field="{field.id}:{field.level}"
       aria-label={field.label}
       aria-invalid={!!error}

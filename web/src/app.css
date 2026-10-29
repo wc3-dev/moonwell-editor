@@ -8,35 +8,35 @@
 @import "@fontsource-variable/nunito";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Vitesse Dark (github.com/antfu/vscode-theme-vitesse). */
+/* Kanagawa Dragon (github.com/rebelot/kanagawa.nvim), the default theme (Sven, 2026-10-29). */
 :root {
   /* Every theme is dark: the number boxes' arrows and the scroll bars follow it. */
   color-scheme: dark;
-  --bg: #121212;
-  --surface: #181818;
-  --raised: #1e1e1e;
-  --hover: #222222;
-  --border: #262626;
-  --fg: #dbd7ca;
-  --text: #bfbaaa;
-  --muted: #959da5;
-  --faint: #6b6f73;
-  --accent: #4d9375;
-  --accent-hi: #80a665;
-  --accent-lo: #144620;
-  --changed: #e6cc77;
-  --warn: #cb7676;
-  --warn-lo: #43242b;
-  --cyan: #5eaab5;
-  --purple: #6872ab;
-  /* One colour per kind of object, for its icon and its name (from Vitesse Dark's palette). */
-  --kind-unit: #6394bf;
-  --kind-item: #d4976c;
-  --kind-destructable: #80a665;
-  --kind-doodad: #b8a965;
-  --kind-ability: #5eaab5;
-  --kind-buff: #a28dcd;
-  --kind-upgrade: #c98a7d;
+  --bg: #0d0c0c;
+  --surface: #181616;
+  --raised: #282727;
+  --hover: #282727;
+  --border: #393836;
+  --fg: #c5c9c5;
+  --text: #b4b8b4;
+  --muted: #a6a69c;
+  --faint: #737c73;
+  --accent: #8ba4b0;
+  --accent-hi: #8ea4a2;
+  --accent-lo: #2a3438;
+  --changed: #c4b28a;
+  --warn: #c4746e;
+  --warn-lo: #3a2626;
+  --cyan: #8ea4a2;
+  --purple: #8992a7;
+  /* One colour per kind of object, for its icon and its name (from Kanagawa Dragon's palette). */
+  --kind-unit: #8ba4b0;
+  --kind-item: #b6927b;
+  --kind-destructable: #87a987;
+  --kind-doodad: #c4b28a;
+  --kind-ability: #8ea4a2;
+  --kind-buff: #a292a3;
+  --kind-upgrade: #c4746e;
   --font-ui: "Google Sans", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Nunito Variable", "Google Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -80,11 +80,13 @@ body,
   margin: 0;
 }
 
+/* Only what is typed in can be selected: the names, values, panels and status bar cannot (Sven, 2026-10-29). */
 body {
   background: var(--bg);
   color: var(--text);
   font: 14px / 1.45 var(--font-ui);
   overflow: hidden;
+  user-select: none;
 }
 
 /*
@@ -93,6 +95,17 @@ body {
  * would beat every class.
  */
 @layer base {
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+  }
+
+  /* A focus ring, when one shows, is the accent's, not the browser's black (Sven, 2026-10-29). */
+  :focus-visible {
+    outline-color: var(--accent);
+  }
+
   input[type="checkbox"] {
     appearance: none;
     flex: none;
@@ -128,6 +141,12 @@ body {
   select option {
     background: var(--raised);
     color: var(--fg);
+  }
+
+  /* A number box's own arrows are hidden: the field editor draws its own (Sven, 2026-10-29). */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    display: none;
   }
 }
 

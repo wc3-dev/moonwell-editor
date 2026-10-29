@@ -18,11 +18,13 @@ type Props = {
   /** The text shown for the value (the labels). */
   shown: string;
   compact: boolean;
+  /** Classes for the button's border, background and text colour. */
+  tone: string;
   /** Sends a value; it ends once the app has answered (well or not). */
   onset: (value: string) => Promise<unknown>;
 };
 
-let { field, list, shown, compact, onset }: Props = $props();
+let { field, list, shown, compact, tone, onset }: Props = $props();
 
 let open = $state(false);
 let button: HTMLButtonElement | undefined = $state();
@@ -45,9 +47,9 @@ const options = $derived([
     })),
 ]);
 
-// The widest single choice, in characters of the fixed-width font (and one spare); the padding, border, gap and
-// chevron take 32 pixels.
-const width = $derived(Math.max(4, ...options.map((option) => option.label.length)) + 1);
+// As wide as what it shows (Sven, 2026-10-29: the widest choice made a long button), in characters of the fixed-width
+// font and one spare; the padding, border, gap and chevron take 32 pixels.
+const width = $derived(Math.max(4, (shown === "" ? t("flags.none") : shown).length) + 1);
 
 async function toggle(value: string, on: boolean): Promise<void> {
   const next = on ? [...ticked, value] : ticked.filter((each) => each !== value);
@@ -61,9 +63,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
 
 <button
   type="button"
-  class="flex min-w-0 cursor-pointer items-center gap-1 rounded border py-[3px] pr-1 pl-1.5 text-left font-mono text-[12.5px] focus:border-accent focus:outline-none {field.warning
-    ? 'border-warn bg-warn-lo'
-    : 'border-line bg-raised hover:border-muted'} {field.changed ? 'text-changed' : 'text-fg'} {compact
+  class="flex min-w-0 cursor-pointer items-center gap-1 rounded border py-[3px] pr-1 pl-1.5 text-left font-mono text-[12.5px] focus:border-solid focus:border-accent focus:outline-none {tone} {compact
     ? 'w-full max-w-56'
     : 'max-w-full'}"
   style:width={compact ? undefined : `calc(${width}ch + 32px)`}
