@@ -12,7 +12,17 @@ namespace MoonwellEditor.Map;
 /// <param name="ShallowMax">The colour where shallow water ends, 0xAARRGGBB.</param>
 /// <param name="DeepMin">The colour where deep water begins, 0xAARRGGBB.</param>
 /// <param name="DeepMax">The deepest water's colour, 0xAARRGGBB.</param>
-public sealed record WaterLook(string Texture, int Frames, int ShallowMin, int ShallowMax, int DeepMin, int DeepMax);
+/// <param name="Rate">How many of its frames it plays a second (<c>texRate</c>).</param>
+/// <param name="Cells">How many tiles one picture of it covers each way (<c>cells</c>).</param>
+public sealed record WaterLook(
+    string Texture,
+    int Frames,
+    int ShallowMin,
+    int ShallowMax,
+    int DeepMin,
+    int DeepMax,
+    float Rate = 15,
+    int Cells = 1);
 
 /// <summary>Everything the map view draws but the terrain's corners, which go as bytes (<see cref="TerrainBytes"/>).</summary>
 /// <param name="Columns">Corners a row; 0 when the map has no terrain.</param>
@@ -24,6 +34,7 @@ public sealed record WaterLook(string Texture, int Frames, int ShallowMin, int S
 /// <param name="CliffTextures">Each cliff type's texture, in the order the cliff pieces count them.</param>
 /// <param name="Cliffs">The cliff and ramp models.</param>
 /// <param name="Water">How the water looks.</param>
+/// <param name="Lights">The tileset's lights at noon.</param>
 /// <param name="Things">The placed things.</param>
 /// <param name="Regions">The regions.</param>
 /// <param name="Cameras">The cameras.</param>
@@ -38,6 +49,7 @@ public sealed record MapSceneView(
     IReadOnlyList<string> CliffTextures,
     IReadOnlyList<CliffPiece> Cliffs,
     WaterLook Water,
+    SceneLights Lights,
     IReadOnlyList<PlacedThing> Things,
     IReadOnlyList<RegionMark> Regions,
     IReadOnlyList<CameraMark> Cameras,
@@ -63,7 +75,8 @@ public static class MapScene
             }
 
             var things = Placed.Things(read, null, session, mode);
-            return (new MapSceneView(0, 0, 0, 0, "", [], [], [], new WaterLook("", 0, 0, 0, 0, 0), things, regions,
+            return (new MapSceneView(0, 0, 0, 0, "", [], [], [], new WaterLook("", 0, 0, 0, 0, 0),
+                new SceneLights(DayLights.Default, DayLights.Default, []), things, regions,
                 cameras, problems), []);
         }
 
@@ -85,11 +98,12 @@ public static class MapScene
             Cliffs.Textures(terrain, files, mode),
             pieces,
             Look(water, read.Info),
+            DayLights.Read(tileset, files, mode),
             Placed.Things(read, grid, session, mode),
             regions,
             cameras,
             problems);
-        return (view, TerrainBytes.Write(grid, layers, tiles));
+        return (view, TerrainBytes.Write(grid, layers, tiles, read.Shadows));
     }
 
     // The water's texture, frames and four colours; tinted by the map's water colour when its flag says so.
@@ -111,7 +125,9 @@ public static class MapScene
             Colour("Smin"),
             Colour("Smax"),
             Colour("Dmin"),
-            Colour("Dmax"));
+            Colour("Dmax"),
+            Number(water, "texRate", 15f),
+            Math.Max((int)Number(water, "cells", 1f), 1));
     }
 
     private static float Number(IReadOnlyDictionary<string, string> row, string column, float fallback) =>

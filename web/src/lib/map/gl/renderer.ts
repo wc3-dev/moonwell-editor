@@ -4,19 +4,19 @@
  * first; each that arrives asks for the scene to be drawn again.
  */
 import { mat4 } from "gl-matrix";
-import { matrices, type View } from "../camera.ts";
+import { eye, matrices, type View } from "../camera.ts";
 import { colourToNumber } from "../picking.ts";
 import type { MapScene, PlacedThing, Terrain, ThingKind } from "../scene.ts";
 import { type Batch, cliffBatches, thingBatches } from "./batches.ts";
 import { GroundLayer } from "./ground.ts";
+import { type Lighting, lighting, type Shadow } from "./lighting.ts";
 import { MarkerLayer } from "./markers.ts";
 import { MarksLayer } from "./marks.ts";
+import { ShadowMap, shadowReach, sunView } from "./shadows.ts";
 import { makeGroundTexture, makeTexture } from "./textures.ts";
 import { ModelLayer } from "./things.ts";
-import { WaterLayer } from "./water.ts";
-
-/** Where the light comes from: high in the south-west (plan's call; the tileset's own light is not drawn yet). */
-const light: [number, number, number] = [-0.3, -0.35, 0.89];
+import { UnitShadowLayer } from "./unitShadows.ts";
+import { ripplesPath, WaterLayer } from "./water.ts";
 
 /** Which layers show: the kinds of placed thing, the regions and the cameras. */
 export type Layers = { kinds: ReadonlySet<ThingKind>; regions: boolean; cameras: boolean };
@@ -47,6 +47,14 @@ export class MapRenderer {
   private readonly marks: MarksLayer;
   /** The things drawn as markers: those without a model, and those whose model draws nothing. */
   private readonly marked: PlacedThing[];
+  /** The tileset's terrain light (ground and cliffs) and unit light (things) at noon. */
+  private readonly terrainLight: Lighting;
+  private readonly unitLight: Lighting;
+  /** The sun's shadow map (HD and Definitive Edition), and the empty one that stands in while it is drawn. */
+  private readonly shadowMap: ShadowMap | null;
+  private readonly noShadow: ShadowMap;
+  /** Classic's unit shadow pictures; null in HD and Definitive Edition, which cast shadows instead. */
+  private readonly unitShadows: UnitShadowLayer | null;
   private layers: Layers = allLayers;
   private pickTarget: PickTarget | null = null;
   private stopped = false;
@@ -67,6 +75,16 @@ export class MapRenderer {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clearColor(0.05, 0.05, 0.07, 1);
+    this.terrainLight = lighting(scene.lights.terrain, scene.lights.sky, "terrain");
+    this.unitLight = lighting(scene.lights.units, scene.lights.sky, "units");
+    this.noShadow = new ShadowMap(gl, 1);
+    this.shadowMap = this.terrainLight.pbr ? new ShadowMap(gl, 4096) : null;
+    const none: Shadow = { texture: this.noShadow.texture, matrix: mat4.create(), on: false };
+    this.terrainLight.shadow = none;
+    this.unitLight.shadow = none;
+    this.unitShadows = this.terrainLight.pbr
+      ? null
+      : new UnitShadowLayer(gl, scene.things, terrain);
     this.ground = new GroundLayer(gl, terrain, scene.textures);
     this.water = new WaterLayer(gl, terrain, scene.water);
     this.marked = scene.things.filter((thing) => !thing.model);
@@ -85,20 +103,35 @@ export class MapRenderer {
     void this.load(near);
   }
 
-  /** Draws the scene as `view` sees it on a canvas of `width` by `height` pixels. */
-  draw(view: View, width: number, height: number): void {
+  /** Whether anything moves (an animation, the water), so the scene must be drawn again each frame. */
+  get moving(): boolean {
+    return this.things.moving || this.cliffs.moving || this.water.moving;
+  }
+
+  /**
+   * Draws the scene as `view` sees it on a canvas of `width` by `height` pixels, its animations and water at `now`
+   * (milliseconds, as performance.now gives them).
+   */
+  draw(view: View, width: number, height: number, now = 0): void {
     const { gl } = this;
+    const seconds = now / 1000;
+    this.things.time = seconds;
+    this.cliffs.time = seconds;
+    this.water.time = seconds;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, width, height);
     gl.clearColor(0.05, 0.05, 0.07, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.drawShadows(view);
+    gl.viewport(0, 0, width, height);
     const viewProjection = this.viewProjection(view, width, height);
-    this.ground.draw(viewProjection, light);
-    this.cliffs.draw(viewProjection, light);
-    this.things.draw(viewProjection, light, false, this.shown);
+    this.ground.draw(viewProjection, this.terrainLight);
+    this.cliffs.draw(viewProjection, this.terrainLight);
+    if (this.layers.kinds.has("Unit")) this.unitShadows?.draw(viewProjection);
+    this.things.draw(viewProjection, this.unitLight, false, this.shown);
     this.markers.draw(viewProjection);
     this.marks.draw(viewProjection, this.layers.regions, this.layers.cameras);
-    this.water.draw(viewProjection);
+    this.water.draw(viewProjection, this.terrainLight, eye(view));
     gl.disable(gl.DEPTH_TEST);
     this.highlight.draw(viewProjection);
     gl.enable(gl.DEPTH_TEST);
@@ -118,11 +151,11 @@ export class MapRenderer {
     const viewProjection = this.viewProjection(view, width, height);
     // The ground and cliffs only hide what is behind them.
     gl.colorMask(false, false, false, false);
-    this.ground.draw(viewProjection, light);
-    this.cliffs.draw(viewProjection, light);
+    this.ground.draw(viewProjection, this.terrainLight);
+    this.cliffs.draw(viewProjection, this.terrainLight);
     gl.colorMask(true, true, true, true);
     gl.disable(gl.BLEND);
-    this.things.draw(viewProjection, light, true, this.shown);
+    this.things.draw(viewProjection, this.unitLight, true, this.shown);
     this.markers.draw(viewProjection, true);
     const pixel = new Uint8Array(4);
     gl.readPixels(
@@ -159,6 +192,9 @@ export class MapRenderer {
 
   dispose(): void {
     this.stopped = true;
+    this.shadowMap?.dispose();
+    this.noShadow.dispose();
+    this.unitShadows?.dispose();
     this.ground.dispose();
     this.water.dispose();
     this.cliffs.dispose();
@@ -179,6 +215,40 @@ export class MapRenderer {
 
   private markShown(): void {
     this.markers.mark(this.marked.filter((thing) => this.layers.kinds.has(thing.kind)));
+  }
+
+  // The sun's view of the ground, cliffs and models around the camera's target, into the shadow map; the lights then
+  // read it. Drawn with the empty map bound, so the map is not read while it is drawn.
+  private drawShadows(view: View): void {
+    const map = this.shadowMap;
+    if (!map) return;
+    const matrix = sunView(
+      [view.x, view.y, view.z],
+      this.terrainLight.toward,
+      shadowReach(view.distance),
+    );
+    const none: Shadow = { texture: this.noShadow.texture, matrix, on: false };
+    const terrainLight = { ...this.terrainLight, shadow: none };
+    const unitLight = { ...this.unitLight, shadow: none };
+    map.begin();
+    this.ground.draw(matrix, terrainLight);
+    this.cliffs.draw(matrix, terrainLight);
+    this.things.draw(matrix, unitLight, false, this.shown);
+    map.end();
+    const shadow: Shadow = { texture: map.texture, matrix, on: true };
+    this.terrainLight.shadow = shadow;
+    this.unitLight.shadow = shadow;
+  }
+
+  // One frame of the water texture, if the view draws it.
+  private async loadWaterFrame(index: number): Promise<void> {
+    const path = this.water.framePaths(this.terrainLight.pbr)[index];
+    if (!path) return;
+    const data = await this.bytes(path);
+    const frame = data && !this.stopped ? makeTexture(this.gl, data, true) : null;
+    if (!frame) return;
+    this.water.setFrame(index, frame);
+    if (index === 0) this.changed();
   }
 
   private viewProjection(view: View, width: number, height: number): mat4 {
@@ -222,17 +292,32 @@ export class MapRenderer {
         this.ground.setSheet(index, sheet);
         this.changed();
       }),
+      // The water's first frame with the ground; the rest after, so the models need not wait for them.
+      this.loadWaterFrame(0),
+      ...(this.unitShadows?.wanted ?? []).map(async (path) => {
+        const data = await this.bytes(path);
+        const picture = data && !this.stopped ? makeTexture(this.gl, data) : null;
+        if (picture) {
+          this.unitShadows?.setPicture(path, picture);
+          this.changed();
+        }
+      }),
       (async () => {
-        const data = await this.bytes(this.water.framePath);
-        const frame = data && !this.stopped ? makeTexture(this.gl, data) : null;
-        if (frame) {
-          this.water.setFrame(frame);
+        if (!this.terrainLight.pbr) return;
+        const data = await this.bytes(ripplesPath);
+        const ripples = data && !this.stopped ? makeTexture(this.gl, data, true) : null;
+        if (ripples) {
+          this.water.setRipples(ripples);
           this.changed();
         }
       })(),
     ]);
     if (this.stopped) return;
     this.loaded("ground", performance.now() - started);
+    void (async () => {
+      const count = this.water.framePaths(this.terrainLight.pbr).length;
+      for (let index = 1; index < count && !this.stopped; index++) await this.loadWaterFrame(index);
+    })();
     await Promise.all([this.cliffs.load(near), this.things.load(near)]);
     if (!this.stopped) this.loaded("models", performance.now() - started);
   }

@@ -1,15 +1,16 @@
 /**
  * The models the map view draws: read with war3-model (after the editor's fixes for the game's version 1800 files,
- * mdx.ts), posed once in the first frame of their Stand animation, and cut down to what the view draws of them: the
- * solid, alpha-tested and blended geosets of the most detailed level, each with its diffuse texture. Glows, effect
+ * mdx.ts), kept in their bind pose with each vertex's bones, their Stand animation sampled for the graphics card to play
+ * (animation.ts), and cut down to what the view draws of them: the solid, alpha-tested and blended geosets of the most
+ * detailed level that Stand shows, each with its diffuse texture. Glows, effect
  * sheets and particles are left out, so a model of nothing else is a marker (Review Focus 2). An HD model is drawn
- * with its diffuse texture only (plan's call).
+ * with its diffuse texture, its ORM texture for where the team colour goes, its normal map and its emissive map
+ * (plan's call; no roughness or metal).
  */
 import { mat4 } from "gl-matrix";
 import { ModelRenderer, parseMDX } from "war3-model";
 import {
   groupSkin,
-  posed,
   readSkins,
   type Skinnable,
   skinGeosets,
@@ -17,6 +18,7 @@ import {
   stripChunks,
   unreadChunks,
 } from "../mdx.ts";
+import { type Animation, isStill, poseAt, sampleAnimation } from "./animation.ts";
 import type { PlacedThing } from "./scene.ts";
 
 /** A model as war3-model parses it. */
@@ -24,7 +26,12 @@ type Model = ReturnType<typeof parseMDX>;
 
 /** One geoset as the view draws it; `texture` is a path, or a replaceable texture's number. */
 export type MapGeoset = {
+  /** Its number among the model's geosets (its column of the animation's alphas). */
+  index: number;
+  /** Its vertices in the bind pose. */
   positions: Float32Array;
+  /** Each vertex's four bones and their weights (0 to 255), eight bytes a vertex. */
+  skin: Uint8Array;
   normals: Float32Array;
   uvs: Float32Array;
   indices: Uint16Array;
@@ -37,10 +44,26 @@ export type MapGeoset = {
   variation: number | null;
   /** Whether its material is the HD shader's, whose replaceable textures are the `_diffuse` files. */
   hd: boolean;
+  /**
+   * An HD geoset's ORM texture, whose alpha marks where the diffuse texture takes the team colour (war3-model's HD
+   * shader); null for none.
+   */
+  orm: string | null;
+  /** An HD geoset's normal map (two channels), null for none. */
+  normalMap: string | null;
+  /** An HD geoset's emissive map, the light it gives off itself; null for none. */
+  emissive: string | null;
+  /** How much of its emissive map's light it gives off (its layer's EmissiveGain; the first key of an animated one). */
+  emissiveGain: number;
+  /** An HD geoset's tangents, four numbers a vertex (the fourth the bitangent's side), as its file has them. */
+  tangents: Float32Array | null;
 };
 
-/** A model as the view draws it; no geosets for one that draws as a marker. `variations` is 1 for most. */
-export type MapModel = { geosets: MapGeoset[]; variations: number };
+/**
+ * A model as the view draws it; no geosets for one that draws as a marker. `variations` is 1 for most; `animation` is
+ * its Stand, null for a model without sequences (it stands in its bind pose).
+ */
+export type MapModel = { geosets: MapGeoset[]; variations: number; animation: Animation | null };
 
 /**
  * A geoset's variation by its name, for a model that holds several shapes in one (*claim*: the HD Northrend tree names
@@ -52,10 +75,7 @@ function variationOf(name: string | undefined): number | null {
   return match ? Number(match[1]) : null;
 }
 
-/** A bone's matrix in the pose (16 numbers in columns); undefined leaves its vertices where they are. */
-export type Pose = (bone: number) => ArrayLike<number> | undefined;
-
-/** A geoset's alpha in the pose, from 0 (hidden) to 1. */
+/** The most a geoset's alpha is in the Stand animation, from 0 (hidden throughout) to 1. */
 export type Shown = (geoset: number) => number;
 
 /** The filter modes drawn: none, transparent (alpha-tested) and blend. */
@@ -64,22 +84,32 @@ const drawn = [0, 1, 2];
 const teamColour = 1;
 const teamGlow = 2;
 
-/** A geoset's vertices in the pose: an HD geoset by its skin, a Classic one by its vertex groups. */
-export function bakeGeoset(
-  geoset: Pick<Skinnable, "Vertices" | "VertexGroup" | "Groups" | "SkinWeights">,
-  matrix: Pose,
-): Float32Array {
+/** A geoset's bones and weights a vertex: an HD geoset's skin, a Classic one's made from its vertex groups. */
+export function skinOf(geoset: Skinnable): Uint8Array {
   const count = geoset.Vertices.length / 3;
-  if (geoset.SkinWeights?.length === count * 8) return posed(geoset, matrix);
-  const skin = groupSkin(geoset as Skinnable, count);
-  return posed({ Vertices: geoset.Vertices, SkinWeights: skin }, matrix);
+  return geoset.SkinWeights?.length === count * 8 ? geoset.SkinWeights : groupSkin(geoset, count);
 }
 
 type Texture = { Image?: string; ReplaceableId?: number };
-type Layer = { FilterMode?: number; TextureID?: unknown; ShaderTypeId?: number };
+type Layer = {
+  FilterMode?: number;
+  TextureID?: unknown;
+  NormalTextureID?: unknown;
+  ORMTextureID?: unknown;
+  EmissiveTextureID?: unknown;
+  EmissiveGain?: unknown;
+  ShaderTypeId?: number;
+};
 
-/** What the view draws of a parsed model, in `pose`, leaving out the geosets the pose hides. */
-export function mapModel(model: Model, pose: Pose, shown: Shown = () => 1): MapModel {
+// A layer's number that may be keyed: the number, or its first key's value; `fallback` without one.
+function firstValue(value: unknown, fallback: number): number {
+  if (typeof value === "number") return value;
+  const key = (value as { Keys?: { Vector: ArrayLike<number> }[] } | undefined)?.Keys?.[0];
+  return key?.Vector[0] ?? fallback;
+}
+
+/** What the view draws of a parsed model, leaving out the geosets its Stand never shows. */
+export function mapModel(model: Model, shown: Shown = () => 1): MapModel {
   const textures = model.Textures as Texture[];
   const textureOf = (layer: Layer | undefined): Texture | undefined => {
     const id = layer?.TextureID;
@@ -109,8 +139,24 @@ export function mapModel(model: Model, pose: Pose, shown: Shown = () => 1): MapM
     const texture = textureOf(diffuse);
     const filter = (teamUnder ? layers[0]?.FilterMode : diffuse?.FilterMode) ?? 0;
     if (!diffuse || !texture || !drawn.includes(filter)) return;
+    // An HD material is one layer of the HD shader with its textures named in it (version 1100), or six layers of one
+    // texture each: the normal map second, the ORM third, the emissive map fourth (version 1000).
+    const shader = layers[0]?.ShaderTypeId === 1;
+    const hd = shader || layers.length === 6;
+    const hdTexture = (field: keyof Layer, layer: number) =>
+      shader
+        ? textureOf({ TextureID: layers[0]?.[field] })
+        : hd
+          ? textureOf(layers[layer])
+          : undefined;
+    const orm = hdTexture("ORMTextureID", 2);
+    const normalMap = hdTexture("NormalTextureID", 1);
+    const emissive = hdTexture("EmissiveTextureID", 3);
+    const tangents = (geoset as { Tangents?: Float32Array }).Tangents;
     geosets.push({
-      positions: bakeGeoset(geoset, pose),
+      index,
+      positions: Float32Array.from(geoset.Vertices),
+      skin: skinOf(geoset as unknown as Skinnable),
       normals: Float32Array.from(geoset.Normals),
       uvs: Float32Array.from(
         geoset.TVertices[0] ?? new Float32Array((geoset.Vertices.length / 3) * 2),
@@ -120,36 +166,107 @@ export function mapModel(model: Model, pose: Pose, shown: Shown = () => 1): MapM
       filter,
       teamUnder,
       variation: several ? (named[index] ?? null) : null,
-      hd: layers[0]?.ShaderTypeId === 1 || layers.length === 6,
+      hd,
+      orm: orm?.Image || null,
+      normalMap: normalMap?.Image || null,
+      emissive: emissive?.Image || null,
+      emissiveGain: firstValue(layers[0]?.EmissiveGain, 1),
+      tangents: hd && tangents?.length === (geoset.Vertices.length / 3) * 4 ? tangents : null,
     });
   });
-  return { geosets, variations: several ? variations : 1 };
+  return { geosets, variations: several ? variations : 1, animation: null };
+}
+
+/** The model's Stand animation, sampled by war3-model's renderer; null for a model without sequences. */
+function animationOf(model: Model): Animation | null {
+  try {
+    const stand = standSequence(model.Sequences.map((sequence) => sequence.Name));
+    const sequence = model.Sequences[stand];
+    if (stand < 0 || !sequence) return null;
+    const renderer = new ModelRenderer(model);
+    renderer.setSequence(stand);
+    const data = (
+      renderer as unknown as {
+        rendererData: {
+          frame: number;
+          nodes?: { matrix: Float32Array }[];
+          geosetAlpha?: number[];
+        };
+      }
+    ).rendererData;
+    const [start = 0, end = 0] = Array.from(sequence.Interval);
+    return sampleAnimation({
+      start,
+      end,
+      bones: Math.min(data.nodes?.length ?? 0, 256),
+      geosets: model.Geosets.length,
+      at: (time) => {
+        renderer.update(time - data.frame);
+      },
+      matrix: (bone) => data.nodes?.[bone]?.matrix,
+      alpha: (geoset) => data.geosetAlpha?.[geoset] ?? 1,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** The most each geoset's alpha is over an animation's frames; every geoset shown without one. */
+function shownIn(animation: Animation | null): Shown {
+  if (!animation) return () => 1;
+  return (geoset) => {
+    let most = 0;
+    for (let frame = 0; frame < animation.frames; frame++) {
+      most = Math.max(most, animation.alphas[frame * animation.geosets + geoset] ?? 1);
+    }
+    return most;
+  };
 }
 
 /**
- * The bones' matrices and the geosets' alphas in the first frame of the model's Stand animation (a tree hides its
- * stump and lumber there); the bind pose with every geoset shown for a model without animations.
+ * A model whose animation never moves, baked into its one pose on the CPU so the graphics card need not move it each
+ * frame (the view's call: a map's thousands of trees mostly stand still); a moving one as it is.
  */
-function poseOf(model: Model): { pose: Pose; shown: Shown } {
-  const still = { pose: () => undefined, shown: () => 1 };
-  try {
-    const stand = standSequence(model.Sequences.map((sequence) => sequence.Name));
-    if (stand < 0) return still;
-    const renderer = new ModelRenderer(model);
-    renderer.setSequence(stand);
-    renderer.update(0);
-    const data = (
-      renderer as unknown as {
-        rendererData?: { nodes?: { matrix: Float32Array }[]; geosetAlpha?: number[] };
+export function settle(model: MapModel): MapModel {
+  const animation = model.animation;
+  if (!animation || !isStill(animation)) return model;
+  const pose = poseAt(animation, 0);
+  const geosets = model.geosets.map((geoset) => {
+    const count = geoset.positions.length / 3;
+    const positions = new Float32Array(geoset.positions.length);
+    const normals = new Float32Array(geoset.normals.length);
+    const tangents = geoset.tangents ? Float32Array.from(geoset.tangents) : null;
+    for (let v = 0; v < count; v++) {
+      // The vertex's bones' matrices, weighted; a vertex without weights stays where it is.
+      const m = new Array<number>(16).fill(0);
+      let total = 0;
+      for (let j = 0; j < 4; j++) {
+        const weight = (geoset.skin[v * 8 + 4 + j] ?? 0) / 255;
+        if (weight === 0) continue;
+        const bone = pose(geoset.skin[v * 8 + j] ?? 0);
+        for (let k = 0; k < 16; k++) m[k] = (m[k] ?? 0) + (bone[k] ?? 0) * weight;
+        total += weight;
       }
-    ).rendererData;
-    return {
-      pose: (bone) => data?.nodes?.[bone]?.matrix,
-      shown: (geoset) => data?.geosetAlpha?.[geoset] ?? 1,
-    };
-  } catch {
-    return still;
-  }
+      const moved = (from: ArrayLike<number>, to: Float32Array, at: number, w: number) => {
+        const [x, y, z] = [from[at] ?? 0, from[at + 1] ?? 0, from[at + 2] ?? 0];
+        for (let axis = 0; axis < 3; axis++) {
+          to[at + axis] =
+            total > 0
+              ? ((m[axis] ?? 0) * x +
+                  (m[4 + axis] ?? 0) * y +
+                  (m[8 + axis] ?? 0) * z +
+                  (m[12 + axis] ?? 0) * w) /
+                total
+              : (from[at + axis] ?? 0);
+        }
+      };
+      moved(geoset.positions, positions, v * 3, 1);
+      moved(geoset.normals, normals, v * 3, 0);
+      if (tangents && geoset.tangents) moved(geoset.tangents, tangents, v * 4, 0);
+    }
+    return { ...geoset, positions, normals, tangents };
+  });
+  return { ...model, geosets, animation: null };
 }
 
 /** The model at a game file's URL as the view draws it; null when it is missing or cannot be read. */
@@ -160,8 +277,8 @@ export async function loadModel(url: string): Promise<MapModel | null> {
     const buffer = stripChunks(await response.arrayBuffer(), unreadChunks);
     const model = parseMDX(buffer);
     skinGeosets(model.Geosets as unknown as Skinnable[], readSkins(buffer));
-    const { pose, shown } = poseOf(model);
-    return mapModel(model, pose, shown);
+    const animation = animationOf(model);
+    return settle({ ...mapModel(model, shownIn(animation)), animation });
   } catch {
     return null;
   }

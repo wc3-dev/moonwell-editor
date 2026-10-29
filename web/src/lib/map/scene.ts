@@ -15,10 +15,15 @@ export type CliffPiece = {
   baseZ: number;
 };
 
-/** How the tileset's water looks: its texture without the frame number, and four colours as 0xAARRGGBB. */
+/**
+ * How the tileset's water looks: its texture without the frame number, its frames and how many it plays a second, how
+ * many tiles one picture covers each way, and four colours as 0xAARRGGBB.
+ */
 export type WaterLook = {
   texture: string;
   frames: number;
+  rate: number;
+  cells: number;
   shallowMin: number;
   shallowMax: number;
   deepMin: number;
@@ -48,7 +53,15 @@ export type PlacedThing = {
   tint: number;
   /** Which of its model's shapes it is (an HD tree holds all ten in one model). */
   variation: number;
+  /** A unit's Classic shadow picture; null or missing for none. */
+  shadow?: UnitShadow | null;
 };
+
+/**
+ * A unit's shadow picture, laid flat under it in Classic: the unit stands `x`, `y` from its bottom left; it is `width`
+ * by `height`.
+ */
+export type UnitShadow = { texture: string; x: number; y: number; width: number; height: number };
 
 /** A region: its edges and its colour, 0xRRGGBB. */
 export type RegionMark = {
@@ -74,6 +87,16 @@ export type CameraMark = {
   fieldOfView: number;
 };
 
+/** One of the tileset's lights at noon: toward it (a unit vector), its colour and its ambient colour. */
+export type SceneLight = {
+  toward: [number, number, number];
+  colour: [number, number, number];
+  ambient: [number, number, number];
+};
+
+/** The tileset's lights at noon; `sky` is the environment map's colour along +x, -x, +y, -y, +z, -z (HD and DE). */
+export type SceneLights = { terrain: SceneLight; units: SceneLight; sky: number[] };
+
 /** Everything the view draws but the terrain's corners. */
 export type MapScene = {
   columns: number;
@@ -85,6 +108,7 @@ export type MapScene = {
   cliffTextures: string[];
   cliffs: CliffPiece[];
   water: WaterLook;
+  lights: SceneLights;
   things: PlacedThing[];
   regions: RegionMark[];
   cameras: CameraMark[];
@@ -94,7 +118,8 @@ export type MapScene = {
 /**
  * The terrain's corners and tiles: the ground's height, the height without cliff levels (`relief`, what a cliff model
  * stands on), the water's surface (NaN for none); a tile's four layers as texture, piece pairs (255 for none) and its
- * flags (bit 0 the ground is drawn, bit 1 outside the playable area, bit 2 boundary).
+ * flags (bit 0 the ground is drawn, bit 1 outside the playable area, bit 2 boundary); and a quarter tile's baked
+ * Classic shadow (war3map.shd, 255 in shadow), four by four a tile.
  */
 export type Terrain = {
   columns: number;
@@ -106,6 +131,7 @@ export type Terrain = {
   water: Float32Array;
   layers: Uint8Array;
   tiles: Uint8Array;
+  shadows: Uint8Array;
 };
 
 /** Reads the terrain bytes; `left` and `bottom` come from the scene. Throws when the bytes are not of their size. */
@@ -116,7 +142,7 @@ export function readTerrain(buffer: ArrayBuffer, left: number, bottom: number): 
   const rows = head.getInt32(4, true);
   const corners = columns * rows;
   const tiles = Math.max(columns - 1, 0) * Math.max(rows - 1, 0);
-  if (columns < 0 || rows < 0 || buffer.byteLength !== 8 + corners * 12 + tiles * 9) {
+  if (columns < 0 || rows < 0 || buffer.byteLength !== 8 + corners * 12 + tiles * 25) {
     throw new Error("The terrain is not of its size.");
   }
   // Float32Array reads the machine's order, which is little-endian on every machine WebView2 runs on.
@@ -130,6 +156,7 @@ export function readTerrain(buffer: ArrayBuffer, left: number, bottom: number): 
     water: new Float32Array(buffer, 8 + corners * 8, corners),
     layers: new Uint8Array(buffer, 8 + corners * 12, tiles * 8),
     tiles: new Uint8Array(buffer, 8 + corners * 12 + tiles * 8, tiles),
+    shadows: new Uint8Array(buffer, 8 + corners * 12 + tiles * 9, tiles * 16),
   };
 }
 
