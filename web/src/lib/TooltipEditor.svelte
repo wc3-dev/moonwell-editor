@@ -1,27 +1,32 @@
 <script lang="ts">
 /**
  * The tooltip editor (Sven, 2026-10-27): the object's tooltip as the game shows it, its texts editable in place. Each
- * text names its field above its box when hovered or edited. The toolbar colours the selected text (the colours the
- * game's own tooltips use, no colour, and up to eight colours of the user's own, each picked with the picker) and, for
- * an ability, puts in the placeholders that show its values (`<AHhb,Dur1>`),
- * which show as chips named for what they stand for. The icon, hotkey and costs show as the game shows them but are
- * edited in their fields. An object with levels is edited a level at a time; Save sends every changed text as one
- * edit.
+ * text names its field at the bottom when hovered or edited. The toolbar colours the selected text (the colours the
+ * game's own tooltips use, no colour, and up to eight colours of the user's own, each picked with the picker and
+ * removed from its context menu) and puts in the placeholders that show the object's values (`<AHhb,Dur1>`,
+ * `<h000,realHP>`), which show as chips named for what they stand for. A `/` in a text lists the values it can show to
+ * put in: the object's own, and those of the abilities a unit's or an item's lists name (Sven, 2026-10-29). A value
+ * that is not whole goes in with one decimal (`,.`) unless the user picks ×100 (`,%`), since the game rounds a plain
+ * one down; a buff's tooltip gets no values and a warning for a comma, which the game cuts its extended tooltip at
+ * (game facts, probes of 2026-10-29). The icon, hotkey and costs show as the game shows them but are edited in their
+ * fields. An object with levels is edited a level at a time; Save sends every changed text as one edit.
  */
 import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
-import { type FieldView, iconUrl, type ObjectView } from "./api.ts";
+import { type FieldView, iconUrl, type ObjectView, object } from "./api.ts";
 import ColorPicker from "./ColorPicker.svelte";
+import ContextMenu from "./ContextMenu.svelte";
 import Dialog from "./Dialog.svelte";
 import { uiIcons } from "./gameIcons.ts";
 import { graphics } from "./graphics.svelte.ts";
 import Popover from "./Popover.svelte";
 import RichText from "./RichText.svelte";
-import { tokenOf, tokenParts } from "./richText.ts";
+import { keyAt, tokenOf, tokenParts } from "./richText.ts";
+import { formsFor, listedAbilities, type SlashSource, sourceOf, suggestions } from "./slash.ts";
 import { t, tCount } from "./text.ts";
-import { abilityTextValues, formatNumber, textKey, tooltipOf } from "./tooltip.ts";
+import { type NumberForm, placeholderNumber, textValues, tooltipOf } from "./tooltip.ts";
 
 type Props = {
   view: ObjectView;
@@ -107,7 +112,7 @@ const boxNames: Record<string, string> = {
 let level = $state(1);
 const shownLevel = $derived(Math.min(Math.max(1, level), Math.max(1, view.levels)));
 const tip = $derived(tooltipOf(view, shownLevel));
-const values = $derived(view.kind === "ability" ? abilityTextValues(view) : {});
+const values = $derived(textValues(view));
 
 /** A field at a level: the per-level field's level, else the field without levels. */
 function fieldAt(id: string): FieldView | undefined {
@@ -144,14 +149,14 @@ const shownBoxes = $derived(
 let drafts = $state<Record<string, string>>({});
 let editors = $state<Record<string, RichText | undefined>>({});
 let active = $state<string | null>(null);
-// The text the mouse is over, and the one with the cursor: the first is named above its box, else the second.
+// The text the mouse is over, and the one with the cursor: the first is named at the bottom, else the second.
 let hovered = $state<string | null>(null);
 let focused = $state<string | null>(null);
 const named = $derived.by(() => {
   const key = hovered ?? focused;
   for (const box of shownBoxes) {
     const part = box.parts.find((each) => keyOf(each.field) === key);
-    if (part) return { box: box.key, field: part.field };
+    if (part) return { field: part.field };
   }
   return null;
 });
@@ -180,6 +185,8 @@ const presets = [
 const maxOwn = 8;
 const ownKey = "moonwell-editor.tooltip-colours";
 let own = $state<string[]>(savedOwn());
+// The context menu of one of the user's colours, which removes it (Sven, 2026-10-29).
+let colourMenu = $state<{ x: number; y: number; index: number } | null>(null);
 // The picker, open under + (index null, a new colour) or under one of the user's colours.
 let picking = $state<{ index: number | null; anchor: HTMLElement } | null>(null);
 
@@ -207,20 +214,6 @@ function setOwn(next: string[]): void {
   }
 }
 
-// The ability's fields a placeholder can name, by the game's key, with their names.
-const insertable = $derived.by(() => {
-  if (view.kind !== "ability") return [];
-  const seen = new Map<string, string>();
-  for (const field of view.fields) {
-    const key = textKey(field);
-    if (key && field.level > 0 && !seen.has(key)) seen.set(key, field.label);
-  }
-  return [...seen].map(([key, name]) => ({ key, name }));
-});
-let inserting = $state(false);
-let insertButton: HTMLButtonElement | undefined = $state();
-let percent = $state(false);
-
 const keyNames: Record<string, string> = {
   Dur: t("tooltipEditor.key.dur"),
   HeroDur: t("tooltipEditor.key.heroDur"),
@@ -228,31 +221,138 @@ const keyNames: Record<string, string> = {
   Cost: t("tooltipEditor.key.cost"),
   Rng: t("tooltipEditor.key.rng"),
   Area: t("tooltipEditor.key.area"),
+  realHP: t("tooltipEditor.key.realHP"),
+  regenHP: t("tooltipEditor.key.regenHP"),
+  mindmg1: t("tooltipEditor.key.mindmg"),
+  maxdmg1: t("tooltipEditor.key.maxdmg"),
+  uses: t("tooltipEditor.key.uses"),
 };
 
-/** What a placeholder chip says: the value it stands for, named, with its level and value when it is this object's. */
+// The object's own values a placeholder can name: an ability's, a unit's or an item's. A buff's tooltip gets none, as
+// the game cuts it at the comma every placeholder holds.
+const ownSource = $derived(
+  view.kind === "ability" || view.kind === "unit" || view.kind === "item"
+    ? sourceOf(view, "", keyNames)
+    : null,
+);
+const insertable = $derived(ownSource?.keys ?? []);
+let inserting = $state(false);
+let insertButton: HTMLButtonElement | undefined = $state();
+// How an inserted value shows: "auto" as it is when whole, else with one decimal.
+let form = $state<NumberForm | "auto">("auto");
+
+/** The value of a key at the level shown, and the form it goes in with. */
+function insertedAt(key: { key: string; whole?: boolean }): {
+  value: string | undefined;
+  form: NumberForm;
+} {
+  const value = values[key.whole ? key.key : `${key.key}${shownLevel}`];
+  return { value, form: form === "auto" ? (formsFor(value)[0] ?? "") : form };
+}
+
+// The abilities a unit's or an item's lists name, whose values its tooltip can show too; fetched when the editor
+// opens, and null until they are here.
+let listed = $state.raw<SlashSource[] | null>(null);
+$effect(() => {
+  const ids = listedAbilities(view).slice(0, 24);
+  let stale = false;
+  Promise.all(ids.map((id) => object("ability", id).catch(() => null))).then((found) => {
+    if (stale) return;
+    listed = found.flatMap((each) =>
+      each ? [sourceOf(each, each.name || each.id, keyNames)] : [],
+    );
+  });
+  return () => {
+    stale = true;
+  };
+});
+
+// What the `/` lists: the object's own values, then the listed abilities'; nothing for a buff.
+const sources = $derived(
+  view.kind === "buff"
+    ? []
+    : [...(ownSource && ownSource.keys.length > 0 ? [ownSource] : []), ...(listed ?? [])],
+);
+
+function suggest(query: string) {
+  return suggestions(sources, query, shownLevel);
+}
+
+/**
+ * What a placeholder chip says: the value it stands for, named, with its level and value when it is this object's or
+ * a listed ability's.
+ */
 function describe(token: string): { label: string; title: string } {
   const parts = tokenParts(token);
   if (!parts) return { label: token, title: token };
   const own = parts.id === view.id || parts.id === view.baseId;
-  const named =
-    insertable.find((each) => each.key.toLowerCase() === parts.key.toLowerCase())?.name ??
-    keyNames[parts.key] ??
-    parts.key;
-  const value = own ? values[`${parts.key}${parts.level}`] : undefined;
+  const source = own ? undefined : listed?.find((each) => each.id === parts.id);
+  // A key without a level (`mindmg1`) reads as a key and a level; it is found by the two together.
+  const whole = keyAt(parts).toLowerCase();
+  const found = (own ? insertable : (source?.keys ?? [])).find(
+    (each) => each.key.toLowerCase() === (each.whole ? whole : parts.key.toLowerCase()),
+  );
+  const named = found?.name ?? keyNames[parts.key] ?? keyNames[keyAt(parts)] ?? parts.key;
+  const value = own ? values[keyAt(parts)] : source?.values[keyAt(parts)];
   const label = [
-    own ? "" : `${parts.id}: `,
+    own ? "" : `${source?.name ?? parts.id}: `,
     named,
-    parts.level > 0 ? ` ${parts.level}` : "",
-    value !== undefined ? ` = ${formatNumber(value, parts.percent)}` : parts.percent ? " ×100" : "",
+    parts.level > 0 && !found?.whole ? ` ${parts.level}` : "",
+    value !== undefined
+      ? ` = ${placeholderNumber(value, parts.form)}`
+      : parts.form === "%"
+        ? " ×100"
+        : "",
   ].join("");
   return { label, title: t("tooltipEditor.chipTitle", { token, name: named }) };
 }
 
-function insert(key: string): void {
+function insert(key: { key: string; whole?: boolean }): void {
   inserting = false;
   const editor = active ? editors[active] : undefined;
-  editor?.insert(tokenOf({ id: view.id, key, level: shownLevel, percent }));
+  const level = key.whole ? 0 : shownLevel;
+  editor?.insert(tokenOf({ id: view.id, key: key.key, level, form: insertedAt(key).form }));
+}
+
+const forms: { form: NumberForm | "auto"; label: string; title: string }[] = [
+  { form: "auto", label: t("tooltipEditor.form.auto"), title: t("tooltipEditor.form.autoTitle") },
+  {
+    form: ".",
+    label: t("tooltipEditor.form.decimal"),
+    title: t("tooltipEditor.form.decimalTitle"),
+  },
+  {
+    form: "%",
+    label: t("tooltipEditor.form.percent"),
+    title: t("tooltipEditor.form.percentTitle"),
+  },
+];
+
+// A buff's extended tooltip with a comma, which the game shows only up to it: a custom buff's always, its own text or
+// one it inherits (probe, 2026-10-29: a custom Flame Strike showed "This unit is in a Flame Strike"). The game's own
+// buff shows its standard text whole, so a standard buff warns only once the map changes it (not measured).
+const buffComma = $derived(
+  view.kind === "buff" &&
+    view.fields.some((field) => {
+      const text = drafts[keyOf(field)] ?? field.value;
+      return (
+        field.id === "fube" && text.includes(",") && (view.baseId !== null || text !== field.base)
+      );
+    }),
+);
+
+// How many times the commas were swapped: the boxes are made again with the swapped text.
+let swaps = $state(0);
+
+// Swaps the extended tooltip's commas for U+201A, which the game draws as a comma and does not cut the text at
+// (probe, 2026-10-29; Sven, 2026-10-29).
+function swapCommas(): void {
+  for (const field of view.fields) {
+    if (field.id !== "fube") continue;
+    const key = keyOf(field);
+    drafts[key] = (drafts[key] ?? field.value).replaceAll(",", "‚");
+  }
+  swaps++;
 }
 
 function colorSelection(css: string | null): void {
@@ -287,7 +387,7 @@ const changedCount = $derived(
 
 {#snippet text(part: Part & { field: FieldView }, look: string)}
   {@const key = keyOf(part.field)}
-  <!-- Hovered or edited, a text names its field above its box, where it covers nothing (Sven, 2026-10-29). -->
+  <!-- Hovered or edited, a text names its field at the bottom, where it covers nothing (Sven, 2026-10-29). -->
   <div
     class="-mx-1 rounded px-1 outline-1 outline-transparent outline-dashed hover:outline-white/30 focus-within:outline-accent"
     role="group"
@@ -296,7 +396,8 @@ const changedCount = $derived(
     onfocusin={() => (focused = key)}
     onfocusout={() => (focused = null)}
   >
-    {#key key}
+    <!-- Made again once the listed abilities are here, so the chips that name them say what they are. -->
+    {#key `${key}:${listed !== null}:${swaps}`}
       <RichText
         bind:this={editors[key]}
         markup={drafts[key] ?? part.field.value}
@@ -304,6 +405,7 @@ const changedCount = $derived(
         {describe}
         label={part.field.label}
         limit={part.field.maxLength}
+        suggest={sources.length > 0 ? suggest : undefined}
         class={look}
         onfocus={() => (active = key)}
         onchange={(markup) => (drafts[key] = markup)}
@@ -350,6 +452,11 @@ const changedCount = $derived(
         onclick={(event) => {
           colorSelection(colour);
           picking = { index, anchor: event.currentTarget };
+        }}
+        oncontextmenu={(event) => {
+          event.preventDefault();
+          picking = null;
+          colourMenu = { x: event.clientX, y: event.clientY, index };
         }}
       ></button>
     {/each}
@@ -427,54 +534,79 @@ const changedCount = $derived(
     {/if}
   {/key}
 
+  {#if colourMenu}
+    {@const at = colourMenu.index}
+    <ContextMenu
+      x={colourMenu.x}
+      y={colourMenu.y}
+      items={[
+        {
+          label: t("tooltipEditor.removeColour"),
+          danger: true,
+          run: () => setOwn(own.filter((_, index) => index !== at)),
+        },
+      ]}
+      onclose={() => (colourMenu = null)}
+    />
+  {/if}
+
   {#if inserting && insertButton}
     <Popover anchor={insertButton} onclose={() => (inserting = false)}>
       <div class="flex flex-col" role="menu" aria-label={t("tooltipEditor.insert")}>
         <p class="m-0 px-2 pt-1 pb-1.5 text-[12px] text-faint">
-          {t("tooltipEditor.insertNote", { level: shownLevel })}
+          {view.kind === "ability"
+            ? t("tooltipEditor.insertNote", { level: shownLevel })
+            : t("tooltipEditor.insertNoteWhole")}
         </p>
         {#each insertable as each (each.key)}
+          {@const at = insertedAt(each)}
           <button
             type="button"
             role="menuitem"
             class="flex items-center gap-3 rounded px-2 py-1 text-left hover:bg-hover hover:text-fg"
             onpointerdown={(event) => event.preventDefault()}
-            onclick={() => insert(each.key)}
+            onclick={() => insert(each)}
           >
             <span class="flex-1">{keyNames[each.key] ?? each.name}</span>
-            <span class="font-mono text-[11.5px] text-faint">{each.key}{shownLevel}</span>
-            {#if values[`${each.key}${shownLevel}`] !== undefined}
-              <span class="font-mono text-[11.5px] text-muted">{formatNumber(values[`${each.key}${shownLevel}`] ?? "")}</span>
+            <span class="font-mono text-[11.5px] text-faint"
+              >{each.key}{each.whole ? "" : shownLevel}{at.form ? `,${at.form}` : ""}</span
+            >
+            {#if at.value !== undefined}
+              <span class="font-mono text-[11.5px] text-muted">{placeholderNumber(at.value, at.form)}</span>
             {/if}
           </button>
         {/each}
-        <label class="mt-1 flex items-center gap-2 border-t border-line px-2 pt-1.5 pb-0.5 text-[12.5px]">
-          <input type="checkbox" bind:checked={percent} />
-          {t("tooltipEditor.percent")}
-        </label>
+        <div
+          class="mt-1 flex items-center gap-1 border-t border-line px-2 pt-1.5 pb-0.5 text-[12.5px]"
+          role="radiogroup"
+          aria-label={t("tooltipEditor.form.label")}
+        >
+          <span class="mr-1 text-muted">{t("tooltipEditor.form.label")}</span>
+          {#each forms as each (each.form)}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={form === each.form}
+              title={each.title}
+              class="rounded border px-2 py-0.5 {form === each.form
+                ? 'border-accent text-fg'
+                : 'border-line text-muted hover:text-fg'}"
+              onpointerdown={(event) => event.preventDefault()}
+              onclick={() => (form = each.form)}
+            >
+              {each.label}
+            </button>
+          {/each}
+        </div>
       </div>
     </Popover>
   {/if}
 
   {#each shownBoxes as box (box.key)}
-    <div class="mb-1 flex h-4 items-baseline gap-2 text-[12px] {box.key === 'main' ? '' : 'mt-3'}">
-      {#if box.key !== "main"}
-        <span class="tracking-[.06em] text-faint uppercase">{boxNames[box.key]}</span>
-      {/if}
-      {#if named?.box === box.key}
-        <span class="ml-auto truncate text-muted">
-          {named.field.label} · <span class="font-mono">{named.field.id}</span>{#if named.field.level > 0}
-            · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
-          {#if named.field.maxLength}
-            {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
-            · <span class="font-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
-              >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
-            >
-          {/if}
-        </span>
-      {/if}
-    </div>
-    <div class="rounded-md border border-line bg-black/85 px-3 py-2.5 text-[13px] leading-snug text-white shadow-lg">
+    {#if box.key !== "main"}
+      <div class="mt-3 mb-1 text-[12px] tracking-[.06em] text-faint uppercase">{boxNames[box.key]}</div>
+    {/if}
+    <div class="rounded-md border border-line bg-black/85 px-3 py-2.5 font-tooltip text-[13px] leading-snug text-white shadow-lg">
       {#if box.key === "main" && tip}
         <div class="flex items-start gap-2">
           {#if tip.icon}
@@ -525,14 +657,44 @@ const changedCount = $derived(
     </div>
   {/each}
 
+  {#if buffComma}
+    <p class="mt-3 mb-0 text-[12.5px] text-warn">
+      {t("tooltipEditor.buffComma")}
+      <button
+        type="button"
+        class="ml-1 rounded-[5px] border border-line px-2 py-0.5 text-body hover:border-muted"
+        title={t("tooltipEditor.swapCommasTitle")}
+        onclick={swapCommas}
+      >
+        {t("tooltipEditor.swapCommas")}
+      </button>
+    </p>
+  {/if}
+
   {#if error}
     <p class="mt-3 mb-0 text-[12.5px] text-warn" role="alert">{error}</p>
   {/if}
 
   {#snippet actions()}
-    <span class="mr-auto self-center text-[12.5px] text-muted">
-      {changedCount === 0 ? t("tooltipEditor.unchanged") : tCount("tooltipEditor.changed", changedCount)}
-    </span>
+    <!-- The text hovered or edited is named here, over the count of changed texts, so the colours sit right above the
+         tooltip (Sven, 2026-10-29). -->
+    <div class="mr-auto flex min-w-0 flex-col self-center text-[12.5px] text-muted">
+      <span class="h-[1.45em] truncate">
+        {#if named}
+          {named.field.label} · <span class="font-mono">{named.field.id}</span>{#if named.field.level > 0}
+            · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
+          {#if named.field.maxLength}
+            {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
+            · <span class="font-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
+              >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
+            >
+          {/if}
+        {/if}
+      </span>
+      <span class="text-faint">
+        {changedCount === 0 ? t("tooltipEditor.unchanged") : tCount("tooltipEditor.changed", changedCount)}
+      </span>
+    </div>
     <button
       type="button"
       class="rounded-[5px] border border-line bg-raised px-3 py-1 text-fg hover:border-accent"

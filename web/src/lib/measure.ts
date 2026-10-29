@@ -5,7 +5,7 @@
 
 let context: CanvasRenderingContext2D | null | undefined;
 
-/** The width in pixels of `text` in a CSS `font` (such as `14px "Google Sans"`); 0 where nothing can measure. */
+/** The width in pixels of `text` in a CSS `font` (such as `14px "Inter Variable"`); 0 where nothing can measure. */
 export function textWidth(text: string, font: string): number {
   if (context === undefined) {
     context =
@@ -14,6 +14,14 @@ export function textWidth(text: string, font: string): number {
   if (!context) return 0;
   context.font = font;
   return context.measureText(text).width;
+}
+
+/** The interface's fonts as the page has them (whichever of them Windows has installed is drawn). */
+function uiFonts(): string {
+  return typeof document === "undefined"
+    ? "sans-serif"
+    : getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() ||
+        "sans-serif";
 }
 
 /** The narrowest and widest the name column may get, in pixels. */
@@ -29,7 +37,7 @@ export function labelColumnWidth(
 ): number {
   let widest = 0;
   for (const each of labels) {
-    let width = textWidth(each.label, '14px "Google Sans"');
+    let width = textWidth(each.label, `14px ${uiFonts()}`);
     if (showIds) width += 6 + textWidth(each.id, '12.5px "JetBrains Mono Variable"');
     widest = Math.max(widest, width);
   }

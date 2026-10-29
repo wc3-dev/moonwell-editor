@@ -1,11 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource/google-sans/latin-400.css";
-@import "@fontsource/google-sans/latin-ext-400.css";
-@import "@fontsource/google-sans/latin-500.css";
-@import "@fontsource/google-sans/latin-ext-500.css";
-@import "@fontsource/google-sans/latin-700.css";
-@import "@fontsource/google-sans/latin-ext-700.css";
-@import "@fontsource-variable/nunito";
+@import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
 /* Kanagawa Dragon (github.com/rebelot/kanagawa.nvim), the default theme (Sven, 2026-10-29). */
@@ -37,8 +31,16 @@
   --kind-ability: #8ea4a2;
   --kind-buff: #a292a3;
   --kind-upgrade: #c4746e;
-  --font-ui: "Google Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Nunito Variable", "Google Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Apple's New York for the interface and SF Pro for its headings (Sven, 2026-10-29), where Windows has them
+     installed: Apple's licence keeps them out of the editor, so it ships Inter for where they are not. The game's
+     tooltips are in Inter everywhere, and ids and values in JetBrains Mono. */
+  --font-ui:
+    "New York", "New York Small", "New York Medium", "Inter Variable", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-heading:
+    "SF Pro Display", "SF Pro", "SF Pro Text", "Inter Variable", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-tooltip: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 }
 
@@ -70,6 +72,7 @@
   --color-kind-upgrade: var(--kind-upgrade);
   --font-sans: var(--font-ui);
   --font-heading: var(--font-heading);
+  --font-tooltip: var(--font-tooltip);
   --font-mono: var(--font-mono);
 }
 

@@ -380,9 +380,13 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
 - **Theme:** Kanagawa Dragon by default since 2026-10-29 (Sven, after a few hours of Kanagawa Wave): `#0d0c0c`
   background, `#c5c9c5` text, `#8ba4b0` blue-grey accent, `#c4b28a` yellow for changed values, `#c4746e` red for
   warnings. Vitesse Dark (the tokens wc3-dev used) was the default before and is still one of the themes.
-- **Fonts:** readable only, never pixel fonts. Interface text in Google Sans (Nunito for headings), as in steam2fiddy
-  and wc3-dev; ids, values and code in JetBrains Mono. Bundled through fontsource, so no network is needed. *(Agent's
-  call; "JetBrains Mono (Nerd Font)" is read as JetBrains Mono, since icons come from Lucide.)*
+- **Fonts:** readable only, never pixel fonts. Since 2026-10-29 (Sven) interface text in Apple's New York and headings
+  in SF Pro where Windows has them installed; Apple's licence allows them only for designing for Apple's systems, so
+  the editor does not ship them and ships Inter for where they are not (the agent's call). The game's tooltips (the
+  side panel's and the tooltip editor's) are in Inter everywhere. Google Sans with Nunito headings before, as in
+  steam2fiddy and wc3-dev. Ids, values and code in JetBrains Mono. Inter and JetBrains Mono are bundled through
+  fontsource, so no network is needed. *(Agent's call; "JetBrains Mono (Nerd Font)" is read as JetBrains Mono, since
+  icons come from Lucide.)*
 - **Layout** (see the mockup): a top bar with the map name, the search box and the views (Details, Table, Compare);
   a left tree with the seven kinds and a filter; the details panel in the middle; a right panel with components,
   "used by" and the tooltip preview; a status bar with unsaved changes and the game data version.
@@ -631,6 +635,36 @@ of text ("Above World Editor's limit of 99999."). Text in a number field is refu
   - Only what is typed in can be selected: names, values, the panels, the tree and the status bar cannot.
   - Esc lets go of the button clicked last (a kind, a view), so its focus ring does not show; a focus ring is the
     accent's colour, not the browser's black.
+- **Sven, 2026-10-29, fifth batch:**
+  - The team colour square is exactly as tall as the animations' list beside it, and as wide.
+  - Settings, General: a default team colour (the 24 colours), which the side panel's model starts in (and follows
+    when it changes) and the model picker shows models in.
+  - Rename in an object's context menu (and F2 while the tree is where the user is) renames it in its tree row: Enter
+    or leaving the box renames, Esc gives up.
+  - Copy name in the context menus of an object and of a field puts its name on the clipboard.
+  - F10 opens the settings (a hotkey the settings can change).
+  - The tooltip editor is titled "Tooltip Editor: name". The text hovered or edited is named at the bottom, over the
+    count of changed texts, so the colours sit right above the tooltip. A right click on one of the user's own colours
+    opens a menu that removes it.
+  - A `/` that starts a word in a tooltip text lists the values the text can show, as slash commands do; the words
+    after it narrow the list, the arrows move in it, Enter or Tab puts the placeholder in, Esc closes it. *(Agent's
+    calls: what it lists, an ability's own values at the level shown and the values of the abilities a unit's or an
+    item's ability lists name; a number typed at the end picks the level (`/dur2`) and a `%` the value ×100.)*
+  - After two probes of what the game fills in (game facts, 2026-10-29; Sven asked for the list to follow them):
+    - A unit's own values (`realHP`, `regenHP`, `mindmg1`, `maxdmg1`, its first attack's damage) and an item's charges
+      (`uses`) are listed and put in too, and the preview fills them.
+    - The game rounds a plain placeholder's value down to a whole number, `,.` shows one decimal and `,%` the value
+      ×100; the preview and the chips show values so. A value that is not whole is listed with `,.` and with `,%`, and
+      a typed `.` or `%` at the end picks one. The insert menu's "Shown as" picks As it is (whole numbers plain, others
+      with `,.`), One decimal or ×100. *(Agent's calls: those three choices, and `,.` as what a decimal value gets
+      unless the user picks; how `,.` and `,%` round past the values probed is not measured, and the preview rounds
+      them down.)*
+    - A map's own upgrade's `base` and `mod` show 0 in the game, so upgrades list nothing.
+    - A buff's tooltip lists nothing and has no insert menu, and a comma in its extended tooltip shows a warning: the
+      game shows it only up to the first comma, so placeholders cannot work in it. *(Agent's call: a warning, not a
+      refusal, since World Editor takes the comma; Moonwell's build fails on one in a declared buff.)*
+  - The settings open with nothing in them focused (F10 had put the focus on the first checkbox).
+  - The model picker's preview stays on the model last under the pointer; each opening starts with the field's.
 - **Keys** (first set): Ctrl K search, Ctrl S save, Ctrl Z / Ctrl Y undo and redo, Ctrl D field ids (as in World
   Editor), Ctrl F filter fields, Ctrl Shift N new object from the selected one, F2 rename, Delete delete, Alt ←/→ back
   and forward through visited objects.
@@ -704,4 +738,5 @@ Every call below is the agent's:
 - ~~"Unreal-style types plus components" read as the class chain plus abilities as components.~~ Corrected by Sven,
   2026-10-27: Uses and Used by instead.
 - A Moonwell map is edited in its `map/` source folder, never its build output.
-- Stack details: xUnit, Svelte 5, Tailwind 4, Biome, Vitest; Google Sans, Nunito, JetBrains Mono; Lucide.
+- Stack details: xUnit, Svelte 5, Tailwind 4, Biome, Vitest; New York and SF Pro where installed, Inter, JetBrains
+  Mono; Lucide.

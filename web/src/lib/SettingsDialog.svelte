@@ -1,8 +1,9 @@
 <script lang="ts">
 /**
- * The editor's settings (Sven, 2026-10-27), in tabs: General (the graphics mode, the UI scale and the theme, which show
- * at once and are remembered, then the switches under Other), Hotkeys (each action's keys, which a click and a key press change), Map (what the editor knows
- * about the open map: its name, its game data option and the tables the game reads under it) and Game data.
+ * The editor's settings (Sven, 2026-10-27), in tabs: General (the graphics mode, the UI scale, the theme and the
+ * default team colour, which show at once and are remembered, then the switches under Other), Hotkeys (each action's
+ * keys, which a click and a key press change), Map (what the editor knows about the open map: its name, its game data
+ * option and the tables the game reads under it) and Game data.
  */
 import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -23,6 +24,7 @@ import {
 } from "./keymap.ts";
 import Popover from "./Popover.svelte";
 import { prefs, setPref, uiScales } from "./prefs.svelte.ts";
+import TeamColourGrid from "./TeamColourGrid.svelte";
 import { t } from "./text.ts";
 import { type Theme, themes } from "./themes.ts";
 import { kindNames } from "./tree.ts";
@@ -70,7 +72,7 @@ const customKinds = $derived(map ? kinds.filter((kind: Kind) => (map.counts[kind
 
 // The switches under Other.
 const switches = [
-  { key: "confirmReload", text: t("settings.confirmReload") },
+  { key: "confirm", text: t("settings.confirm") },
   { key: "alphaNotice", text: t("settings.alphaNotice") },
   { key: "experimental", text: t("settings.experimental") },
 ] as const;
@@ -132,7 +134,12 @@ function resetAll(): void {
   <h3 class="m-0 mt-4 mb-2 text-[12px] tracking-[.06em] text-muted uppercase first:mt-1">{text}</h3>
 {/snippet}
 
-<Dialog title={t("settings.title")} oncancel={() => (listening ? (listening = null) : onclose())} wide>
+<Dialog
+  title={t("settings.title")}
+  oncancel={() => (listening ? (listening = null) : onclose())}
+  wide
+  focus={false}
+>
   <div class="mb-3 flex gap-1 border-b border-line" role="tablist">
     {#each tabs as each (each.tab)}
       <button
@@ -152,7 +159,6 @@ function resetAll(): void {
   <div class="min-h-[300px]">
     {#if tab === "general"}
       {@render heading(t("settings.graphicsMode"))}
-      <p class="m-0 mb-2 text-[12.5px] text-faint">{t("settings.graphicsModeNote")}</p>
       <div class="flex gap-1" role="radiogroup" aria-label={t("settings.graphicsMode")}>
         {#each graphicsModes as each (each.mode)}
           <button
@@ -225,6 +231,10 @@ function resetAll(): void {
         </Popover>
       {/if}
 
+      <!-- The team colour models are shown in at first (Sven, 2026-10-29). -->
+      {@render heading(t("settings.teamColour"))}
+      <TeamColourGrid value={prefs.teamColor} onpick={(index) => setPref("teamColor", index)} />
+
       <!-- The switches, together at the bottom (Sven, 2026-10-29). -->
       {@render heading(t("settings.switches"))}
       <div class="flex flex-col gap-1.5">
@@ -240,7 +250,6 @@ function resetAll(): void {
         {/each}
       </div>
     {:else if tab === "hotkeys"}
-      <p class="m-0 mb-2 text-[12.5px] text-faint">{t("settings.hotkeysNote")}</p>
       <div class="flex flex-col">
         {#each actionList as each (each.action)}
           {@const keys = keymap[each.action]}
