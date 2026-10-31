@@ -42,6 +42,10 @@ public sealed class TriggerSnapshot
     internal CustomTextTrigger? HeaderCode { get; init; }
 
     internal bool Touched { get; init; }
+
+    internal ImmutableDictionary<int, CardPlace> Places { get; init; } = ImmutableDictionary<int, CardPlace>.Empty;
+
+    internal bool LayoutTouched { get; init; }
 }
 
 /// <summary>The edits.</summary>
@@ -66,6 +70,8 @@ public sealed partial class TriggerDocument
         HeaderComment = _customText.GlobalCustomScriptComment,
         HeaderCode = _customText.GlobalCustomScriptCode,
         Touched = _touched,
+        Places = _places,
+        LayoutTouched = _layoutTouched,
     };
 
     /// <summary>Goes back or forward to a state.</summary>
@@ -85,6 +91,8 @@ public sealed partial class TriggerDocument
         _customText.GlobalCustomScriptComment = snapshot.HeaderComment;
         _customText.GlobalCustomScriptCode = snapshot.HeaderCode!;
         _touched = snapshot.Touched;
+        _places = snapshot.Places;
+        _layoutTouched = snapshot.LayoutTouched;
     }
 
     /// <summary>
@@ -253,6 +261,12 @@ public sealed partial class TriggerDocument
         foreach (var each in gone)
         {
             _code = _code.Remove(each.Id);
+            if (_places.ContainsKey(each.Id))
+            {
+                _places = _places.Remove(each.Id);
+                _layoutTouched = true;
+            }
+
             switch (each)
             {
                 case TriggerVariableDefinition variable:
@@ -281,6 +295,7 @@ public sealed partial class TriggerDocument
             throw new TriggerEditException(Texts.Get("app.triggers.moveIntoItself"));
         }
 
+        parent = moved[0] is TriggerCategoryDefinition ? Category(parent) : InCategory(parent);
         var head = Copied(id);
         moved[0] = head;
         foreach (var each in moved)
@@ -288,7 +303,7 @@ public sealed partial class TriggerDocument
             _triggers.TriggerItems.Remove(each);
         }
 
-        head.ParentId = Category(parent);
+        head.ParentId = parent;
         InsertAll(moved, parent, index);
         if (head is TriggerVariableDefinition)
         {
@@ -366,21 +381,38 @@ public sealed partial class TriggerDocument
     }
 
     /// <summary>
-    /// Moves the function at <paramref name="path"/> to place <paramref name="index"/> among those of its kind or
-    /// block. Returns its new path.
+    /// Moves the function at <paramref name="path"/> of the trigger <paramref name="fromId"/> to the list of its kind of
+    /// the trigger <paramref name="id"/>, or a block of the function at <paramref name="parentPath"/> there, to place
+    /// <paramref name="index"/> with it taken out. Refused for a block of another kind, and for a place inside the
+    /// function itself.
     /// </summary>
-    public string MoveFunction(int id, string path, int index)
+    public void MoveFunction(int fromId, string path, int id, string? parentPath, int branch, int index)
     {
         Editable();
-        var copy = (TriggerDefinition)Copied(id);
-        var (list, at, function, _) = Walk(copy, path);
-        var group = list.Where(each => each.Type == function.Type && each.Branch == function.Branch).ToList();
-        index = Math.Clamp(index, 0, group.Count - 1);
+        var source = (TriggerDefinition)Copied(fromId);
+        var definition = fromId == id ? source : (TriggerDefinition)Copied(id);
+        var (list, at, function, _) = Walk(source, path);
+        var target = definition.Functions;
+        if (parentPath != null)
+        {
+            if (fromId == id && (parentPath == path || parentPath.StartsWith(path + "/", StringComparison.Ordinal)))
+            {
+                throw new TriggerEditException(Texts.Get("app.triggers.moveIntoItself"));
+            }
+
+            var parent = Walk(definition, parentPath).Function;
+            var block = BlocksOf(parent.Name).FirstOrDefault(each => each.Branch == branch);
+            if (block.Kind != KindOf(function.Type))
+            {
+                throw new TriggerEditException(Texts.Get("app.triggers.moveWrongBlock"));
+            }
+
+            target = parent.ChildFunctions;
+        }
+
         list.RemoveAt(at);
-        group.Remove(function);
-        var target = index < group.Count ? list.IndexOf(group[index]) : list.IndexOf(group[^1]) + 1;
-        list.Insert(target, function);
-        return path[..(path.LastIndexOf('/') + 1)] + (path.Contains('/') ? "c" : "") + target;
+        function.Branch = parentPath == null ? null : branch;
+        PlaceIn(target, function, parentPath == null, branch, index);
     }
 
     /// <summary>Sets the parameter at <paramref name="path"/>.</summary>
@@ -948,7 +980,13 @@ public sealed partial class TriggerDocument
             prefix = parentPath + "/c";
         }
 
-        var group = list.Where(each => each.Type == function.Type && (parentPath == null || each.Branch == branch)).ToList();
+        return prefix + PlaceIn(list, function, parentPath == null, branch, index);
+    }
+
+    // Puts a function in a list and gives its place there. At the top a group is a kind, in a block its branch.
+    private static int PlaceIn(List<TriggerFunction> list, TriggerFunction function, bool top, int branch, int index)
+    {
+        var group = list.Where(each => each.Type == function.Type && (top || each.Branch == branch)).ToList();
         int target;
         if (index >= 0 && index < group.Count)
         {
@@ -960,13 +998,21 @@ public sealed partial class TriggerDocument
         }
         else
         {
-            target = list.FindIndex(each => parentPath == null ? each.Type > function.Type : each.Branch > branch);
+            target = list.FindIndex(each => top ? each.Type > function.Type : each.Branch > branch);
             target = target < 0 ? list.Count : target;
         }
 
         list.Insert(target, function);
-        return prefix + target;
+        return target;
     }
+
+    private static string KindOf(TriggerFunctionType type) => type switch
+    {
+        TriggerFunctionType.Event => "event",
+        TriggerFunctionType.Condition => "condition",
+        TriggerFunctionType.Action => "action",
+        _ => "call",
+    };
 
     // What a path names. A path is steps split by /: a number is a function of the trigger, cN a function of the block
     // lists of the function before it, pN a parameter of that function or of the function in the parameter before it,

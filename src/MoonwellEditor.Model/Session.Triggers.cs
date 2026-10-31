@@ -2,6 +2,7 @@ using System.Text;
 using MoonwellEditor.Files;
 using MoonwellEditor.Triggers;
 using War3Net.Build.Extensions;
+using War3Net.Build.Import;
 using War3Net.Build.Info;
 using War3Net.Build.Widget;
 
@@ -30,13 +31,17 @@ public sealed partial class Session : ITriggerNames
         {
             var triggers = _store.Read(TriggerDocument.TriggersFile);
             var customText = _store.Read(TriggerDocument.CustomTextFile);
+            var layout = _store.Read(TriggerDocument.LayoutFile);
             _baseline[TriggerDocument.TriggersFile] = triggers;
             _baseline[TriggerDocument.CustomTextFile] = customText;
+            _baseline[TriggerDocument.LayoutFile] = layout;
+            _baseline[ImportedFiles.MapFileName] = _store.Read(ImportedFiles.MapFileName);
             _triggers = TriggerDocument.Read(
                 triggers,
                 customText,
                 catalog,
-                _store.WriteProblem(TriggerDocument.TriggersFile) ?? _store.WriteProblem(TriggerDocument.CustomTextFile));
+                _store.WriteProblem(TriggerDocument.TriggersFile) ?? _store.WriteProblem(TriggerDocument.CustomTextFile),
+                layout);
         }
 
         return _triggers;
@@ -96,10 +101,15 @@ public sealed partial class Session : ITriggerNames
     }
 
     // True when the trigger files differ from the ones read or last saved.
-    private bool TriggersChanged() =>
+    private bool TriggersChanged() => TriggerFilesChanged() || LayoutChanged();
+
+    private bool TriggerFilesChanged() =>
         _triggers != null
         && (Differs(TriggerDocument.TriggersFile, _triggers.TriggerBytes())
             || Differs(TriggerDocument.CustomTextFile, _triggers.CustomTextBytes()));
+
+    private bool LayoutChanged() =>
+        _triggers != null && Differs(TriggerDocument.LayoutFile, _triggers.LayoutBytes());
 
     private bool Differs(string name, byte[]? bytes) =>
         bytes != null && !SameBytes(bytes, _baseline.GetValueOrDefault(name));
@@ -109,13 +119,28 @@ public sealed partial class Session : ITriggerNames
     private void AddTriggerChanges(List<(string Name, byte[] Bytes)> changes)
     {
         _scriptNote = "";
-        if (_triggers == null || !TriggersChanged())
+        if (_triggers == null)
         {
             return;
         }
 
+        var script = TriggerFilesChanged();
         AddChange(changes, TriggerDocument.TriggersFile, _triggers.TriggerBytes());
         AddChange(changes, TriggerDocument.CustomTextFile, _triggers.CustomTextBytes());
+        AddChange(changes, TriggerDocument.LayoutFile, _triggers.LayoutBytes());
+        if (changes.Exists(change => change.Name == TriggerDocument.LayoutFile))
+        {
+            AddChange(
+                changes,
+                ImportedFiles.MapFileName,
+                TriggerDocument.ImportsWithLayout(_baseline.GetValueOrDefault(ImportedFiles.MapFileName)));
+        }
+
+        if (!script)
+        {
+            return;
+        }
+
         var info = ReadInfo();
         if (info == null)
         {

@@ -172,7 +172,9 @@ let choiceLists = $state.raw<Record<string, ChoiceList> | null>(null);
 // Which view the middle of the window shows: the selected object's details, the kind's table, or the map (the
 // Terrain Editor button; read only for now).
 let page = $state<"details" | "table" | "map" | "triggers">("details");
-let triggerEditor: { refresh(): Promise<void> } | undefined = $state();
+let triggerEditor:
+  | { refresh(): Promise<void>; startRename(): void; deleteSelected(): void }
+  | undefined = $state();
 // While something asks the map for a pick (the trigger editor), the map shows; then the page it came from again.
 let beforePick = $state<"details" | "table" | "triggers" | null>(null);
 $effect(() => {
@@ -1017,7 +1019,17 @@ function onkeydown(event: KeyboardEvent): void {
   // The keys of the keymap, which the settings change (Sven, 2026-10-27).
   const action = actionOf(event, keymap);
   if (!action) return;
-  // The object editor's keys do nothing in the trigger editor.
+  // The trigger editor has its own rename and delete; the object editor's other keys do nothing there.
+  if (page === "triggers" && (action === "rename" || action === "deleteObject")) {
+    if (typingIn(event.target) || inPopup(event.target)) {
+      if (action === "rename") event.preventDefault();
+      return; // the box's own Delete
+    }
+    event.preventDefault();
+    if (action === "rename") triggerEditor?.startRename();
+    else triggerEditor?.deleteSelected();
+    return;
+  }
   if (page === "triggers" && !["save", "settings", "undo", "redo"].includes(action)) return;
   switch (action) {
     case "save":

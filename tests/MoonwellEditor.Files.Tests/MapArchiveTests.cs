@@ -70,6 +70,42 @@ public sealed class MapArchiveTests : IDisposable
     }
 
     [Fact]
+    public void Store_opens_the_map_of_a_Moonwell_project_from_the_projects_own_folder()
+    {
+        var project = Path.Combine(_folder, "Project");
+        var map = Path.Combine(project, "map");
+        Directory.CreateDirectory(map);
+        File.WriteAllText(Path.Combine(project, "Project.csproj"), "<Project />");
+        File.WriteAllBytes(Path.Combine(map, "war3map.w3i"), [1]);
+
+        var store = MapStore.Open(project);
+
+        Assert.Equal(map, store.Path);
+        Assert.Equal([1], store.Read("war3map.w3i"));
+    }
+
+    [Fact]
+    public void Store_keeps_a_map_folder_that_has_a_folder_called_map_in_it()
+    {
+        var outer = Path.Combine(_folder, "Outer");
+        var inner = Path.Combine(outer, "map");
+        Directory.CreateDirectory(inner);
+        File.WriteAllBytes(Path.Combine(outer, "war3map.w3i"), [1]);
+        File.WriteAllBytes(Path.Combine(inner, "war3map.w3i"), [2]);
+
+        Assert.Equal(outer, MapStore.Open(outer).Path);
+    }
+
+    [Fact]
+    public void Store_opens_a_folder_with_no_map_in_a_map_folder_as_it_is()
+    {
+        var folder = Path.Combine(_folder, "Plain");
+        Directory.CreateDirectory(Path.Combine(folder, "map"));
+
+        Assert.Equal(folder, MapStore.Open(folder).Path);
+    }
+
+    [Fact]
     public void Store_opens_folders_and_archives()
     {
         var folder = MapStore.Open(Path.Combine(Fixtures.Root, "we-3.0"));

@@ -194,8 +194,20 @@ public sealed partial class Commands
         "triggerFunctionDelete" => EditTriggers(document => document.DeleteFunction(Number(args, "id"), Text(args, "path"))),
         "triggerFunctionEnable" => EditTriggers(document =>
             document.EnableFunction(Number(args, "id"), Text(args, "path"), Flag(args, "enabled"))),
-        "triggerFunctionMove" => EditTriggers(document => new FunctionPlace(
-            document.MoveFunction(Number(args, "id"), Text(args, "path"), Number(args, "index")))),
+        "triggerCards" => Map().Triggers(Catalog()).Cards(Number(args, "parent"), Map()),
+        "triggerPlaces" => EditTriggers(document => document.SetPlaces(Moves(args))),
+        "triggerFolded" => EditTriggers(document =>
+        {
+            document.SetPlaces(Moves(args));
+            document.SetFolded(Number(args, "id"), Flag(args, "folded"));
+        }),
+        "triggerFunctionMove" => EditTriggers(document => document.MoveFunction(
+            Number(args, "from"),
+            Text(args, "path"),
+            Number(args, "id"),
+            OptionalText(args, "parent"),
+            Number(args, "branch"),
+            Number(args, "index"))),
         "triggerParameter" => EditTriggers(document => document.SetParameter(
             Number(args, "id"), Text(args, "path"), new ParamInput(Text(args, "kind"), Text(args, "value")))),
         _ => throw new UnknownCommandException(command),
@@ -206,6 +218,10 @@ public sealed partial class Commands
         Map().Triggers(Catalog()).CopyFunction(Number(args, "id"), Text(args, "path"));
         return null;
     }
+
+    private static List<CardMove> Moves(JsonElement args) => ArrayOf(args, "places")
+        .Select(place => new CardMove(Number(place, "id"), Number(place, "x"), Number(place, "y")))
+        .ToList();
 
     private static VariableInput VariableOf(JsonElement args) => new(
         Text(args, "name"),
