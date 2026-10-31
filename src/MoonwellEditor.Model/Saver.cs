@@ -79,7 +79,7 @@ public sealed partial class Session
         var (written, backup, note) = _store.IsArchive ? SaveArchive(changes) : SaveFolder(changes, previous);
         _history.Saved();
         _savedObjects = Describe();
-        return new SaveReport(written, backup, note);
+        return new SaveReport(written, backup, note.Length > 0 ? note : _scriptNote);
     }
 
     /// <summary>
@@ -103,6 +103,7 @@ public sealed partial class Session
 
         _kinds = loaded.Kinds;
         _strings = loaded.Strings;
+        _triggers = null;
         ReadOptions();
         _problems = loaded.Problems;
         _baseline = loaded.Baseline;
@@ -281,6 +282,7 @@ public sealed partial class Session
             AddChange(changes, StringsName, _strings?.ToBytes());
         }
 
+        AddTriggerChanges(changes);
         return changes;
     }
 
