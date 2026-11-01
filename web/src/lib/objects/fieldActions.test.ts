@@ -30,6 +30,8 @@ function actions(view: ObjectView = unit(footmanEntry)): FieldActions {
     reset,
     fields: edits,
     menu: (_x, _y, items) => menus.push(items),
+    isFavourite: () => false,
+    favourite: () => {},
   });
 }
 

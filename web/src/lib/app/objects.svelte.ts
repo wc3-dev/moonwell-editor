@@ -13,6 +13,7 @@ import {
 } from "../api.ts";
 import { errorText } from "../errors.ts";
 import { graphics, viewInMode } from "../graphics.svelte.ts";
+import { FieldFilters } from "../objects/fieldFilters.svelte.ts";
 import { type Lookup, listKinds } from "../objects/fields.ts";
 import type { EditResult } from "../objects/TableView.svelte";
 import { newTableState, type TableState } from "../objects/table.ts";
@@ -42,7 +43,11 @@ export class Objects {
   tableState = $state<TableState>(newTableState());
   fieldFilter = $state("");
   changedOnly = $state(false);
+  favouritesOnly = $state(false);
+  /** The categories the filter bar shows, by kind, as each kind has its own. */
+  chosenCategories = $state<Partial<Record<Kind, string[]>>>({});
   showIds = $state(false);
+  readonly fieldFilters = new FieldFilters();
 
   /** The object as the graphics mode shows it (the values the game keeps per mode are the mode's). */
   readonly shown = $derived(this.current ? viewInMode(this.current, graphics.mode) : null);

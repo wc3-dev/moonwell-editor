@@ -10,6 +10,7 @@ type DetailsView = {
   focusField(field: FieldView): Promise<boolean>;
   clipKey(key: "c" | "v"): boolean;
   collapseAll(collapse: boolean): void;
+  clearFilters(): void;
   scrollPosition(): number;
   scrollTo(top: number): void;
 };

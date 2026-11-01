@@ -230,6 +230,12 @@ in `app/windowKeys.ts`, and `Editor.onkeydown` carries it out.
 is an entry in `actionList`, its place in `answerKey` and its case in `Editor`: `#windowCommands` when it has no key out
 of the box, and `#canRun` when it can only run in some places.
 
+The filter bar over an object's fields is `objects/FilterBar.svelte`. What it narrows by now is in `Objects`, with the
+categories picked kept per kind, as each kind has its own; `groupFields` applies them. The stars and the presets are in
+`objects/fieldFilters.svelte.ts`, per kind and in the window's storage, so they are this PC's and the same in every map.
+A field is starred by its id, so a star on a field only some abilities have shows wherever that field exists. A total of
+dice is starred by its base, and any starred part keeps the total in the favourites.
+
 An `$effect` here is for following something outside the state classes: the theme onto the page, the title onto the window,
 a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.
 

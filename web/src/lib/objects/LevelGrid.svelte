@@ -5,6 +5,7 @@
  */
 import type { ChoiceList, FieldView, Kind } from "../api.ts";
 import { t } from "../text.ts";
+import FavouriteStar from "./FavouriteStar.svelte";
 import FieldEditor from "./FieldEditor.svelte";
 import { isChanged, type Lookup, namesOf, type Row, shownValue } from "./fields.ts";
 
@@ -23,6 +24,10 @@ type Props = {
   onselect: (field: FieldView) => void;
   /** A right click on a level's cell, for its context menu. */
   onmenu: (field: FieldView, x: number, y: number) => void;
+  /** Whether a field is a favourite. */
+  isFavourite: (field: FieldView) => boolean;
+  /** Stars a field, or takes its star off. */
+  onfavourite: (field: FieldView) => void;
 };
 
 let {
@@ -37,6 +42,8 @@ let {
   selected,
   onselect,
   onmenu,
+  isFavourite,
+  onfavourite,
 }: Props = $props();
 
 function menuOf(field: FieldView, event: MouseEvent): void {
@@ -88,13 +95,14 @@ async function reset(field: FieldView): Promise<void> {
       </thead>
       <tbody>
         {#each rows as row (row.id)}
-          <tr data-changed={isChanged(row) || undefined}>
-            <th class="border border-hairline px-2 py-0.5 text-left font-normal whitespace-nowrap">
+          <tr class="group" data-changed={isChanged(row) || undefined}>
+            <th class="relative border border-hairline py-0.5 pr-6 pl-2 text-left font-normal whitespace-nowrap">
               <span class="inline-flex items-center gap-1.5">
                 <span class="h-3.5 w-1 rounded-ui {isChanged(row) ? 'bg-changed' : ''}"></span>
                 {row.label}
                 {#if showIds}<span class="font-mono text-mono text-faint">{row.id}</span>{/if}
               </span>
+              <FavouriteStar label={row.label} on={isFavourite(row.field)} onclick={() => onfavourite(row.field)} />
             </th>
             {#each row.levels ?? [] as field (field.level)}
               {@const shown = shownValue(field, choices, nameOf)}

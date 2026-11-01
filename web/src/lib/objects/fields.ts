@@ -72,6 +72,7 @@ export function categoryName(key: string): string {
  * - `filter` keeps a row whose label, id or value (any level's) holds it, ignoring case; "" keeps every row.
  * - `changedOnly` keeps a row the map changes (at any level, for a per-level field, which then shows every level).
  * - `shown` gives the text shown for a value (such as a choice's label), which the filter matches too.
+ * - `keep` keeps a row by any other test (the favourites, the categories picked); none keeps every row.
  * Categories come in `categoryOrder`, then any other by name; rows by their sort key (a field without one last).
  * A category with no rows left is left out.
  */
@@ -80,6 +81,7 @@ export function groupFields(
   filter: string,
   changedOnly: boolean,
   shown?: (field: FieldView) => string,
+  keep?: (row: Row) => boolean,
 ): Category[] {
   const needle = filter.trim().toLowerCase();
   const byCategory = new Map<string, Row[]>();
@@ -107,7 +109,8 @@ export function groupFields(
   const categories: Category[] = [];
   for (const [key, rows] of byCategory) {
     const kept = rows.filter(
-      (row) => (!changedOnly || isChanged(row)) && matches(row, needle, shown),
+      (row) =>
+        (!changedOnly || isChanged(row)) && matches(row, needle, shown) && (keep?.(row) ?? true),
     );
     if (kept.length === 0) continue;
     for (const row of kept) {

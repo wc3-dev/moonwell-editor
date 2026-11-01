@@ -12,6 +12,10 @@ type Needs = {
   /** Changes several fields as one edit; answers with why it was refused, or null. */
   fields: (edits: { field: FieldView; value: string }[]) => Promise<string | null>;
   menu: (x: number, y: number, items: MenuItem[]) => void;
+  /** Whether a field is a favourite. */
+  isFavourite: (field: FieldView) => boolean;
+  /** Stars a field, or takes its star off. */
+  favourite: (field: FieldView) => void;
 };
 
 /** Copying and pasting a field's value or a total of dice, and their context menus. */
@@ -95,7 +99,7 @@ export class FieldActions {
   }
 
   /** The context menu of a field (one level of a per-level field). */
-  fieldMenu(field: FieldView, x: number, y: number): void {
+  fieldMenu = (field: FieldView, x: number, y: number): void => {
     const clip = copiedField();
     const editable = this.#editable;
     this.#needs.menu(x, y, [
@@ -113,8 +117,15 @@ export class FieldActions {
         disabled: !editable || !field.changed,
         run: () => this.#needs.reset(field),
       },
+      { separator: true },
+      {
+        label: this.#needs.isFavourite(field)
+          ? t("details.menu.unfavourite")
+          : t("details.menu.favourite"),
+        run: () => this.#needs.favourite(field),
+      },
     ]);
-  }
+  };
 
   /** The context menu of a total: copy and paste its range, and reset its three fields. */
   totalMenu(label: string, dice: DiceFields, x: number, y: number): void {

@@ -55,6 +55,12 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
         lookup={objects.lookup}
         bind:filter={objects.fieldFilter}
         bind:changedOnly={objects.changedOnly}
+        bind:favouritesOnly={objects.favouritesOnly}
+        bind:chosenCategories={
+          () => objects.chosenCategories[objects.kind] ?? [],
+          (chosen) => (objects.chosenCategories[objects.kind] = chosen)
+        }
+        filters={objects.fieldFilters}
         bind:showIds={objects.showIds}
         onopen={(each, id) => objects.show(each, id)}
         onset={(field, value) => objects.edit(field, value)}

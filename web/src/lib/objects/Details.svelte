@@ -1,8 +1,8 @@
 <script lang="ts">
 /**
- * The middle panel: the object's name, id and chain, Copy and Delete, the field filter, then its fields by category
+ * The middle panel: the object's name, id and chain, Copy and Delete, the filter bar, then its fields by category
  * (which open and close), per-level fields as grids. The fields are editors unless the object is read only. A bar
- * floats at the bottom with New, "Changed only", "Field ids", and Collapse all and Expand all.
+ * floats at the bottom with New, "Field ids", and Collapse all and Expand all.
  */
 
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -12,7 +12,6 @@ import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
 import Copy from "@lucide/svelte/icons/copy";
 import Hash from "@lucide/svelte/icons/hash";
 import Lock from "@lucide/svelte/icons/lock";
-import PencilLine from "@lucide/svelte/icons/pencil-line";
 import Plus from "@lucide/svelte/icons/plus";
 import Trash from "@lucide/svelte/icons/trash-2";
 import { type Component, tick } from "svelte";
@@ -22,7 +21,9 @@ import type { MenuItem } from "../ui/ContextMenu.svelte";
 import DiceRow from "./DiceRow.svelte";
 import { type DiceFields, diceGroups, totalLabel, withTotals } from "./dice.ts";
 import FieldRow from "./FieldRow.svelte";
+import FilterBar from "./FilterBar.svelte";
 import { FieldActions } from "./fieldActions.ts";
+import type { FieldFilters } from "./fieldFilters.svelte.ts";
 import {
   type ButtonPair,
   buttonPair,
@@ -43,6 +44,11 @@ type Props = {
   lookup: Lookup;
   filter: string;
   changedOnly: boolean;
+  favouritesOnly: boolean;
+  /** The categories picked in the filter bar, by key; none shows them all. */
+  chosenCategories: string[];
+  /** The favourites and presets the filter bar keeps. */
+  filters: FieldFilters;
   showIds: boolean;
   onopen: (kind: Kind, id: string) => void;
   onset: (field: FieldView, value: string) => Promise<string | null>;
@@ -69,6 +75,9 @@ let {
   lookup,
   filter = $bindable(),
   changedOnly = $bindable(),
+  favouritesOnly = $bindable(),
+  chosenCategories = $bindable(),
+  filters,
   showIds = $bindable(),
   onopen,
   onset,
@@ -89,7 +98,17 @@ const actions = new FieldActions({
   reset: (field) => onreset(field),
   fields: (edits) => onfields(edits),
   menu: (x, y, items) => onmenu(x, y, items),
+  isFavourite: (field) => isFavourite(field),
+  favourite: (field) => toggleFavourite(field),
 });
+
+function isFavourite(field: FieldView): boolean {
+  return filters.isFavourite(view.kind, field.id);
+}
+
+function toggleFavourite(field: FieldView): void {
+  filters.toggleFavourite(view.kind, field.id);
+}
 
 let root: HTMLDivElement | undefined = $state();
 // The selected field and level, as `field:level` (Sven, 2026-10-27), or a total of dice as `base:total` (Sven,
@@ -161,7 +180,7 @@ function setPair(pair: ButtonPair, x: number, y: number): Promise<string | null>
   ]);
 }
 
-let filterInput: HTMLInputElement | undefined = $state();
+let filterBar: FilterBar | undefined = $state();
 let scroller: HTMLDivElement | undefined = $state();
 
 /** A changed field's mark beside the scroll bar: how far down the fields it is, in percent. */
@@ -202,11 +221,25 @@ let shownParts = $state<Record<string, boolean>>({});
 
 const nameOf = namesOf((listOf, id) => lookup(listOf, id));
 const categories = $derived(
-  groupFields(view.fields, filter, changedOnly, (field) => shownValue(field, choices, nameOf)),
+  groupFields(
+    view.fields,
+    filter,
+    changedOnly,
+    (field) => shownValue(field, choices, nameOf),
+    (row) =>
+      (!favouritesOnly || isFavourite(row.field)) &&
+      (chosenCategories.length === 0 || chosenCategories.includes(row.field.category)),
+  ),
+);
+const allCategories = $derived(
+  groupFields(view.fields, "", false).map(({ key, name }) => ({ key, name })),
 );
 const changedCount = $derived(
   groupFields(view.fields, "", true).reduce((sum, category) => sum + category.rows.length, 0),
 );
+
+// What a field's star takes at the end of the names.
+const starRoom = 18;
 
 // The values start just past the widest name of the object's fields shown one per row, filtered or not, so they
 // stay put while the filter changes (measured once the fonts are in).
@@ -223,22 +256,21 @@ const labelWidth = $derived.by(() => {
   const indent = view.fields.some((field) => diceGroups.some((group) => group.base === field.id))
     ? 20
     : 0;
-  return labelColumnWidth(labels, showIds) + indent;
+  return labelColumnWidth(labels, showIds) + indent + starRoom;
 });
 
 const editable = $derived(view.readOnly === null);
 const custom = $derived(view.baseId !== null);
 
 /**
- * Puts the cursor in a field's editor (F2 for the name), showing it first when the filter, "Changed only" or a closed
- * category hides it. False when the field has no editor.
+ * Puts the cursor in a field's editor (F2 for the name), showing it first when a filter or a closed category hides it.
+ * False when the field has no editor.
  */
 export async function focusField(field: FieldView): Promise<boolean> {
   const selector = `[data-field="${field.id}:${field.level}"]`;
   let element = document.querySelector<HTMLElement>(selector);
   if (!element) {
-    filter = "";
-    changedOnly = false;
+    filterBar?.clear();
     closed[field.category] = false;
     await tick();
     element = document.querySelector<HTMLElement>(selector);
@@ -260,10 +292,14 @@ export function scrollTo(top: number): void {
   if (scroller) scroller.scrollTop = top;
 }
 
+/** Takes every filter of the filter bar off. */
+export function clearFilters(): void {
+  filterBar?.clear();
+}
+
 /** Puts the cursor in the field filter (Ctrl F). */
 export function focusFilter(): void {
-  filterInput?.focus();
-  filterInput?.select();
+  filterBar?.focus();
 }
 
 /** A category's rows as runs: fields with no levels one by one, per-level fields together as one grid. */
@@ -281,13 +317,6 @@ function runs(rows: Row[]): { grid: boolean; rows: Row[] }[] {
 /** Closes every category (true) or opens every one (false); they stay so from object to object. */
 export function collapseAll(collapse: boolean): void {
   closed = collapse ? Object.fromEntries(categories.map((category) => [category.key, true])) : {};
-}
-
-function clearOnEscape(event: KeyboardEvent): void {
-  if (event.key === "Escape" && filter) {
-    event.stopPropagation();
-    filter = "";
-  }
 }
 </script>
 
@@ -349,13 +378,15 @@ function clearOnEscape(event: KeyboardEvent): void {
         {t("details.readOnly", { reason: view.readOnly })}
       </p>
     {/if}
-    <input
-      class="mt-1 w-full rounded-ui border border-transparent bg-field px-2 py-px text-fg outline-none focus:border-accent"
-      placeholder={t("details.filterPlaceholder")}
-      aria-label={t("details.filterLabel")}
-      bind:this={filterInput}
-      bind:value={filter}
-      onkeydown={clearOnEscape}
+    <FilterBar
+      bind:this={filterBar}
+      kind={view.kind}
+      categories={allCategories}
+      {filters}
+      bind:text={filter}
+      bind:changedOnly
+      bind:favouritesOnly
+      bind:chosen={chosenCategories}
     />
   </div>
 
@@ -364,7 +395,11 @@ function clearOnEscape(event: KeyboardEvent): void {
   <div class="min-h-0 flex-1 overflow-auto pb-16" bind:this={scroller}>
     {#if categories.length === 0}
       <p class="mx-2 mt-1.5 text-muted">
-        {changedOnly && !filter ? t("details.noChangedFields") : t("details.noFieldMatches")}
+        {changedOnly && !filter
+          ? t("details.noChangedFields")
+          : favouritesOnly && !filter
+            ? t("details.noFavourites")
+            : t("details.noFieldMatches")}
       </p>
     {/if}
 
@@ -402,6 +437,8 @@ function clearOnEscape(event: KeyboardEvent): void {
                   {selected}
                   onselect={select}
                   onmenu={actions.fieldMenu}
+                  {isFavourite}
+                  onfavourite={toggleFavourite}
                 />
               {:else}
                 {#each withTotals(run.rows, view.fields) as row (row.id)}
@@ -424,6 +461,8 @@ function clearOnEscape(event: KeyboardEvent): void {
                       ontotalmenu={(dice, x, y) => actions.totalMenu(row.label, dice, x, y)}
                       open={!!shownParts[row.id]}
                       ontoggle={() => (shownParts[row.id] = !shownParts[row.id])}
+                      {isFavourite}
+                      onfavourite={toggleFavourite}
                     />
                   {:else}
                   <FieldRow
@@ -442,6 +481,8 @@ function clearOnEscape(event: KeyboardEvent): void {
                     objectKind={view.kind}
                     {kindIcons}
                     onpair={setPair}
+                    favourite={isFavourite(row.field)}
+                    onfavourite={toggleFavourite}
                   />
                   {/if}
                 {/each}
@@ -485,7 +526,6 @@ function clearOnEscape(event: KeyboardEvent): void {
       )}
       <span class="mx-0.5 h-4 w-px bg-line" aria-hidden="true"></span>
     {/if}
-    {@render barButton(t("details.changedOnly"), PencilLine, () => (changedOnly = !changedOnly), changedOnly)}
     {@render barButton(t("details.fieldIds"), Hash, () => (showIds = !showIds), showIds)}
     <span class="mx-0.5 h-4 w-px bg-line" aria-hidden="true"></span>
     {@render barButton(t("details.collapseAll"), ChevronsDownUp, () => collapseAll(true))}

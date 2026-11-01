@@ -48,6 +48,8 @@ export type Action =
   | "showTable"
   | keyof typeof kindActions
   | "changedOnly"
+  | "favouritesOnly"
+  | "clearFilters"
   | "collapseAll"
   | "expandAll";
 
@@ -87,6 +89,8 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "kindBuff", name: t("hotkey.kindBuff"), keys: [] },
   { action: "kindUpgrade", name: t("hotkey.kindUpgrade"), keys: [] },
   { action: "changedOnly", name: t("hotkey.changedOnly"), keys: [] },
+  { action: "favouritesOnly", name: t("hotkey.favouritesOnly"), keys: [] },
+  { action: "clearFilters", name: t("hotkey.clearFilters"), keys: [] },
   { action: "collapseAll", name: t("hotkey.collapseAll"), keys: [] },
   { action: "expandAll", name: t("hotkey.expandAll"), keys: [] },
 ];

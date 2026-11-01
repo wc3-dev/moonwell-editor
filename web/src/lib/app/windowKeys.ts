@@ -33,6 +33,8 @@ const keysOfTheObjectShown: Action[] = [
   "back",
   "forward",
   "changedOnly",
+  "favouritesOnly",
+  "clearFilters",
   "collapseAll",
   "expandAll",
 ];
