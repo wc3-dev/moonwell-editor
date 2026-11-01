@@ -44,6 +44,8 @@ const objectCommands: Action[] = [
   "rename",
   "fieldIds",
   "changedOnly",
+  "favouritesOnly",
+  "clearFilters",
   "collapseAll",
   "expandAll",
 ];
@@ -274,6 +276,8 @@ export class Editor {
     showDetails: () => this.pages.show("details"),
     showTable: () => this.pages.show("table"),
     changedOnly: () => (this.objects.changedOnly = !this.objects.changedOnly),
+    favouritesOnly: () => (this.objects.favouritesOnly = !this.objects.favouritesOnly),
+    clearFilters: () => this.pages.details?.clearFilters(),
     collapseAll: () => this.pages.details?.collapseAll(true),
     expandAll: () => this.pages.details?.collapseAll(false),
     ...Object.fromEntries(

@@ -9,6 +9,7 @@ import { graphics } from "../graphics.svelte.ts";
 import { t } from "../text.ts";
 import AssetPicker from "./AssetPicker.svelte";
 import CommandCard from "./CommandCard.svelte";
+import FavouriteStar from "./FavouriteStar.svelte";
 import FieldEditor from "./FieldEditor.svelte";
 import { type ButtonPair, type Lookup, listIds, namesOf, shownValue } from "./fields.ts";
 import { isExtendedTooltip } from "./values.ts";
@@ -38,6 +39,10 @@ type Props = {
   onpair?: (pair: ButtonPair, x: number, y: number) => Promise<string | null>;
   /** Indents the row under a group's row (a damage's base, dice and sides). */
   nested?: boolean;
+  /** Whether the field is a favourite. */
+  favourite: boolean;
+  /** Stars the field, or takes its star off. */
+  onfavourite: (field: FieldView) => void;
 };
 
 let {
@@ -57,6 +62,8 @@ let {
   objectKind = "",
   kindIcons = [],
   nested = false,
+  favourite,
+  onfavourite,
 }: Props = $props();
 
 let error = $state("");
@@ -102,7 +109,7 @@ async function flip(event: MouseEvent): Promise<void> {
 
 <div
   data-changed={field.changed || undefined}
-  class="grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected
     ? ''
     : 'hover:bg-raised'}"
   role="group"
@@ -117,15 +124,18 @@ async function flip(event: MouseEvent): Promise<void> {
   }}
 >
   <span class="h-full w-[3px] justify-self-center {field.changed ? 'bg-changed' : ''}"></span>
-  <button
-    type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-1.5 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
-    title={editable && field.modes ? title : undefined}
-    onclick={() => onselect(field)}
-  >
-    {field.label}
-    {#if showIds}<span class="ml-1.5 font-mono text-mono text-faint">{field.id}</span>{/if}
-  </button>
+  <span class="relative grid self-stretch">
+    <button
+      type="button"
+      class="flex cursor-default items-center border-r border-hairline pr-5 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
+      title={editable && field.modes ? title : undefined}
+      onclick={() => onselect(field)}
+    >
+      {field.label}
+      {#if showIds}<span class="ml-1.5 font-mono text-mono text-faint">{field.id}</span>{/if}
+    </button>
+    <FavouriteStar label={field.label} on={favourite} onclick={() => onfavourite(field)} />
+  </span>
   <!-- The value starts right after the names, as World Editor lays them out (Sven, 2026-10-27). -->
   <span class="flex min-w-0 items-center gap-1 px-1">
     {#if field.asset === "icon" && field.value.trim()}

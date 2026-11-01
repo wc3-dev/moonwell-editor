@@ -12,6 +12,7 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import type { ChoiceList, FieldView, Kind } from "../api.ts";
 import { t } from "../text.ts";
 import { type DiceFields, parseRange, rangeEdits, rangeOf, rangeText } from "./dice.ts";
+import FavouriteStar from "./FavouriteStar.svelte";
 import FieldRow from "./FieldRow.svelte";
 import type { Lookup } from "./fields.ts";
 
@@ -38,6 +39,10 @@ type Props = {
   /** Whether the three fields show under the total. */
   open: boolean;
   ontoggle: () => void;
+  /** Whether a field is a favourite; the total's star is its base's, which keeps the total in the favourites. */
+  isFavourite: (field: FieldView) => boolean;
+  /** Stars a field, or takes its star off. */
+  onfavourite: (field: FieldView) => void;
 };
 
 let {
@@ -58,6 +63,8 @@ let {
   ontotalmenu,
   open,
   ontoggle,
+  isFavourite,
+  onfavourite,
 }: Props = $props();
 
 const parts = $derived([fields.base, fields.dice, fields.sides]);
@@ -129,7 +136,7 @@ async function resetAll(): Promise<void> {
 
 <div
   data-changed={changed || undefined}
-  class="grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected ===
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected ===
   `${fields.base.id}:total`
     ? ''
     : 'hover:bg-raised'}"
@@ -155,15 +162,18 @@ async function resetAll(): Promise<void> {
   >
     {#if open}<ChevronDown size={10} />{:else}<ChevronRight size={10} />{/if}
   </button>
-  <button
-    type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-1.5 pl-0.5 text-left focus:outline-none {selected === `${fields.base.id}:total` ? 'bg-select text-fg' : ''}"
-    aria-expanded={open}
-    title={open ? t("dice.hideParts") : t("dice.showParts")}
-    onclick={ontoggle}
-  >
-    {label}
-  </button>
+  <span class="relative grid self-stretch">
+    <button
+      type="button"
+      class="flex cursor-default items-center border-r border-hairline pr-5 pl-0.5 text-left focus:outline-none {selected === `${fields.base.id}:total` ? 'bg-select text-fg' : ''}"
+      aria-expanded={open}
+      title={open ? t("dice.hideParts") : t("dice.showParts")}
+      onclick={ontoggle}
+    >
+      {label}
+    </button>
+    <FavouriteStar {label} on={isFavourite(fields.base)} onclick={() => onfavourite(fields.base)} />
+  </span>
   <span class="flex min-w-0 items-center gap-1 px-1">
     {#if editable}
       <!-- Shows only its value, as the other boxes do; a field while the total is selected (Sven, 2026-10-29). -->
@@ -222,6 +232,8 @@ async function resetAll(): Promise<void> {
       {onselect}
       {onmenu}
       nested
+      favourite={isFavourite(part)}
+      {onfavourite}
     />
   {/each}
 {/if}

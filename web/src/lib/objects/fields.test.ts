@@ -74,6 +74,11 @@ describe("the filter", () => {
     expect(shape(groupFields(fields, "UMVS", false))).toEqual([["move", ["umvs"]]]);
   });
 
+  it("keeps only the rows `keep` takes, and leaves out a category with none", () => {
+    const keep = (row: Row) => row.id === "umvs";
+    expect(shape(groupFields(fields, "", false, undefined, keep))).toEqual([["move", ["umvs"]]]);
+  });
+
   it("matches the value", () => {
     expect(shape(groupFields(fields, "foot", false))).toEqual([["text", ["unam"]]]);
     expect(shape(groupFields(fields, "650", false))).toEqual([["stats", ["uhpm"]]]);
