@@ -249,6 +249,48 @@ body {
   background: var(--border) padding-box;
 }
 
+/*
+ * A dropdown's button and its list are one shape (Sven, 2026-11-01): the list opens flush on the button, as wide as it
+ * at least, and the two share a border, a background and the outer corners. It works on either side of the button, and
+ * Bits UI puts the side only on the list. Outside the layers, so it beats the button's own classes while open.
+ */
+.dropdown[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--border);
+  border-bottom-color: transparent;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  background: var(--surface);
+}
+.dropdown-list {
+  min-width: var(--bits-floating-anchor-width);
+  border-top-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.dropdown-list[data-side="top"] {
+  border-top-width: 1px;
+  border-top-left-radius: var(--radius-ui);
+  border-top-right-radius: var(--radius-ui);
+  border-bottom-width: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
+  border-top-color: transparent;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-color: var(--border);
+  border-bottom-right-radius: var(--radius-ui);
+  border-bottom-left-radius: var(--radius-ui);
+}
+.dropdown-list [data-select-viewport] {
+  scrollbar-width: auto !important;
+}
+.dropdown-list [data-select-viewport]::-webkit-scrollbar {
+  display: block;
+}
+
 /* The trigger canvas keeps the look it had before the rest of the page went matte (Sven, 2026-11-01). */
 .canvas-look {
   font: 14px / 1.45 var(--font-canvas);

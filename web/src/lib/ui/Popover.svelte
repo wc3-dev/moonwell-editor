@@ -14,9 +14,11 @@ type Props = {
   children: Snippet;
   /** A large panel (the icon and model pickers): as big as its content, up to the window. */
   large?: boolean;
+  /** The list of a dropdown: it opens on the `.dropdown` button, as one shape. */
+  dropdown?: boolean;
 };
 
-let { anchor, onclose, children, large = false }: Props = $props();
+let { anchor, onclose, children, large = false, dropdown = false }: Props = $props();
 </script>
 
 <Popover.Root open onOpenChange={(open) => !open && onclose()}>
@@ -25,7 +27,7 @@ let { anchor, onclose, children, large = false }: Props = $props();
       customAnchor={anchor}
       side="bottom"
       align="start"
-      sideOffset={4}
+      sideOffset={dropdown ? 0 : 4}
       collisionPadding={8}
       hideWhenDetached
       trapFocus={false}
@@ -37,7 +39,9 @@ let { anchor, onclose, children, large = false }: Props = $props();
         if (event.target instanceof Node && anchor.contains(event.target)) event.preventDefault();
       }}
       data-popup
-      class="z-40 w-max min-w-[200px] overflow-auto rounded-ui border border-line bg-surface p-0.5 text-body outline-none {large
+      class="z-40 w-max overflow-auto rounded-ui border border-line bg-surface p-0.5 text-body outline-none {dropdown
+        ? 'dropdown-list'
+        : 'min-w-[200px]'} {large
         ? 'max-h-[calc(100vh-16px)] max-w-[calc(100vw-16px)]'
         : 'max-h-[320px] max-w-[360px]'}"
     >

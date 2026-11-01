@@ -211,7 +211,8 @@ a pick asked of the map, a setting turned off. What the classes do to each other
 The look is in `app.css`. The interface has one size, the body's, so most text has no size class; the others are
 `text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. `bg-gutter`, `bg-field`, `bg-select`,
 `bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
-shading is `.toolbar` and `.tool-button`, the only shading there is. The trigger canvas stays out of all of it: its files
+shading is `.toolbar` and `.tool-button`, the only shading there is. A dropdown's button and list are one shape, `.dropdown`
+and `.dropdown-list`: use `ui/Select.svelte` for one choice, or `ui/Popover.svelte`'s `dropdown` for anything else. The trigger canvas stays out of all of it: its files
 (`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
 it its font and scroll bars.
 

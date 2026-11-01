@@ -37,7 +37,7 @@ function pick(entry: OpenEntry): void {
 
 <button
   type="button"
-  class={buttonClass}
+  class="dropdown border border-transparent {buttonClass}"
   {disabled}
   title={label ? undefined : t("openMenu.button")}
   aria-label={label ? undefined : t("openMenu.button")}
@@ -53,13 +53,13 @@ function pick(entry: OpenEntry): void {
   {/if}
 </button>
 {#if open && button}
-  <Popover anchor={button} onclose={() => (open = false)}>
+  <Popover anchor={button} onclose={() => (open = false)} dropdown>
     <div class="flex flex-col" role="menu" aria-label={t("openMenu.label")} bind:this={menu}>
       {#each openEntries as entry (entry.label)}
         <button
           type="button"
           role="menuitem"
-          class="rounded-ui px-2 py-1 text-left hover:bg-hover focus:bg-hover focus:outline-none"
+          class="px-2 py-1 text-left hover:bg-select hover:text-fg focus:bg-select focus:text-fg focus:outline-none"
           onclick={() => pick(entry)}
         >
           {entry.label}
