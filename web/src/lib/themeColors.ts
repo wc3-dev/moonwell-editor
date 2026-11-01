@@ -102,7 +102,7 @@ export function interfaceColors(theme: CodeTheme): Record<Token, string> {
     first("editorGroupHeader.tabsBackground"),
     first("sideBar.background"),
     first("titleBar.activeBackground"),
-  ].find((each) => each && each !== surface && luminance(each) < luminance(surface));
+  ].find((each) => each && shades(each, surface) && luminance(each) < luminance(surface));
   const raised = shade(
     ["tab.activeBackground", "editor.lineHighlightBackground", "list.inactiveSelectionBackground"],
     mix(surface, fg, 0.09),
@@ -123,7 +123,7 @@ export function interfaceColors(theme: CodeTheme): Record<Token, string> {
   const accent = mark(
     ["list.highlightForeground", "textLink.foreground", "button.background", "focusBorder"]
       .map((key) => first(key))
-      .find((each) => each && colourful(each)) ?? blue,
+      .find((each) => each && colourful(each)) ?? (dark ? "#3794ff" : "#006ab1"),
   );
 
   return {

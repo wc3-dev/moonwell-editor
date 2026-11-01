@@ -160,10 +160,13 @@ and never both. Nothing picks C# yet, as no script in a map's triggers is in C#.
 a click lands on the right character at every zoom, and it draws only the lines in view: 150 scripts of 300 lines open in
 1.3 s, where textareas took 2.2 s. The caret and the selection stay the browser's.
 
-The code themes (`codeThemes.ts`) are VS Code's own theme files, from Shiki's `tm-themes` package, whose `NOTICE` has
-each one's licence; Aurora X is left out for its GPL. Monaco reads a file as it is. A script box reads one colour per
-kind of word from it, as VS Code would pick it for that scope, into the `--code-*` tokens in `app.css`. Settings has a
-code theme of its own, which follows the interface's theme until one is chosen (`prefs.codeTheme`).
+The themes (`codeThemes.ts`) are VS Code's own theme files, from Shiki's `tm-themes` package, whose `NOTICE` has each
+one's licence; Aurora X is left out for its GPL. Monaco reads a file as it is. A script box reads one colour per kind of
+word from it, as VS Code would pick it for that scope, into the `--code-*` tokens in `app.css`. The rest of the page reads
+it through `themeColors.ts`, which works out `app.css`'s other tokens: which of a file's colours each one takes was
+measured against the palettes the editor had before, and a colour that would not read on the panels is moved until it
+does (`themeColors.test.ts` checks every theme). Settings has a code theme of its own, which follows the interface's theme
+until one is chosen (`prefs.codeTheme`).
 
 The Script Editor (`ScriptEditor.svelte`) is a page of its own, with the scripts opened from the Trigger Editor down the
 side (`openScripts.ts`). It stays in the page for as long as the map is open, and so does the trigger editor once shown:
@@ -216,8 +219,10 @@ a pick asked of the map, a setting turned off. What the classes do to each other
 
 The look is in `app.css`. The interface has one size, the body's, so most text has no size class; the others are
 `text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. `bg-gutter`, `bg-field`, `bg-select`,
-`bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
-shading is `.toolbar` and `.tool-button`, the only shading there is. A dropdown's button and list are one shape, `.dropdown`
+`bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. A light theme sets
+`data-scheme="light"` on the page, and what cannot follow by itself goes under `:root[data-scheme="light"]`. The game's
+tooltips and the map stay as the game draws them, whatever the theme. The header bar's shading is `.toolbar` and
+`.tool-button`, the only shading there is. A dropdown's button and list are one shape, `.dropdown`
 and `.dropdown-list`: use `ui/Select.svelte` for one choice, or `ui/Popover.svelte`'s `dropdown` for anything else. The trigger canvas stays out of all of it: its files
 (`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
 it its font.

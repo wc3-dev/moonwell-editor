@@ -46,6 +46,33 @@ describe("a VS Code theme's interface colours", () => {
     expect(contrast(colors.bg, "#000000")).toBeLessThan(contrast("#101010", "#000000"));
   });
 
+  it("work a base out when the theme's sidebar is far from its panels", () => {
+    const colors = interfaceColors(
+      sample(
+        {
+          "editor.background": "#ffffff",
+          "editor.foreground": "#202020",
+          "editorGroupHeader.tabsBackground": "#2d3e4c",
+          "sideBar.background": "#2d3e4c",
+          "titleBar.activeBackground": "#2d3e4c",
+        },
+        [],
+        "light",
+      ),
+    );
+    expect(contrast(colors.bg, "#ffffff")).toBeLessThan(1.3);
+  });
+
+  it("take VS Code's own blue when a theme names no accent", () => {
+    expect(interfaceColors(sample({})).accent).toBe("#3794ff");
+    const light = sample(
+      { "editor.background": "#ffffff", "editor.foreground": "#202020" },
+      [],
+      "light",
+    );
+    expect(interfaceColors(light).accent).toBe("#006ab1");
+  });
+
   it("flatten a see-through colour onto the panels", () => {
     const colors = interfaceColors(sample({ "list.inactiveSelectionBackground": "#ffffff20" }));
     expect(colors.hover).toBe("#2e2e2e");
@@ -161,7 +188,8 @@ describe.each(codeThemes.map((theme) => [theme.id, theme] as const))("%s", (_, t
     expect(colors.raised).not.toBe(colors.surface);
   });
 
-  it("puts the base below the panels", () => {
+  it("puts the base just below the panels", () => {
     expect(contrast(colors.bg, "#000000")).toBeLessThan(contrast(colors.surface, "#000000"));
+    expect(contrast(colors.bg, colors.surface)).toBeLessThanOrEqual(1.8);
   });
 });
