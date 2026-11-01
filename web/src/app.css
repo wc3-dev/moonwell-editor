@@ -3,31 +3,31 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Kanagawa Dragon (github.com/rebelot/kanagawa.nvim), the default theme (Sven, 2026-10-29). */
+/* Kanagawa Dragon, the default theme (Sven, 2026-10-29), as themes.ts works it out from its VS Code file. */
 :root {
-  /* Every theme is dark: the number boxes' arrows and the scroll bars follow it. */
+  /* The number boxes' arrows and the scroll bars follow it: a light theme sets it to light. */
   color-scheme: dark;
   --bg: #0d0c0c;
   --surface: #181616;
   --raised: #282727;
   --hover: #282727;
-  --border: #393836;
+  --border: #373636;
   --fg: #c5c9c5;
-  --text: #b4b8b4;
-  --muted: #a6a69c;
+  --text: #b4b7b4;
+  --muted: #a6a9a6;
   --faint: #737c73;
   --accent: #8ba4b0;
   --accent-hi: #8ea4a2;
-  --accent-lo: #2a3438;
+  --accent-lo: #2d3032;
   --changed: #c4b28a;
   --warn: #c4746e;
-  --warn-lo: #3a2626;
+  --warn-lo: #372726;
   --cyan: #8ea4a2;
-  --purple: #8992a7;
-  /* One colour per kind of object, for its icon and its name (from Kanagawa Dragon's palette). */
+  --purple: #938aa9;
+  /* One colour per kind of object, for its icon and its name. */
   --kind-unit: #8ba4b0;
-  --kind-item: #b6927b;
-  --kind-destructable: #87a987;
+  --kind-item: #c4937c;
+  --kind-destructable: #8a9a7b;
   --kind-doodad: #c4b28a;
   --kind-ability: #8ea4a2;
   --kind-buff: #a292a3;
@@ -60,6 +60,23 @@
   --select: oklch(from color-mix(in oklab, var(--accent) 32%, var(--surface)) min(l, 0.44) c h);
   --primary: oklch(from color-mix(in oklab, var(--accent) 40%, var(--raised)) min(l, 0.44) c h);
   --hairline: color-mix(in srgb, var(--border) 70%, transparent);
+  /* How deep the header bar's edge and a pressed button go. */
+  --toolbar-depth: 45%;
+  --pressed-top: 42%;
+  --pressed-bottom: 24%;
+  --pressed-shadow: rgb(0 0 0 / 0.45);
+}
+
+/* A light theme's panels stand on a base a little darker than them, and what is selected stays light under dark text. */
+:root[data-scheme="light"] {
+  --gutter: color-mix(in srgb, var(--bg), black 7%);
+  --field: color-mix(in srgb, var(--bg), black 3%);
+  --select: oklch(from color-mix(in oklab, var(--accent) 28%, var(--surface)) max(l, 0.84) c h);
+  --primary: oklch(from color-mix(in oklab, var(--accent) 34%, var(--raised)) max(l, 0.8) c h);
+  --toolbar-depth: 16%;
+  --pressed-top: 14%;
+  --pressed-bottom: 7%;
+  --pressed-shadow: rgb(0 0 0 / 0.14);
 }
 
 /* The colours and fonts as Tailwind utilities: bg-surface, text-fg, border-line, font-mono and so on. */
@@ -164,6 +181,9 @@ body {
   input[type="checkbox"]:checked {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d0d0d0' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
   }
+  :root[data-scheme="light"] input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  }
   input[type="checkbox"]:focus-visible {
     outline: 1px solid var(--accent-hi);
     outline-offset: 1px;
@@ -193,7 +213,7 @@ body {
   /* The header bar is the one shaded thing in the page (Sven, 2026-11-01). */
   .toolbar {
     --toolbar-light: color-mix(in srgb, var(--raised), white 12%);
-    --toolbar-dark: color-mix(in srgb, var(--bg), black 45%);
+    --toolbar-dark: color-mix(in srgb, var(--bg), black var(--toolbar-depth));
     border-bottom: 1px solid var(--toolbar-dark);
     background: linear-gradient(
       180deg,
@@ -225,11 +245,11 @@ body {
     border-color: var(--toolbar-dark);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--raised), black 42%),
-      color-mix(in srgb, var(--raised), black 24%)
+      color-mix(in srgb, var(--raised), black var(--pressed-top)),
+      color-mix(in srgb, var(--raised), black var(--pressed-bottom))
     );
     box-shadow:
-      inset 0 1px 2px rgb(0 0 0 / 0.45),
+      inset 0 1px 2px var(--pressed-shadow),
       0 1px 0 var(--toolbar-light);
   }
 }
@@ -244,10 +264,10 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(219 215 202 / 0.16);
+  background: color-mix(in srgb, var(--fg) 16%, transparent);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(219 215 202 / 0.32);
+  background: color-mix(in srgb, var(--fg) 32%, transparent);
 }
 
 /*

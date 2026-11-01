@@ -37,7 +37,7 @@ function onkeydown(event: KeyboardEvent): void {
 }
 </script>
 
-<div class="fixed inset-0 z-40" role="presentation" data-testid="palette-veil" onclick={close}></div>
+<div class="fixed inset-0 z-40 bg-black/30" role="presentation" data-testid="palette-veil" onclick={close}></div>
 <div
   class="fixed top-[60px] left-1/2 z-40 w-[520px] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-ui border border-line bg-surface p-1 text-body"
   role="dialog"
