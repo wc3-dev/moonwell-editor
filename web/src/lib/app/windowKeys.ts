@@ -41,6 +41,7 @@ export const keysEverywhere: Action[] = [
   "save",
   "settings",
   "commandPalette",
+  "terminal",
   "openFolder",
   "openArchive",
   "reload",
@@ -54,6 +55,8 @@ export const keysEverywhere: Action[] = [
   ...(Object.keys(kindActions) as Action[]),
 ];
 const keysOfTheScripts: Action[] = [...keysEverywhere, "undo", "redo"];
+/** The keys that leave a terminal: all the others are the shell's. */
+export const keysOutOfTheTerminal: Action[] = ["commandPalette", "terminal"];
 
 /** The keys that act differently in the table; null for the others. */
 function inTable(action: Action | undefined): KeyAnswer | null {
@@ -109,6 +112,10 @@ export function answerKey(
 
 export function inMonaco(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(".monaco-editor") !== null;
+}
+
+export function inTerminal(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(".xterm") !== null;
 }
 
 export function typingIn(target: EventTarget | null): boolean {

@@ -22,7 +22,13 @@ const missing = { source: null, loaded: false, error: null, version: 1 };
 function started(): { startup: Startup; session: MapSession } {
   const queue = new CommandQueue();
   const objects = new Objects({ queue, history: new History(), scrollPosition: () => undefined });
-  const session = new MapSession({ queue, notices: new Notices(), objects, pages: new Pages() });
+  const session = new MapSession({
+    queue,
+    notices: new Notices(),
+    objects,
+    pages: new Pages(),
+    terminals: { mapChanged() {} },
+  });
   const startup = new Startup(session);
   stop = startup.start();
   return { startup, session };

@@ -2,7 +2,7 @@
 import { describe, expect, test } from "vitest";
 import type { Action } from "./keymap.ts";
 import type { Page } from "./pages.svelte.ts";
-import { answerKey, inMonaco, inPopup, type KeyPlace, typingIn } from "./windowKeys.ts";
+import { answerKey, inMonaco, inPopup, inTerminal, type KeyPlace, typingIn } from "./windowKeys.ts";
 
 const details: KeyPlace = {
   page: "details",
@@ -212,6 +212,16 @@ describe("the command palette's key", () => {
   });
 });
 
+describe("the terminal's key", () => {
+  test.each(everyPage)("shows or hides it on %s", (page) => {
+    expect(answerKey("terminal", false, on(page)).command).toBe("terminal");
+  });
+
+  test("works from a box", () => {
+    expect(answerKey("terminal", false, on("details", { typing: true })).command).toBe("terminal");
+  });
+});
+
 describe("a key set for a command of the window", () => {
   test.each(everyPage)("runs on %s", (page) => {
     expect(answerKey("showTriggers", false, on(page)).command).toBe("showTriggers");
@@ -257,6 +267,13 @@ describe("where a key goes", () => {
     expect(typingIn(inside)).toBe(true);
     expect(inMonaco(inside)).toBe(true);
     expect(inMonaco(element(`<span id="it"></span>`))).toBe(false);
+  });
+
+  test("the terminal", () => {
+    expect(inTerminal(element(`<div class="xterm"><textarea id="it"></textarea></div>`))).toBe(
+      true,
+    );
+    expect(inTerminal(element(`<textarea id="it"></textarea>`))).toBe(false);
   });
 
   test("popups", () => {

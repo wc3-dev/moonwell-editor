@@ -187,6 +187,22 @@ want files. Monaco keeps the keys it knows from the window, so `Editor.onkeydown
 All the `@codingame/monaco-vscode-*` packages must be the one version that `monaco-languageclient` asks for, and the
 `vscode` package is an alias of `@codingame/monaco-vscode-extension-api` at that version: move them together.
 
+## The terminal
+
+The terminal panel (Ctrl J) runs real shells. `Shells.cs` finds them, `ConsoleProcess.cs` runs one in a Windows pseudo
+console (ConPTY, called directly, so there is no NuGet package), and `Terminals.cs` keeps the running ones by id. The page
+draws each in xterm.js (`web/src/lib/terminal/`), which it loads when a terminal first opens. A new terminal opens in the
+map's folder, or the folder an archive sits in, or the home folder with no map.
+
+The bridge answers the page's requests one at a time, and a save can take a while, so the `terminal…` commands go through
+a line of their own (`OrderedLine`, strictly in order). `terminalWrite` and `terminalResize` have no answer (`tell` in
+`bridge.ts`), so a stream of keys never shows as the app working. In a terminal only the palette's and the panel's own
+keys stay the window's; every other key is the shell's (`keysOutOfTheTerminal`).
+
+Closing a pseudo console ends what is attached to it, but a shell that has only just started is not attached yet, so
+`ConsoleProcess.End` ends it by force after a moment. A page that loads again closes all the shells, as it has no tabs for
+them.
+
 ## The page's code
 
 `web/src/lib` has a folder for each part of the editor, with what several of them use at its top (`api.ts`, `bridge.ts`,

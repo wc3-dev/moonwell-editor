@@ -87,6 +87,26 @@ public sealed class Bridge
         }
     }
 
+    /// <summary>The name of the command a request asks for, so the window can see how to run it.</summary>
+    /// <param name="requestJson">The request, as the page sent it.</param>
+    /// <returns>The command's name; null when the request does not name one (<see cref="Handle"/> then answers it).</returns>
+    public static string? CommandOf(string requestJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(requestJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("command", out var command)
+                && command.ValueKind == JsonValueKind.String
+                ? command.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Makes a message the app sends to the page on its own: <c>{"event","payload"}</c>.</summary>
     /// <param name="name">The event's name.</param>
     /// <param name="payload">What the event carries, serialised as camelCase JSON.</param>

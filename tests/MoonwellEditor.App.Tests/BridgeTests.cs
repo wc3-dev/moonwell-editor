@@ -14,6 +14,18 @@ public sealed class BridgeTests
             _ => null,
             _ => throw new InvalidOperationException());
 
+    [Theory]
+    [InlineData("""{"id":7,"command":"terminalWrite","args":{}}""", "terminalWrite")]
+    [InlineData("""{"command":"save"}""", "save")]
+    [InlineData("""{"id":7}""", null)]
+    [InlineData("""{"id":7,"command":3}""", null)]
+    [InlineData("""[1,2]""", null)]
+    [InlineData("not json", null)]
+    public void A_request_names_its_command(string request, string? command)
+    {
+        Assert.Equal(command, Bridge.CommandOf(request));
+    }
+
     [Fact]
     public async Task Ping_round_trips()
     {

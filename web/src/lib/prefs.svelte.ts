@@ -18,6 +18,10 @@ type Prefs = {
   teamColor: number;
   /** The theme scripts are drawn in, by id; "" for the interface's (Sven, 2026-10-31). */
   codeTheme: string;
+  /** The shell a new terminal runs, by id; "" for the first found (Sven, 2026-11-01). */
+  terminalShell: string;
+  /** The terminal panel's height in pixels. */
+  terminalHeight: number;
 };
 
 /** The UI scales the settings offer, in percent, as the app takes them. */
@@ -37,6 +41,8 @@ function saved(): Prefs {
       experimental: stored.experimental === true,
       teamColor: playerIndex(stored.teamColor ?? 0),
       codeTheme: stored.codeTheme ?? "",
+      terminalShell: stored.terminalShell ?? "",
+      terminalHeight: stored.terminalHeight ?? 240,
     };
   } catch {
     return {
@@ -46,6 +52,8 @@ function saved(): Prefs {
       experimental: false,
       teamColor: 0,
       codeTheme: "",
+      terminalShell: "",
+      terminalHeight: 240,
     };
   }
 }

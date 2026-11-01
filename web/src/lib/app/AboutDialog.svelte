@@ -26,6 +26,7 @@ const libraries: [string, string][] = [
   ["Svelte", "MIT"],
   ["Bits UI", "MIT"],
   ["Tiptap", "MIT"],
+  ["xterm.js", "MIT"],
   ["CodeMirror", "MIT"],
   ["Monaco Editor", "MIT"],
   ["monaco-vscode-api", "MIT"],

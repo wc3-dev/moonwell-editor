@@ -23,7 +23,13 @@ async function actions(): Promise<ObjectActions> {
   const notices = new Notices();
   const pages = new Pages();
   const objects = new Objects({ queue, history: new History(), scrollPosition: () => undefined });
-  const session = new MapSession({ queue, notices, objects, pages });
+  const session = new MapSession({
+    queue,
+    notices,
+    objects,
+    pages,
+    terminals: { mapChanged() {} },
+  });
   await session.show(arena);
   return new ObjectActions({ queue, notices, objects, pages, session });
 }

@@ -38,6 +38,10 @@ describe("the keymap", () => {
     );
   });
 
+  it("shows the terminal with Ctrl J out of the box", () => {
+    expect(actionOf(press("j", { ctrl: true }), defaultKeymap())).toBe("terminal");
+  });
+
   it("finds a command that has no key until one is set", () => {
     const keymap = defaultKeymap();
     expect(keymap.showTriggers).toEqual([]);

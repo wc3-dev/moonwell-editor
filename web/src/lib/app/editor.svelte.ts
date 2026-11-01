@@ -1,6 +1,7 @@
 import { createContext, tick } from "svelte";
 import type { Kind } from "../api.ts";
 import { prefs } from "../prefs.svelte.ts";
+import { Terminals } from "../terminal/terminals.svelte.ts";
 import { t } from "../text.ts";
 import type { MenuItem } from "../ui/ContextMenu.svelte";
 import { Appearance } from "./appearance.svelte.ts";
@@ -18,9 +19,11 @@ import {
   answerKey,
   inMonaco,
   inPopup,
+  inTerminal,
   type KeyCommand,
   type KeyPlace,
   keysEverywhere,
+  keysOutOfTheTerminal,
   typingIn,
 } from "./windowKeys.ts";
 
@@ -55,6 +58,7 @@ export class Editor {
   readonly queue = new CommandQueue();
   readonly history = new History();
   readonly appearance = new Appearance();
+  readonly terminals = new Terminals({ notices: this.notices });
   readonly objects = new Objects({
     queue: this.queue,
     history: this.history,
@@ -65,6 +69,7 @@ export class Editor {
     notices: this.notices,
     objects: this.objects,
     pages: this.pages,
+    terminals: this.terminals,
   });
   readonly objectActions = new ObjectActions({
     queue: this.queue,
@@ -105,6 +110,7 @@ export class Editor {
     const saveKey = this.keymap.save[0];
     const settingsKey = this.keymap.settings[0];
     const paletteKey = this.keymap.commandPalette[0];
+    const terminalKey = this.keymap.terminal[0];
     this.menu = {
       x: box.right,
       y: box.bottom + 4,
@@ -132,6 +138,11 @@ export class Editor {
           label: t("header.commandPalette"),
           shortcut: paletteKey ? shownKey(paletteKey) : undefined,
           run: () => (this.paletteOpen = true),
+        },
+        {
+          label: t("header.terminal"),
+          shortcut: terminalKey ? shownKey(terminalKey) : undefined,
+          run: this.terminals.toggle,
         },
         { label: t("header.about"), run: () => (this.aboutOpen = true) },
       ],
@@ -167,16 +178,25 @@ export class Editor {
     this.walk(event.button === 3 ? -1 : 1);
   };
 
-  // Monaco keeps the keys it knows from the window, and the window's own keys stay the window's there too.
+  // Monaco and xterm keep the keys they know from the window, so the window's own keys are taken before they see them.
   onkeydowncapture = (event: KeyboardEvent): void => {
-    if (!inMonaco(event.target)) return;
     const action = actionOf(event, this.keymap);
-    if (!action || !keysEverywhere.includes(action)) return;
+    if (!action) return;
+    const windows = inMonaco(event.target)
+      ? keysEverywhere
+      : inTerminal(event.target)
+        ? keysOutOfTheTerminal
+        : [];
+    if (!windows.includes(action)) return;
     event.stopPropagation();
-    this.onkeydown(event);
+    this.#answer(event);
   };
 
   onkeydown = (event: KeyboardEvent): void => {
+    if (!inTerminal(event.target)) this.#answer(event);
+  };
+
+  #answer(event: KeyboardEvent): void {
     const typing = typingIn(event.target);
     const { command, prevent } = answerKey(actionOf(event, this.keymap), event.key === "Escape", {
       ...this.#here,
@@ -196,7 +216,7 @@ export class Editor {
     } else if (command) {
       this.#carryOut(command, typing);
     }
-  };
+  }
 
   /** The commands the palette lists: those that can run where the user is. */
   commands = (): PaletteCommand[] =>
@@ -241,6 +261,7 @@ export class Editor {
     switch (action) {
       case "settings":
       case "about":
+      case "terminal":
         return true;
       case "openFolder":
       case "openArchive":
@@ -350,6 +371,9 @@ export class Editor {
         break;
       case "commandPalette":
         this.paletteOpen = true;
+        break;
+      case "terminal":
+        this.terminals.toggle();
         break;
     }
   }

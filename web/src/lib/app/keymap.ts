@@ -35,6 +35,7 @@ export type Action =
   | "forward"
   | "settings"
   | "commandPalette"
+  | "terminal"
   | "openFolder"
   | "openArchive"
   | "reload"
@@ -67,6 +68,7 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "forward", name: t("hotkey.forward"), keys: ["Alt+ArrowRight"] },
   { action: "settings", name: t("hotkey.settings"), keys: ["F10"] },
   { action: "commandPalette", name: t("hotkey.commandPalette"), keys: ["Ctrl+Shift+P"] },
+  { action: "terminal", name: t("hotkey.terminal"), keys: ["Ctrl+J"] },
   { action: "openFolder", name: t("hotkey.openFolder"), keys: [] },
   { action: "openArchive", name: t("hotkey.openArchive"), keys: [] },
   { action: "reload", name: t("hotkey.reload"), keys: [] },

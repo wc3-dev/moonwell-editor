@@ -24,12 +24,13 @@ import DeleteObjectDialog from "./lib/objects/DeleteObjectDialog.svelte";
 import NewObjectDialog from "./lib/objects/NewObjectDialog.svelte";
 import TooltipEditor from "./lib/objects/TooltipEditor.svelte";
 import { prefs } from "./lib/prefs.svelte.ts";
+import TerminalPanel from "./lib/terminal/TerminalPanel.svelte";
 import { t } from "./lib/text.ts";
 import ContextMenu from "./lib/ui/ContextMenu.svelte";
 
 const editor = new Editor();
 setEditor(editor);
-const { appearance, history, notices, objects, pages, startup } = editor;
+const { appearance, history, notices, objects, pages, startup, terminals } = editor;
 const { objectActions, session } = editor;
 
 $effect(() => applyCodeTheme(appearance.codeTheme));
@@ -51,7 +52,12 @@ function visitOf({ place, at }: { place: Place; at: number }): Visit {
 onMount(() => {
   appearance.use(appearance.theme);
   if (prefs.uiScale !== 100) uiScale(prefs.uiScale).catch(() => {});
-  return startup.start();
+  const stopStartup = startup.start();
+  const stopTerminals = terminals.listen();
+  return () => {
+    stopStartup();
+    stopTerminals();
+  };
 });
 </script>
 
@@ -62,7 +68,7 @@ onMount(() => {
   oncontextmenu={(event) => !typingIn(event.target) && event.preventDefault()}
 />
 
-<div class="grid h-full grid-cols-1 grid-rows-[23px_30px_1fr_22px]">
+<div class="grid h-full grid-cols-1 grid-rows-[23px_30px_1fr_auto_22px]">
   <TitleBar
     map={session.map}
     back={history.behind.map(visitOf)}
@@ -78,6 +84,8 @@ onMount(() => {
   {:else}
     <EditorPages />
   {/if}
+
+  <TerminalPanel />
 
   <StatusBar
     session={session.state}

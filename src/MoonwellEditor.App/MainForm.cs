@@ -22,8 +22,10 @@ public sealed class MainForm : Form
     private readonly Commands _commands;
     private readonly Bridge _bridge;
 
-    // The page's requests are answered one at a time, in the order they came.
+    // The page's requests are answered one at a time, in the order they came. The terminal's have a line of their own,
+    // so what is typed never waits behind a slow command, and stays in order.
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
+    private readonly OrderedLine _terminalLine;
 
     // The origins (https://app.moonwelleditor, and the dev server's in a Debug build) whose pages may use the bridge,
     // be navigated to and read the clipboard; set when the page starts.
@@ -64,6 +66,7 @@ public sealed class MainForm : Form
             AskForArchive,
             () => GameInstall.Find());
         _bridge = new Bridge(_commands.Run);
+        _terminalLine = new OrderedLine(Reply);
         _commands.Assets = assets;
         _commands.GameDataChanged += state => Notify("gameData", state);
         _commands.SessionChanged += state => Notify("sessionChanged", state);
@@ -92,6 +95,8 @@ public sealed class MainForm : Form
             BackColor = ColorTranslator.FromHtml(surface);
             TitleBar.SetBorder(Handle, ColorTranslator.FromHtml(border));
         });
+        _commands.Terminals.Output += (id, text) => Notify("terminalOutput", new TerminalOutput(id, text));
+        _commands.Terminals.Exited += (id, code) => Notify("terminalExit", new TerminalExit(id, code));
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
 
@@ -100,6 +105,13 @@ public sealed class MainForm : Form
             _ = _commands.StartLoading();
             await StartPage();
         };
+    }
+
+    /// <inheritdoc />
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        _commands.Terminals.Dispose();
+        base.OnFormClosed(e);
     }
 
     /// <inheritdoc />
@@ -329,6 +341,9 @@ public sealed class MainForm : Form
             }
 
             _pageLoaded = false;
+
+            // A page that loads again has no tabs for the shells of the one before.
+            _commands.Terminals.CloseAll();
         };
         core.NavigationCompleted += (_, e) => _pageLoaded = e.IsSuccess;
 
@@ -481,22 +496,33 @@ public sealed class MainForm : Form
 
     private async Task Answer(string request)
     {
+        if (Bridge.CommandOf(request) is { } command && Commands.RunsAlongside(command))
+        {
+            _terminalLine.Add(request);
+            return;
+        }
+
         await _oneAtATime.WaitAsync();
         try
         {
-            var reply = await Task.Run(() => _bridge.Handle(request));
-            OnWindowThread(() =>
-            {
-                // The closeWindow command's reply comes after the window started closing.
-                if (!IsDisposed && _web.CoreWebView2 != null)
-                {
-                    Post(reply);
-                }
-            });
+            await Reply(request);
         }
         finally
         {
             _oneAtATime.Release();
         }
+    }
+
+    private async Task Reply(string request)
+    {
+        var reply = await Task.Run(() => _bridge.Handle(request));
+        OnWindowThread(() =>
+        {
+            // The closeWindow command's reply comes after the window started closing.
+            if (!IsDisposed && _web.CoreWebView2 != null)
+            {
+                Post(reply);
+            }
+        });
     }
 }

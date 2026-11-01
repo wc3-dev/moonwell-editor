@@ -1,12 +1,15 @@
 import { frameColors } from "../api.ts";
 import { codeThemeOf } from "../codeThemes.ts";
 import { prefs } from "../prefs.svelte.ts";
+import { terminalColors } from "../themeColors.ts";
 import { applyTheme, savedTheme, saveTheme, type Theme } from "../themes.ts";
 
 export class Appearance {
   theme = $state(savedTheme());
   /** Scripts have a theme of their own: the one chosen in the settings, or this one. */
   readonly codeTheme = $derived(codeThemeOf(prefs.codeTheme, this.theme));
+  /** The terminal panel follows the interface's theme, as the rest of the page does. */
+  readonly terminalColors = $derived(terminalColors(codeThemeOf("", this.theme)));
 
   constructor() {
     // Before the first paint, so the page never shows the default theme first.

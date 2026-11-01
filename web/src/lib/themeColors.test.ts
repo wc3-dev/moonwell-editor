@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type CodeTheme, codeThemes } from "./codeThemes.ts";
-import { contrast, interfaceColors, mix } from "./themeColors.ts";
+import { contrast, interfaceColors, mix, terminalColors } from "./themeColors.ts";
 
 const sample = (
   colors: Record<string, string>,
@@ -150,8 +150,49 @@ describe("a VS Code theme's interface colours", () => {
   });
 });
 
+describe("a VS Code theme's terminal colours", () => {
+  it("are the theme's own", () => {
+    const colors = terminalColors(
+      sample({
+        "terminal.background": "#111111",
+        "terminal.foreground": "#eeeeee",
+        "terminalCursor.foreground": "#ff00ff",
+        "terminal.selectionBackground": "#333333",
+        "terminal.ansiRed": "#ff5555",
+        "terminal.ansiBrightBlue": "#99aaff",
+      }),
+    );
+    expect(colors.background).toBe("#111111");
+    expect(colors.foreground).toBe("#eeeeee");
+    expect(colors.cursor).toBe("#ff00ff");
+    expect(colors.selectionBackground).toBe("#333333");
+    expect(colors.red).toBe("#ff5555");
+    expect(colors.brightBlue).toBe("#99aaff");
+  });
+
+  it("sit on the panels when the theme gives no background", () => {
+    expect(terminalColors(sample({})).background).toBe("#101010");
+  });
+
+  it("take VS Code's own for what a theme leaves out, by its kind", () => {
+    expect(terminalColors(sample({})).green).toBe("#0dbc79");
+    expect(terminalColors(sample({}, [], "light")).green).toBe("#00bc00");
+    expect(terminalColors(sample({}, [], "light")).brightWhite).toBe("#a5a5a5");
+  });
+
+  it("flatten a see-through selection onto the terminal", () => {
+    const colors = terminalColors(sample({ "terminal.selectionBackground": "#ffffff20" }));
+    expect(colors.selectionBackground).toBe("#2e2e2e");
+  });
+});
+
 describe.each(codeThemes.map((theme) => [theme.id, theme] as const))("%s", (_, theme) => {
   const colors = interfaceColors(theme);
+
+  it("gives the terminal text that reads", () => {
+    const terminal = terminalColors(theme);
+    expect(contrast(terminal.foreground, terminal.background)).toBeGreaterThanOrEqual(3);
+  });
 
   it("gives every token a colour", () => {
     for (const [token, value] of Object.entries(colors)) {
