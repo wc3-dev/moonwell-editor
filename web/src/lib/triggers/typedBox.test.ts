@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasTyped, sendTyped } from "../typing.ts";
-import { typedBox } from "./typedBox.ts";
+import { typedBox, typedText } from "./typedBox.ts";
 
 function fakeBox(value = ""): HTMLInputElement {
   const box = new EventTarget() as unknown as HTMLInputElement;
@@ -50,5 +50,58 @@ describe("typedBox", () => {
     action.destroy();
     expect(sent).toEqual(["typed"]);
     expect(hasTyped()).toBe(false);
+  });
+});
+
+describe("typedText", () => {
+  it("sends nothing until the text changed", () => {
+    const sent: string[] = [];
+    const text = typedText(
+      () => "as it was",
+      (value) => sent.push(value),
+    );
+    text.send();
+    expect(sent).toEqual([]);
+    expect(hasTyped()).toBe(false);
+  });
+
+  it("sends what is there when asked, once", () => {
+    const sent: string[] = [];
+    let value = "first";
+    const text = typedText(
+      () => value,
+      (each) => sent.push(each),
+    );
+    text.changed();
+    value = "last";
+    text.changed();
+    expect(hasTyped()).toBe(true);
+    text.send();
+    text.send();
+    expect(sent).toEqual(["last"]);
+    expect(hasTyped()).toBe(false);
+  });
+
+  it("sends when a save asks", () => {
+    const sent: string[] = [];
+    const text = typedText(
+      () => "typed",
+      (value) => sent.push(value),
+    );
+    text.changed();
+    sendTyped();
+    expect(sent).toEqual(["typed"]);
+  });
+
+  it("sends with the last sender given", () => {
+    const sent: string[] = [];
+    const text = typedText(
+      () => "typed",
+      () => sent.push("old"),
+    );
+    text.update(() => sent.push("new"));
+    text.changed();
+    text.send();
+    expect(sent).toEqual(["new"]);
   });
 });

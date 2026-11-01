@@ -151,6 +151,34 @@ or the grid: the selection shows strong there and faintly on the other side, and
 edit to a function asks again for that card only, the rest for the whole grid. On the largest
 category of the install's maps (1520 functions) it pans at a median of 6 ms a frame, with every card drawn.
 
+A script shows in `ScriptBox.svelte`, a CodeMirror 6 editor. Lua and C# are CodeMirror's own modes, and JASS is a stream
+parser in `jass.ts`, as CodeMirror has none. `scriptLanguages.ts` holds the languages and the colours. The map's language
+comes with the tree (`Session.TriggerLanguage`), from the script language chosen in World Editor, so a map is JASS or Lua
+and never both. Nothing picks C# yet, as no script in a map's triggers is in C#. CodeMirror reads the grid's CSS scale, so
+a click lands on the right character at every zoom, and it draws only the lines in view: 150 scripts of 300 lines open in
+1.3 s, where textareas took 2.2 s. The caret and the selection stay the browser's.
+
+A script's colours are the `--code-*` tokens in `app.css`, which `themes.ts` sets apart from the interface's: Settings
+has a code theme of its own, which follows the interface's theme until one is chosen (`prefs.codeTheme`).
+
+The Script Editor (`ScriptEditor.svelte`) is a page of its own, with the scripts opened from the Trigger Editor down the
+side (`openScripts.ts`). It stays in the page for as long as the map is open, and so does the trigger editor once shown:
+the two editors read the map's scripts again when they show, as both change them.
+
+Its editor is Monaco in monaco-languageclient's extended mode, on `@codingame/monaco-vscode-api`, which is VS Code's own
+services in the page. The cards stay on CodeMirror, as the grid scales them with CSS and Monaco has reports of clicks
+landing wrong there. `web/src/lib/monaco/` holds it, and the page loads it when a script first opens, so a map
+that never opens one does not pay for it (about 15 MB of the page's 16). `setup.ts` starts it once. VS Code's extensions
+bring Lua and C#, and JASS comes as an extension of ours with Drake53's TextMate grammar, kept unchanged with its licence;
+`editorThemes.ts` makes a VS Code theme of each code theme. `scriptsEditor.ts` has one editor and a document per open
+script, so each keeps its caret, scroll and undo. A document is a file in VS Code's in-memory file system, held by a
+reference (`createModelReference`): VS Code disposes a model made with `editor.createModel`, and a language server will
+want files. Monaco keeps the keys it knows from the window, so `App.svelte` takes Save and Settings before it does. No
+language server runs yet.
+
+All the `@codingame/monaco-vscode-*` packages must be the one version that `monaco-languageclient` asks for, and the
+`vscode` package is an alias of `@codingame/monaco-vscode-extension-api` at that version: move them together.
+
 ## Interface text
 
 Every text the page writes itself (buttons, tooltips, headings, dialogs, notices, errors) is in

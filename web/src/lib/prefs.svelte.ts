@@ -16,6 +16,8 @@ type Prefs = {
   alphaNotice: boolean;
   experimental: boolean;
   teamColor: number;
+  /** The theme scripts are drawn in, by id; "" for the interface's (Sven, 2026-10-31). */
+  codeTheme: string;
 };
 
 /** The UI scales the settings offer, in percent, as the app takes them. */
@@ -34,6 +36,7 @@ function saved(): Prefs {
       alphaNotice: stored.alphaNotice ?? localStorage.getItem(oldAlphaKey) !== "yes",
       experimental: stored.experimental === true,
       teamColor: playerIndex(stored.teamColor ?? 0),
+      codeTheme: stored.codeTheme ?? "",
     };
   } catch {
     return {
@@ -42,6 +45,7 @@ function saved(): Prefs {
       alphaNotice: true,
       experimental: false,
       teamColor: 0,
+      codeTheme: "",
     };
   }
 }

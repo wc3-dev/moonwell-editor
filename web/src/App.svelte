@@ -2,6 +2,8 @@
 import AudioLines from "@lucide/svelte/icons/audio-lines";
 import BookOpen from "@lucide/svelte/icons/book-open";
 import Bot from "@lucide/svelte/icons/bot";
+import Boxes from "@lucide/svelte/icons/boxes";
+import CodeXml from "@lucide/svelte/icons/code-xml";
 import Columns3 from "@lucide/svelte/icons/columns-3";
 import FolderOpen from "@lucide/svelte/icons/folder-open";
 import GitCompareArrows from "@lucide/svelte/icons/git-compare-arrows";
@@ -10,7 +12,7 @@ import MountainSnow from "@lucide/svelte/icons/mountain-snow";
 import Package from "@lucide/svelte/icons/package";
 import Table2 from "@lucide/svelte/icons/table-2";
 import Workflow from "@lucide/svelte/icons/workflow";
-import { onMount, tick } from "svelte";
+import { onMount, tick, untrack } from "svelte";
 import AboutDialog from "./lib/AboutDialog.svelte";
 import AlphaNotice from "./lib/AlphaNotice.svelte";
 import {
@@ -64,6 +66,7 @@ import { picking } from "./lib/map/pick.ts";
 import OpenMapMenu from "./lib/OpenMapMenu.svelte";
 import { type OpenEntry, openEntries, openFrom } from "./lib/openMenu.ts";
 import { prefs } from "./lib/prefs.svelte.ts";
+import ScriptEditor from "./lib/ScriptEditor.svelte";
 import SettingsDialog from "./lib/SettingsDialog.svelte";
 import SidePanel from "./lib/SidePanel.svelte";
 import StatusBar, { type Notice } from "./lib/StatusBar.svelte";
@@ -81,8 +84,16 @@ import Tree from "./lib/Tree.svelte";
 import TriggerEditor from "./lib/TriggerEditor.svelte";
 import { newTableState, type TableState } from "./lib/table.ts";
 import { t, tCount, tParts } from "./lib/text.ts";
-import { applyTheme, savedTheme, saveTheme, type Theme } from "./lib/themes.ts";
+import {
+  applyCodeTheme,
+  applyTheme,
+  codeThemeOf,
+  savedTheme,
+  saveTheme,
+  type Theme,
+} from "./lib/themes.ts";
 import { windowTitle } from "./lib/title.ts";
+import type { OpenScript } from "./lib/triggers/openScripts.ts";
 import { hasTyped, sendTyped } from "./lib/typing.ts";
 import { nameField, savedText } from "./lib/values.ts";
 
@@ -139,6 +150,9 @@ let keymap = $state(loadKeymap());
 const startTheme = savedTheme();
 applyTheme(startTheme);
 let theme = $state(startTheme);
+// Scripts have a theme of their own: the one chosen in the settings, or this one (Sven, 2026-10-31).
+const codeTheme = $derived(codeThemeOf(prefs.codeTheme, theme));
+$effect(() => applyCodeTheme(codeTheme));
 
 /** Puts a theme on the page and the window's frame, and remembers it. */
 function useTheme(chosen: Theme): void {
@@ -171,12 +185,35 @@ let choiceLists = $state.raw<Record<string, ChoiceList> | null>(null);
 
 // Which view the middle of the window shows: the selected object's details, the kind's table, or the map (the
 // Terrain Editor button; read only for now).
-let page = $state<"details" | "table" | "map" | "triggers">("details");
+let page = $state<"details" | "table" | "map" | "triggers" | "scripts">("details");
+// The Object Editor's page last shown: its button goes back there, and its kinds and views show only on these two
+// (Sven, 2026-10-31).
+let objectPage = $state<"details" | "table">("details");
+const inObjectEditor = $derived(page === "details" || page === "table");
+$effect(() => {
+  if (page === "details" || page === "table") objectPage = page;
+});
 let triggerEditor:
   | { refresh(): Promise<void>; startRename(): void; deleteSelected(): void }
   | undefined = $state();
+let scriptEditor:
+  | { refresh(): Promise<void>; open(script: OpenScript): Promise<void> }
+  | undefined = $state();
+// The map the trigger editor was shown for: it stays in the page once shown, so its place comes back.
+let triggersFor = $state.raw<MapInfo | null>(null);
+$effect(() => {
+  if (page === "triggers") triggersFor = map;
+});
+// The two editors change the same scripts: each reads them again when it shows.
+$effect(() => {
+  const showing = page;
+  untrack(() => {
+    if (showing === "triggers") triggerEditor?.refresh();
+    if (showing === "scripts") scriptEditor?.refresh();
+  });
+});
 // While something asks the map for a pick (the trigger editor), the map shows; then the page it came from again.
-let beforePick = $state<"details" | "table" | "triggers" | null>(null);
+let beforePick = $state<"details" | "table" | "triggers" | "scripts" | null>(null);
 $effect(() => {
   if ($picking.kind !== null && page !== "map" && map) {
     beforePick = page;
@@ -513,7 +550,12 @@ async function undoOrRedo(again: boolean): Promise<void> {
       return;
     }
     say(again ? t("notice.redone") : t("notice.undone"));
-    await Promise.all([refreshTrees(), refreshObject(), triggerEditor?.refresh()]);
+    await Promise.all([
+      refreshTrees(),
+      refreshObject(),
+      triggerEditor?.refresh(),
+      scriptEditor?.refresh(),
+    ]);
   } catch (error) {
     say(message(error), { warn: true });
   }
@@ -881,6 +923,7 @@ function typingIn(target: EventTarget | null): boolean {
   if (target instanceof HTMLInputElement) {
     return !["checkbox", "radio", "button", "submit", "reset"].includes(target.type);
   }
+  if (target instanceof Element && target.closest(".monaco-editor")) return true;
   return target instanceof HTMLElement && target.isContentEditable;
 }
 
@@ -948,6 +991,12 @@ function walkByMouse(event: MouseEvent): void {
   walk(event.button === 3 ? -1 : 1);
 }
 
+/** Opens a script from the trigger editor in the Script Editor. */
+function openScript(script: OpenScript): void {
+  page = "scripts";
+  scriptEditor?.open(script);
+}
+
 function switchKind(each: Kind): void {
   const id = picked[each];
   if (id) {
@@ -992,6 +1041,15 @@ function tableKey(event: KeyboardEvent): boolean {
   return false;
 }
 
+// Monaco keeps the keys it knows from the window, and Save and Settings stay the window's there too.
+function onkeydowncapture(event: KeyboardEvent): void {
+  if (!(event.target instanceof Element) || !event.target.closest(".monaco-editor")) return;
+  const action = actionOf(event, keymap);
+  if (action !== "save" && action !== "settings") return;
+  event.stopPropagation();
+  onkeydown(event);
+}
+
 function onkeydown(event: KeyboardEvent): void {
   if (
     unsaved ||
@@ -1030,7 +1088,11 @@ function onkeydown(event: KeyboardEvent): void {
     else triggerEditor?.deleteSelected();
     return;
   }
-  if (page === "triggers" && !["save", "settings", "undo", "redo"].includes(action)) return;
+  if (
+    (page === "triggers" || page === "scripts") &&
+    !["save", "settings", "undo", "redo"].includes(action)
+  )
+    return;
   switch (action) {
     case "save":
       event.preventDefault();
@@ -1184,6 +1246,7 @@ onMount(() => {
 
 <svelte:window
   {onkeydown}
+  {onkeydowncapture}
   onmouseup={walkByMouse}
   oncontextmenu={(event) => !typingIn(event.target) && event.preventDefault()}
 />
@@ -1198,39 +1261,24 @@ onMount(() => {
     forward={history.slice(at + 1).map((place, index) => visitOf(place, at + 1 + index))}
     onjump={(to) => walk(to - at)}
   />
-  <!-- The kinds, then the views as icons; everything else is in the menu at the right (Sven, 2026-10-28). -->
+  <!-- The editors as icons, then the Object Editor's own while it shows; everything else is in the menu at the right
+       (Sven, 2026-10-31). -->
   <header class="flex items-center gap-2.5 border-b border-line bg-surface px-3">
-    <KindBar {kind} disabled={!map} onkind={switchKind} />
-    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
-    <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.views")}>
-      {#each [{ key: "details", name: t("header.details"), Icon: Columns3 }, { key: "table", name: t("header.table"), Icon: Table2 }] as const as each (each.key)}
-        <button
-          type="button"
-          class="rounded-[5px] p-1.5 {page === each.key
-            ? 'bg-accent-lo text-accent-hi'
-            : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
-          title={each.key === "table" && !prefs.experimental ? t("header.tableExperimental") : each.name}
-          aria-label={each.name}
-          aria-pressed={page === each.key}
-          disabled={!map || (each.key === "table" && !prefs.experimental)}
-          onclick={() => (page = each.key)}
-        >
-          <each.Icon size={17} />
-        </button>
-      {/each}
-      <button
-        type="button"
-        class="rounded-[5px] p-1.5 text-muted opacity-50"
-        disabled
-        title={t("header.compareTitle")}
-        aria-label={t("header.compare")}
-      >
-        <GitCompareArrows size={17} />
-      </button>
-    </div>
-    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
     <!-- World Editor's other editors, shown before they exist (Sven, 2026-10-29). -->
     <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.editors")}>
+      <button
+        type="button"
+        class="rounded-[5px] p-1.5 {inObjectEditor
+          ? 'bg-accent-lo text-accent-hi'
+          : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
+        title={t("header.objectEditor")}
+        aria-label={t("header.objectEditor")}
+        aria-pressed={inObjectEditor}
+        disabled={!map}
+        onclick={() => (page = objectPage)}
+      >
+        <Boxes size={17} />
+      </button>
       <!-- The Terrain Editor shows the map, read only, for now (Sven, 2026-10-29). -->
       <button
         type="button"
@@ -1258,6 +1306,19 @@ onMount(() => {
       >
         <Workflow size={17} />
       </button>
+      <button
+        type="button"
+        class="rounded-[5px] p-1.5 {page === 'scripts'
+          ? 'bg-accent-lo text-accent-hi'
+          : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
+        title={t("header.scriptEditor")}
+        aria-label={t("header.scriptEditor")}
+        aria-pressed={page === "scripts"}
+        disabled={!map}
+        onclick={() => (page = "scripts")}
+      >
+        <CodeXml size={17} />
+      </button>
       {#each [{ name: t("header.soundEditor"), Icon: AudioLines }, { name: t("header.campaignEditor"), Icon: BookOpen }, { name: t("header.aiEditor"), Icon: Bot }, { name: t("header.assetManager"), Icon: Package }] as each (each.name)}
         <button
           type="button"
@@ -1270,6 +1331,37 @@ onMount(() => {
         </button>
       {/each}
     </div>
+    {#if inObjectEditor}
+      <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+      <KindBar {kind} disabled={!map} onkind={switchKind} />
+      <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+      <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.views")}>
+        {#each [{ key: "details", name: t("header.details"), Icon: Columns3 }, { key: "table", name: t("header.table"), Icon: Table2 }] as const as each (each.key)}
+          <button
+            type="button"
+            class="rounded-[5px] p-1.5 {page === each.key
+              ? 'bg-accent-lo text-accent-hi'
+              : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
+            title={each.key === "table" && !prefs.experimental ? t("header.tableExperimental") : each.name}
+            aria-label={each.name}
+            aria-pressed={page === each.key}
+            disabled={!map || (each.key === "table" && !prefs.experimental)}
+            onclick={() => (page = each.key)}
+          >
+            <each.Icon size={17} />
+          </button>
+        {/each}
+        <button
+          type="button"
+          class="rounded-[5px] p-1.5 text-muted opacity-50"
+          disabled
+          title={t("header.compareTitle")}
+          aria-label={t("header.compare")}
+        >
+          <GitCompareArrows size={17} />
+        </button>
+      </div>
+    {/if}
     <button
       type="button"
       class="ml-auto shrink-0 rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg"
@@ -1338,8 +1430,8 @@ onMount(() => {
         {/key}
       </main>
     {/if}
-    <!-- The trigger editor stays in the page while the map shows for a pick, so its dialogs and place come back. -->
-    {#if page === "triggers" || beforePick === "triggers"}
+    <!-- The trigger editor stays in the page once shown, so its dialogs and place come back after a pick or a script. -->
+    {#if triggersFor === map}
       <main class="min-h-0 {page === 'triggers' ? '' : 'hidden'}" aria-label={t("main.triggers")}>
         {#key map}
           <TriggerEditor
@@ -1347,10 +1439,21 @@ onMount(() => {
             mode={graphics.mode}
             {queued}
             onnotice={(text, warn) => say(text, { warn })}
+            onscript={openScript}
           />
         {/key}
       </main>
     {/if}
+    <main class="min-h-0 {page === 'scripts' ? '' : 'hidden'}" aria-label={t("main.scripts")}>
+      {#key map}
+        <ScriptEditor
+          bind:this={scriptEditor}
+          {codeTheme}
+          {queued}
+          onnotice={(text, warn) => say(text, { warn })}
+        />
+      {/key}
+    </main>
     {#if page === "table"}
       <main class="min-h-0" aria-label={t("main.table")}>
         <TableView

@@ -23,6 +23,7 @@ import {
   zoomedAt,
 } from "./canvas.ts";
 import type { CardActions } from "./cards.ts";
+import type { ScriptLanguage } from "./scriptLanguages.ts";
 import TriggerCard from "./TriggerCard.svelte";
 
 type Props = {
@@ -31,6 +32,8 @@ type Props = {
   cards: CardView[];
   catalog: Catalog;
   mode: string;
+  /** What the map's scripts are in. */
+  language: ScriptLanguage;
   readOnly: boolean;
   selected: number | null;
   /** True while the grid is where the user is. */
@@ -55,6 +58,7 @@ let {
   cards,
   catalog,
   mode,
+  language,
   readOnly,
   selected,
   active,
@@ -92,7 +96,14 @@ let pressed: { x: number; y: number; pointer: number } | null = null;
 let panned = false;
 // A left press on the empty grid, a click until it moves.
 let emptyPress: { x: number; y: number } | null = null;
-let grabbed: { id: number; x: number; y: number; moved: boolean } | null = null;
+let grabbed: {
+  id: number;
+  x: number;
+  y: number;
+  pressX: number;
+  pressY: number;
+  moved: boolean;
+} | null = null;
 
 const boxes = $derived(
   laidOut(
@@ -205,9 +216,10 @@ function onpointerdown(event: PointerEvent): void {
     id,
     x: (event.clientX - area.left - view.x) / view.scale - box.x,
     y: (event.clientY - area.top - view.y) / view.scale - box.y,
+    pressX: event.clientX,
+    pressY: event.clientY,
     moved: false,
   };
-  element?.setPointerCapture(event.pointerId);
 }
 
 function onpointermove(event: PointerEvent): void {
@@ -229,7 +241,13 @@ function onpointermove(event: PointerEvent): void {
 
   const area = element?.getBoundingClientRect();
   if (!grabbed || !area) return;
-  grabbed.moved = true;
+  // The mouse is taken only once the card moves: taken at the press, a double click would never reach the title bar.
+  if (!grabbed.moved) {
+    if (Math.hypot(event.clientX - grabbed.pressX, event.clientY - grabbed.pressY) <= 4) return;
+    grabbed.moved = true;
+    element?.setPointerCapture(event.pointerId);
+  }
+
   moving = {
     id: grabbed.id,
     x: snapped((event.clientX - area.left - view.x) / view.scale - grabbed.x),
@@ -268,8 +286,9 @@ function onpointerup(): void {
 }
 
 function onwheel(event: WheelEvent): void {
+  // A box being typed in scrolls its own text.
   const target = event.target as HTMLElement;
-  if (target instanceof HTMLTextAreaElement && document.activeElement === target) return;
+  if (target.closest("textarea, .cm-editor")?.contains(document.activeElement)) return;
   event.preventDefault();
   const area = element?.getBoundingClientRect();
   if (!area) return;
@@ -340,6 +359,7 @@ const minor = $derived(grid * view.scale);
             {card}
             {catalog}
             {mode}
+            {language}
             {readOnly}
             selected={selected === card.id}
             {active}

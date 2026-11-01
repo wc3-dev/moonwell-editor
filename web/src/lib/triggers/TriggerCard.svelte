@@ -13,17 +13,22 @@ import MessageSquare from "@lucide/svelte/icons/message-square";
 import Play from "@lucide/svelte/icons/play";
 import Plus from "@lucide/svelte/icons/plus";
 import Power from "@lucide/svelte/icons/power";
+import SquareArrowOutUpRight from "@lucide/svelte/icons/square-arrow-out-up-right";
 import Workflow from "@lucide/svelte/icons/workflow";
 import { t, tCount } from "../text.ts";
 import type { CardView, Catalog, FunctionKind, FunctionView } from "./api.ts";
 import { type CardActions, cardTone, focusRename } from "./cards.ts";
 import FunctionCard from "./FunctionCard.svelte";
+import ScriptBox from "./ScriptBox.svelte";
+import type { ScriptLanguage } from "./scriptLanguages.ts";
 import { typedBox } from "./typedBox.ts";
 
 type Props = {
   card: CardView;
   catalog: Catalog;
   mode: string;
+  /** What the map's scripts are in. */
+  language: ScriptLanguage;
   readOnly: boolean;
   selected: boolean;
   /** True while the grid is where the user is: a selection shows strong; else it shows faintly, as the tree's does. */
@@ -42,6 +47,7 @@ let {
   card,
   catalog,
   mode,
+  language,
   readOnly,
   selected,
   active,
@@ -198,6 +204,17 @@ function lines(text: string): number {
         <Play size={12} />
       </button>
     {/if}
+    {#if card.kind === "custom" || card.kind === "script"}
+      <button
+        type="button"
+        class="shrink-0 rounded-[4px] p-0.5 text-white hover:bg-white/15"
+        title={t("triggers.openInScriptEditor")}
+        aria-label={t("triggers.openInScriptEditor")}
+        onclick={() => actions.open(card.id)}
+      >
+        <SquareArrowOutUpRight size={12} />
+      </button>
+    {/if}
   </div>
 
   {#if !folded}
@@ -242,15 +259,13 @@ function lines(text: string): number {
       {/if}
       {#if card.kind === "script" || card.kind === "custom"}
         <div class="p-1.5">
-          <textarea
-            class="{box} font-mono text-[11px] leading-[1.45]"
-            rows={lines(trigger.code ?? "")}
-            spellcheck="false"
-            aria-label={t("triggers.code")}
+          <ScriptBox
             value={trigger.code ?? ""}
-            disabled={readOnly}
-            use:typedBox={(text) => actions.code(id, text)}
-          ></textarea>
+            {language}
+            label={t("triggers.code")}
+            {readOnly}
+            onsend={(text) => actions.code(id, text)}
+          />
         </div>
       {:else if card.kind === "trigger"}
         {@render section(t("triggers.events"), "event", trigger.events, t("triggers.addEvent"))}

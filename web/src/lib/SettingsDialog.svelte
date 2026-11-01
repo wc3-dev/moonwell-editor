@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
- * The editor's settings (Sven, 2026-10-27), in tabs: General (the graphics mode, the UI scale, the theme and the
- * default team colour, which show at once and are remembered, then the switches under Other), Hotkeys (each action's
+ * The editor's settings (Sven, 2026-10-27), in tabs: General (the graphics mode, the UI scale, the theme, the code theme
+ * and the default team colour, which show at once and are remembered, then the switches under Other), Hotkeys (each action's
  * keys, which a click and a key press change), Map (what the editor knows about the open map: its name, its game data
  * option and the tables the game reads under it) and Game data.
  */
@@ -25,6 +25,7 @@ import {
 import Popover from "./Popover.svelte";
 import { prefs, setPref, uiScales } from "./prefs.svelte.ts";
 import TeamColourGrid from "./TeamColourGrid.svelte";
+import ThemePicker from "./ThemePicker.svelte";
 import { t } from "./text.ts";
 import { type Theme, themes } from "./themes.ts";
 import { kindNames } from "./tree.ts";
@@ -59,15 +60,6 @@ const tableNames: Record<string, string> = {
   melee_v0: "melee_v0",
 };
 
-const swatch = [
-  "bg",
-  "surface",
-  "accent",
-  "changed",
-  "kind-unit",
-  "kind-item",
-  "kind-ability",
-] as const;
 const customKinds = $derived(map ? kinds.filter((kind: Kind) => (map.counts[kind] ?? 0) > 0) : []);
 
 // The switches under Other.
@@ -77,9 +69,9 @@ const switches = [
   { key: "experimental", text: t("settings.experimental") },
 ] as const;
 
-// The theme list, open under its button.
-let themesOpen = $state(false);
-let themeButton: HTMLButtonElement | undefined = $state();
+// The code themes: the interface's own (an empty id), then every theme.
+const sameTheme = $derived<Theme>({ ...theme, id: "", name: t("settings.codeThemeSame") });
+const codeThemes = $derived([sameTheme, ...themes]);
 
 // The action whose new key is being pressed.
 let listening = $state<Action | null>(null);
@@ -120,14 +112,6 @@ function resetAll(): void {
     <span class="w-32 shrink-0 text-muted">{label}</span>
     <span class="min-w-0 break-words {mono ? 'font-mono text-[12.5px]' : ''} text-fg">{value}</span>
   </div>
-{/snippet}
-
-{#snippet palette(each: Theme)}
-  <span class="flex shrink-0 overflow-hidden rounded-sm border border-black/30">
-    {#each swatch as token (token)}
-      <span class="h-4 w-2.5" style:background={each.colors[token]}></span>
-    {/each}
-  </span>
 {/snippet}
 
 {#snippet heading(text: string)}
@@ -196,40 +180,16 @@ function resetAll(): void {
       </div>
 
       {@render heading(t("settings.theme"))}
-      <button
-        type="button"
-        class="flex w-72 items-center gap-2 rounded-md border border-line bg-bg px-2 py-1.5 text-left hover:border-muted"
-        aria-haspopup="listbox"
-        aria-expanded={themesOpen}
-        bind:this={themeButton}
-        onclick={() => (themesOpen = !themesOpen)}
-      >
-        {@render palette(theme)}
-        <span class="min-w-0 flex-1 truncate text-fg">{theme.name}</span>
-        <ChevronDown size={14} class="text-faint" />
-      </button>
-      {#if themesOpen && themeButton}
-        <Popover anchor={themeButton} onclose={() => (themesOpen = false)} large>
-          <div class="flex w-[272px] flex-col" role="listbox" aria-label={t("settings.theme")}>
-            {#each themes as each (each.id)}
-              <button
-                type="button"
-                role="option"
-                aria-selected={each.id === theme.id}
-                class="flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-hover"
-                onclick={() => {
-                  ontheme(each);
-                  themesOpen = false;
-                }}
-              >
-                {@render palette(each)}
-                <span class="min-w-0 flex-1 truncate {each.id === theme.id ? 'text-fg' : ''}">{each.name}</span>
-                {#if each.id === theme.id}<Check size={14} class="shrink-0 text-accent-hi" />{/if}
-              </button>
-            {/each}
-          </div>
-        </Popover>
-      {/if}
+      <ThemePicker label={t("settings.theme")} options={themes} selected={theme} onpick={ontheme} />
+
+      <!-- Scripts have a theme of their own, the interface's until one is chosen (Sven, 2026-10-31). -->
+      {@render heading(t("settings.codeTheme"))}
+      <ThemePicker
+        label={t("settings.codeTheme")}
+        options={codeThemes}
+        selected={codeThemes.find((each) => each.id === prefs.codeTheme) ?? sameTheme}
+        onpick={(each) => setPref("codeTheme", each.id)}
+      />
 
       <!-- The team colour models are shown in at first (Sven, 2026-10-29). -->
       {@render heading(t("settings.teamColour"))}

@@ -6,5 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "./",
   plugins: [svelte(), tailwindcss()],
+  resolve: { dedupe: ["vscode"] },
+  worker: { format: "es" },
   server: { port: 5173, strictPort: true },
 });

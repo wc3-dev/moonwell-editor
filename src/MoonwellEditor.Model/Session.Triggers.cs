@@ -72,6 +72,20 @@ public sealed partial class Session : ITriggerNames
         return result;
     }
 
+    /// <summary>What the map's scripts are in: "lua", or "jass" for any other map.</summary>
+    public string TriggerLanguage()
+    {
+        try
+        {
+            return ReadInfo()?.ScriptLanguage == ScriptLanguage.Lua ? "lua" : "jass";
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Only the colours of its scripts depend on it: the triggers of a map whose info cannot be read still show.
+            return "jass";
+        }
+    }
+
     /// <inheritdoc />
     public string? ObjectName(string type, string id)
     {

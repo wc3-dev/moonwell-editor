@@ -14,6 +14,7 @@ import FolderPlus from "@lucide/svelte/icons/folder-plus";
 import MessageSquare from "@lucide/svelte/icons/message-square";
 import MessageSquarePlus from "@lucide/svelte/icons/message-square-plus";
 import Plus from "@lucide/svelte/icons/plus";
+import SquareArrowOutUpRight from "@lucide/svelte/icons/square-arrow-out-up-right";
 import SquareFunction from "@lucide/svelte/icons/square-function";
 import Workflow from "@lucide/svelte/icons/workflow";
 import { onMount, tick, untrack } from "svelte";
@@ -70,7 +71,9 @@ import {
   treeDrop,
   treeRows,
 } from "./triggers/lists.ts";
+import { isScript, type OpenScript } from "./triggers/openScripts.ts";
 import ParameterDialog from "./triggers/ParameterDialog.svelte";
+import ScriptBox from "./triggers/ScriptBox.svelte";
 import TriggerCanvas from "./triggers/TriggerCanvas.svelte";
 import { typedBox } from "./triggers/typedBox.ts";
 import VariableForm from "./triggers/VariableForm.svelte";
@@ -80,9 +83,11 @@ type Props = {
   /** Puts a command on the app's queue, so it runs after what is being sent. */
   queued: <T>(run: () => Promise<T>) => Promise<T>;
   onnotice: (text: string, warn?: boolean) => void;
+  /** Opens a script in the Script Editor. */
+  onscript: (script: OpenScript) => void;
 };
 
-let { mode, queued, onnotice }: Props = $props();
+let { mode, queued, onnotice, onscript }: Props = $props();
 
 let catalog = $state.raw<Catalog | null>(null);
 let tree = $state.raw<TriggerTree | null>(null);
@@ -406,8 +411,23 @@ function parentOf(function_: FunctionView): string | null {
   return parts.length > 1 ? parts.slice(0, -1).join("/") : null;
 }
 
+function openScript(each: TreeItem): void {
+  onscript({
+    id: each.id,
+    kind: each.kind,
+    name: each.kind === "root" ? t("triggers.mapHeader") : each.name,
+  });
+}
+
 function itemMenu(each: TreeItem, x: number, y: number, extra: MenuItem[] = []): void {
+  const scriptEntry: MenuItem[] = isScript(each)
+    ? [
+        { label: t("triggers.openInScriptEditor"), run: () => openScript(each) },
+        { separator: true },
+      ]
+    : [];
   const creating: MenuItem[] = [
+    ...scriptEntry,
     { label: t("triggers.new.category"), disabled: readOnly, run: () => add("category") },
     { label: t("triggers.new.trigger"), disabled: readOnly, run: () => add("trigger") },
     { label: t("triggers.new.script"), disabled: readOnly, run: () => add("script") },
@@ -647,7 +667,11 @@ const cardActions: CardActions = {
   dropFunction: dropOn,
   dragEnd: endDrag,
   select: (id) => select(id, false),
-  open: (id) => select(id, true),
+  open: (id) => {
+    const each = tree?.items.find((other) => other.id === id);
+    if (each && isScript(each)) openScript(each);
+    else select(id, true);
+  },
   rename: (id, name) => {
     const each = tree?.items.find((other) => other.id === id);
     if (each) finishRename(each, name);
@@ -721,7 +745,6 @@ const toolButton =
   "rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent";
 const box =
   "w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent disabled:opacity-60";
-const code = `${box} min-h-[320px] flex-1 resize-none font-mono text-[12.5px] leading-[1.45]`;
 </script>
 
 <div class="grid h-full min-h-0 grid-cols-[320px_1fr] max-[1100px]:grid-cols-[250px_1fr]" data-testid="trigger-editor">
@@ -765,6 +788,7 @@ const code = `${box} min-h-[320px] flex-1 resize-none font-mono text-[12.5px] le
           tabindex="-1"
           draggable={!readOnly && row.item.kind !== "root" && renaming?.id !== row.item.id}
           onclick={() => select(row.item.id, true)}
+          ondblclick={() => isScript(row.item) && renaming?.id !== row.item.id && openScript(row.item)}
           onkeydown={(event) => event.key === "Enter" && renaming?.id !== row.item.id && select(row.item.id, true)}
           oncontextmenu={(event) => {
             event.preventDefault();
@@ -845,6 +869,7 @@ const code = `${box} min-h-[320px] flex-1 resize-none font-mono text-[12.5px] le
           cards={shown.cards}
           {catalog}
           {mode}
+          language={tree?.language ?? "jass"}
           {readOnly}
           {selected}
           active={zone === "grid"}
@@ -865,16 +890,31 @@ const code = `${box} min-h-[320px] flex-1 resize-none font-mono text-[12.5px] le
       {#if tree.problem}
         <p class="m-0 mb-3 text-warn">{tree.problem}</p>
       {/if}
-      <h2 class="m-0 mb-1 font-heading text-lg font-bold text-fg">{t("triggers.mapHeader")}</h2>
+      <div class="mb-1 flex items-center">
+        <h2 class="m-0 font-heading text-lg font-bold text-fg">{t("triggers.mapHeader")}</h2>
+        <button type="button" class="ml-auto {toolButton}" title={t("triggers.openInScriptEditor")} aria-label={t("triggers.openInScriptEditor")} onclick={() => openScript(item)}>
+          <SquareArrowOutUpRight size={16} />
+        </button>
+      </div>
       <p class="m-0 mb-2 text-muted">{t("triggers.mapHeaderHint")}</p>
       <label class="mb-2">
         <span class="mb-1 block text-muted">{t("triggers.comment")}</span>
         <textarea class="{box} h-[64px] resize-none" value={tree.headerComment} disabled={readOnly} use:typedBox={(comment) => { const header = tree?.headerCode ?? ""; edit(() => setHeader(comment, header)); }}></textarea>
       </label>
-      <label class="flex min-h-0 flex-1 flex-col">
+      <div class="flex min-h-0 flex-1 flex-col">
         <span class="mb-1 block text-muted">{t("triggers.code")}</span>
-        <textarea class={code} spellcheck="false" value={tree.headerCode} disabled={readOnly} use:typedBox={(text) => { const comment = tree?.headerComment ?? ""; edit(() => setHeader(comment, text)); }}></textarea>
-      </label>
+        <ScriptBox
+          size="panel"
+          value={tree.headerCode}
+          language={tree.language}
+          label={t("triggers.code")}
+          {readOnly}
+          onsend={(text) => {
+            const comment = tree?.headerComment ?? "";
+            edit(() => setHeader(comment, text));
+          }}
+        />
+      </div>
     </div>
   {:else if gridParent === null}
     <div class="bg-bg p-4"><p class="m-0 text-muted">{t("triggers.nothingSelected")}</p></div>

@@ -90,6 +90,8 @@ export type TriggerTree = {
   headerComment: string;
   headerCode: string;
   references: MapReference[];
+  /** What the map's scripts are in. */
+  language: "jass" | "lua";
 };
 
 export type ParameterKind = "preset" | "variable" | "function" | "value" | "none";

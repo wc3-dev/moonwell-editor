@@ -33,6 +33,7 @@ public sealed record MapReference(string Type, string Ref, string Text);
 /// <param name="HeaderComment">The comment on the map's own script text.</param>
 /// <param name="HeaderCode">The map's own script text.</param>
 /// <param name="References">The regions, cameras and sounds the map has.</param>
+/// <param name="Language">What the map's scripts are in: "jass" or "lua".</param>
 public sealed record TriggerTreeView(
     IReadOnlyList<TriggerTreeItem> Items,
     IReadOnlyList<VariableView> Variables,
@@ -40,7 +41,8 @@ public sealed record TriggerTreeView(
     string? Problem,
     string HeaderComment,
     string HeaderCode,
-    IReadOnlyList<MapReference> References);
+    IReadOnlyList<MapReference> References,
+    string Language);
 
 /// <summary>A new item's id.</summary>
 /// <param name="Id">The id.</param>
@@ -88,7 +90,8 @@ public sealed partial class Commands
             document.Problem,
             document.HeaderComment,
             document.HeaderCode,
-            References());
+            References(),
+            Map().TriggerLanguage());
     }
 
     // The regions, cameras and sounds of the map, read once per map as nothing here changes them. They are only offered

@@ -31,6 +31,19 @@
   --kind-ability: #8ea4a2;
   --kind-buff: #a292a3;
   --kind-upgrade: #c4746e;
+  /* A script's colours, which the settings' code theme sets on its own (Sven, 2026-10-31). */
+  --code-bg: #0d0c0c;
+  --code-fg: #c5c9c5;
+  --code-gutter: #737c73;
+  --code-selection: #2a3438;
+  --code-keyword: #8992a7;
+  --code-type: #8ea4a2;
+  --code-string: #87a987;
+  --code-number: #b6927b;
+  --code-comment: #737c73;
+  --code-function: #8ba4b0;
+  --code-special: #c4b28a;
+  --code-operator: #a6a69c;
   /* Apple's New York for the interface and SF Pro for its headings (Sven, 2026-10-29), where Windows has them
      installed: Apple's licence keeps them out of the editor, so it ships Inter for where they are not. The game's
      tooltips are in Inter everywhere, and ids and values in JetBrains Mono. */

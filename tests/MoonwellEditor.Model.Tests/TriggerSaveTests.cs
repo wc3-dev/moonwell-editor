@@ -54,6 +54,19 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         return [.. reader.ReadImportedFiles().Files.Select(file => file.FullPath)];
     }
 
+    [Theory]
+    [InlineData(WarChasers, "jass")]
+    [InlineData(ForgottenHollow, "lua")]
+    public void A_map_says_what_language_its_scripts_are_in(string map, string language)
+    {
+        if (Copy(map) is not var (path, _))
+        {
+            return;
+        }
+
+        Assert.Equal(language, Session.Open(MapStore.Open(path), game.Data!).TriggerLanguage());
+    }
+
     [Fact]
     public void An_edit_is_unsaved_until_it_is_undone()
     {

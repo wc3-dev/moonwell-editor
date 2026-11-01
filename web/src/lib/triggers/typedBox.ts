@@ -6,10 +6,11 @@ import { typing } from "../typing.ts";
 
 type Box = HTMLInputElement | HTMLTextAreaElement;
 
-export function typedBox(
-  box: Box,
+/** The same for a box of any make: `changed` when it is typed in, `send` when it should go, which it does once. */
+export function typedText(
+  read: () => string,
   send: (value: string) => void,
-): { update(next: (value: string) => void): void; destroy(): void } {
+): { changed(): void; send(): void; update(next: (value: string) => void): void } {
   let current = send;
   let release: (() => void) | null = null;
 
@@ -17,22 +18,33 @@ export function typedBox(
     if (!release) return;
     release();
     release = null;
-    current(box.value);
+    current(read());
   };
-  const oninput = (): void => {
-    release ??= typing(flush);
-  };
-
-  box.addEventListener("input", oninput);
-  box.addEventListener("change", flush);
   return {
+    changed() {
+      release ??= typing(flush);
+    },
+    send: flush,
     update(next) {
       current = next;
     },
+  };
+}
+
+export function typedBox(
+  box: Box,
+  send: (value: string) => void,
+): { update(next: (value: string) => void): void; destroy(): void } {
+  const text = typedText(() => box.value, send);
+
+  box.addEventListener("input", text.changed);
+  box.addEventListener("change", text.send);
+  return {
+    update: text.update,
     destroy() {
-      box.removeEventListener("input", oninput);
-      box.removeEventListener("change", flush);
-      flush();
+      box.removeEventListener("input", text.changed);
+      box.removeEventListener("change", text.send);
+      text.send();
     },
   };
 }
