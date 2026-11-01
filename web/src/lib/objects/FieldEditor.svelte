@@ -148,8 +148,8 @@ const toggleWords = $derived([
   shownValue({ ...field, value: "0" }, choices, nameOf),
 ]);
 const boxClass = $derived(
-  `min-w-0 rounded-ui border py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field ${
-    compact ? "w-full" : "field-sizing-content min-w-[8ch] max-w-full"
+  `rounded-ui border py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field ${
+    compact ? "w-full min-w-0" : "field-sizing-content min-w-[8ch] max-w-full"
   } ${quiet}`,
 );
 // Every box shows something when it is empty: World Editor's empty value (0, 0.000, None), else "(empty)".

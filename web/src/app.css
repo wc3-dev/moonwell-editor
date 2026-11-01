@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@layer properties, theme, base, components, utilities;
 @import "@fontsource-variable/google-sans";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
@@ -53,6 +53,7 @@
     sans-serif;
   --font-tooltip: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --radius-ui: 3px;
   /* Worked out from each theme's colours, so every theme gets them. The cap on lightness keeps --fg readable on them
      where a theme's accent or background is light. */
   --gutter: color-mix(in srgb, var(--bg), black 22%);
@@ -79,52 +80,6 @@
   --pressed-shadow: rgb(0 0 0 / 0.14);
 }
 
-/* The colours and fonts as Tailwind utilities: bg-surface, text-fg, border-line, font-mono and so on. */
-@theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-raised: var(--raised);
-  --color-hover: var(--hover);
-  --color-line: var(--border);
-  --color-fg: var(--fg);
-  --color-body: var(--text);
-  --color-muted: var(--muted);
-  --color-faint: var(--faint);
-  --color-accent: var(--accent);
-  --color-accent-hi: var(--accent-hi);
-  --color-accent-lo: var(--accent-lo);
-  --color-changed: var(--changed);
-  --color-warn: var(--warn);
-  --color-warn-lo: var(--warn-lo);
-  --color-cyan: var(--cyan);
-  --color-purple: var(--purple);
-  --color-kind-unit: var(--kind-unit);
-  --color-kind-item: var(--kind-item);
-  --color-kind-destructable: var(--kind-destructable);
-  --color-kind-doodad: var(--kind-doodad);
-  --color-kind-ability: var(--kind-ability);
-  --color-kind-buff: var(--kind-buff);
-  --color-kind-upgrade: var(--kind-upgrade);
-  --color-gutter: var(--gutter);
-  --color-field: var(--field);
-  --color-select: var(--select);
-  --color-primary: var(--primary);
-  --color-hairline: var(--hairline);
-  --font-sans: var(--font-ui);
-  --font-tooltip: var(--font-tooltip);
-  --font-mono: var(--font-mono);
-}
-
-/* One size for the interface, the body's; these are the few others. */
-@theme {
-  --text-title: 13px;
-  --text-title--line-height: 18px;
-  --text-small: 11px;
-  --text-small--line-height: 14px;
-  --text-mono: 11.5px;
-  --radius-ui: 3px;
-}
-
 html,
 body,
 #app {
@@ -143,7 +98,7 @@ body {
 
 /*
  * Checkboxes and selects in the page's colours (Sven, 2026-10-27). In the base layer, so a class on the element still
- * wins: Tailwind's preflight already gives buttons and fields the inherited font and colour, and a rule outside a layer
+ * wins: the reset already gives buttons and fields the inherited font and colour, and a rule outside a layer
  * would beat every class.
  */
 @layer base {
