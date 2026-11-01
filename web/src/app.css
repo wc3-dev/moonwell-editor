@@ -289,7 +289,8 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
   scrollbar-width: auto !important;
 }
 .dropdown-list [data-select-viewport]::-webkit-scrollbar {
-  display: block;
+  /* biome-ignore lint/complexity/noImportantStyles: Bits UI hides this scroll bar with !important. */
+  display: block !important;
 }
 
 /* The trigger canvas keeps the look it had before the rest of the page went matte (Sven, 2026-11-01). */

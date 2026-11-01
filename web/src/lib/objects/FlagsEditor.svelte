@@ -48,8 +48,15 @@ const options = $derived([
 ]);
 
 // As wide as what it shows (Sven, 2026-10-29: the widest choice made a long button), in characters of the fixed-width
-// font and one spare; the padding, border, gap and chevron take 32 pixels.
-const width = $derived(Math.max(4, (shown === "" ? t("flags.none") : shown).length) + 1);
+// font and one spare; the padding, border, gap and chevron take 32 pixels. While open it is as wide as its list, which
+// shows each label beside its value after a checkbox.
+const width = $derived(
+  Math.max(
+    4,
+    (shown === "" ? t("flags.none") : shown).length,
+    ...(open ? options.map((option) => option.label.length + option.value.length + 4) : []),
+  ) + 1,
+);
 
 async function toggle(value: string, on: boolean): Promise<void> {
   const next = on ? [...ticked, value] : ticked.filter((each) => each !== value);
