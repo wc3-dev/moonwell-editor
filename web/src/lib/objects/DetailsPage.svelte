@@ -18,7 +18,7 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
     : ''}"
 >
   <aside
-    class="min-h-0 overflow-hidden border-r border-line bg-surface"
+    class="min-h-0 overflow-hidden rounded-ui bg-surface"
     aria-label={t("main.objects")}
     onpointerdown={() => (pages.zone = "tree")}
     onfocusin={() => (pages.zone = "tree")}
@@ -37,16 +37,16 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
     />
   </aside>
   <section
-    class="flex min-h-0 flex-col overflow-hidden"
+    class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-surface"
     aria-label={t("main.details")}
     onpointerdown={() => (pages.zone = "details")}
     onfocusin={() => (pages.zone = "details")}
   >
     {#if session.problem}
-      <p class="mx-[18px] mt-3.5 shrink-0 text-warn" data-testid="map-error">{session.problem}</p>
+      <p class="mx-2 mt-1.5 shrink-0 text-warn" data-testid="map-error">{session.problem}</p>
     {/if}
     {#if objects.error}
-      <p class="mx-[18px] mt-3.5 text-warn">{objects.error}</p>
+      <p class="mx-2 mt-1.5 text-warn">{objects.error}</p>
     {:else if objects.current}
       <Details
         bind:this={pages.details}
@@ -68,7 +68,7 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
         kindIcons={objects.iconsOfKind}
       />
     {:else}
-      <p class="mx-[18px] mt-3.5 text-muted">
+      <p class="mx-2 mt-1.5 text-muted">
         {t("main.pickObject")}
       </p>
     {/if}
@@ -76,7 +76,7 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
   <!-- The scroll bar's room is always kept, so the panel's width (and the model's size, which follows it) does not
        change as the scroll bar comes and goes; that made the panel shake. -->
   <aside
-    class="min-h-0 overflow-auto border-l border-line bg-surface p-3 [scrollbar-gutter:stable]"
+    class="min-h-0 overflow-auto rounded-ui bg-surface px-1.5 pb-1.5 [scrollbar-gutter:stable]"
     aria-label={t("main.side")}
   >
     {#if objects.current}

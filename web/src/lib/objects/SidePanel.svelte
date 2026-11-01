@@ -90,21 +90,21 @@ $effect(() => {
   {#each items as item (`${item.kind}:${item.id}`)}
     <button
       type="button"
-      class="mb-1 flex w-full items-center gap-2 rounded-md border border-line bg-raised px-2 py-1 text-left hover:border-accent"
+      class="mb-0.5 flex w-full items-center gap-2 rounded-ui border border-transparent bg-raised px-1.5 py-px text-left hover:border-accent"
       title="{kindNames[item.kind]} · {item.fields.join(', ')}"
       onclick={() => onopen(item.kind, item.id)}
     >
       <span class="truncate {item.name ? kindText[item.kind] : 'text-muted'}">{item.name || t("side.unknown")}</span>
-      <span class="ml-auto shrink-0 font-mono text-[12.5px] text-faint">{item.id}</span>
+      <span class="ml-auto shrink-0 font-mono text-mono text-faint">{item.id}</span>
     </button>
   {/each}
 {/snippet}
 
 {#snippet heading(key: string, title: string, count: number | null, top: string)}
-  <h3 class="{top} mb-2">
+  <h3 class="{top} -mx-1.5 mb-1">
     <button
       type="button"
-      class="flex w-full items-center gap-1.5 text-left text-[13px] tracking-[.06em] text-muted uppercase hover:text-fg"
+      class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-fg"
       aria-expanded={!closed[key]}
       onclick={() => (closed[key] = !closed[key])}
     >
@@ -114,14 +114,14 @@ $effect(() => {
       {title}
       {#if count !== null}
         <!-- At the right end, as the tree's counts are (Sven, 2026-10-29). -->
-        <span class="ml-auto font-mono text-[11px] tracking-normal text-faint">{count}</span>
+        <span class="ml-auto font-mono text-mono text-faint">{count}</span>
       {/if}
     </button>
   </h3>
 {/snippet}
 
 <div bind:clientWidth={width}>
-  {@render heading("model", t("side.model"), null, "mt-1")}
+  {@render heading("model", t("side.model"), null, "mt-0")}
   {#if !closed.model}
     {#if model}
       <ModelPreview
@@ -133,18 +133,18 @@ $effect(() => {
         animations
       />
     {:else}
-      <p class="text-[12.5px] text-faint">{t("side.noModel")}</p>
+      <p class="text-faint">{t("side.noModel")}</p>
     {/if}
   {/if}
 </div>
 
 <div class="relative">
-  {@render heading("tooltip", t("side.tooltip"), null, "mt-5")}
+  {@render heading("tooltip", t("side.tooltip"), null, "mt-1")}
   {#if onedittooltip}
     <!-- As tall as the heading's text (Sven, 2026-10-29). -->
     <button
       type="button"
-      class="absolute top-0 right-0 flex items-center gap-1 rounded px-1 text-[13px] leading-[inherit] text-muted hover:bg-hover hover:text-fg"
+      class="absolute top-px right-0 flex h-[18px] items-center gap-1 rounded-ui px-1 text-muted hover:bg-line hover:text-fg"
       title={t("side.editTooltip")}
       onclick={onedittooltip}
     >
@@ -157,24 +157,24 @@ $effect(() => {
   <TooltipPreview {view} bind:level />
 {/if}
 
-{@render heading("uses", t("side.uses"), used.length, "mt-5")}
+{@render heading("uses", t("side.uses"), used.length, "mt-1")}
 {#if closed.uses}
   <!-- Closed. -->
 {:else if used.length === 0}
-  <p class="text-[12.5px] text-faint">{t("side.usesNone")}</p>
+  <p class="text-faint">{t("side.usesNone")}</p>
 {:else}
   {@render list(used)}
 {/if}
 
-{@render heading("usedBy", t("side.usedBy"), users?.length ?? null, "mt-5")}
+{@render heading("usedBy", t("side.usedBy"), users?.length ?? null, "mt-1")}
 {#if closed.usedBy}
   <!-- Closed. -->
 {:else if problem}
-  <p class="text-[12.5px] text-warn">{problem}</p>
+  <p class="text-warn">{problem}</p>
 {:else if users === null}
-  <p class="text-[12.5px] text-faint">{t("side.looking")}</p>
+  <p class="text-faint">{t("side.looking")}</p>
 {:else if users.length === 0}
-  <p class="text-[12.5px] text-faint">{t("side.usedByNone")}</p>
+  <p class="text-faint">{t("side.usedByNone")}</p>
 {:else}
   {@render list(users)}
 {/if}

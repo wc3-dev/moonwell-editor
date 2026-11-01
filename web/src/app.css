@@ -44,17 +44,21 @@
   --code-function: #8ba4b0;
   --code-special: #c4b28a;
   --code-operator: #a6a69c;
-  /* Apple's New York for the interface and SF Pro for its headings (Sven, 2026-10-29), where Windows has them
-     installed: Apple's licence keeps them out of the editor, so it ships Inter for where they are not. The game's
-     tooltips are in Inter everywhere, and ids and values in JetBrains Mono. */
-  --font-ui:
+  /* Segoe UI, as a Windows program has (Sven, 2026-11-01). The game's tooltips are in Inter everywhere, ids and values
+     in JetBrains Mono. The trigger canvas keeps Apple's New York where Windows has it installed, and Inter where not. */
+  --font-ui: "Segoe UI", system-ui, sans-serif;
+  --font-canvas:
     "New York", "New York Small", "New York Medium", "Inter Variable", ui-sans-serif, system-ui,
-    sans-serif;
-  --font-heading:
-    "SF Pro Display", "SF Pro", "SF Pro Text", "Inter Variable", ui-sans-serif, system-ui,
     sans-serif;
   --font-tooltip: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* Worked out from each theme's colours, so every theme gets them. The cap on lightness keeps --fg readable on them
+     where a theme's accent or background is light. */
+  --gutter: color-mix(in srgb, var(--bg), black 22%);
+  --field: color-mix(in srgb, var(--bg), black 30%);
+  --select: oklch(from color-mix(in oklab, var(--accent) 32%, var(--surface)) min(l, 0.44) c h);
+  --primary: oklch(from color-mix(in oklab, var(--accent) 40%, var(--raised)) min(l, 0.44) c h);
+  --hairline: color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 /* The colours and fonts as Tailwind utilities: bg-surface, text-fg, border-line, font-mono and so on. */
@@ -83,10 +87,24 @@
   --color-kind-ability: var(--kind-ability);
   --color-kind-buff: var(--kind-buff);
   --color-kind-upgrade: var(--kind-upgrade);
+  --color-gutter: var(--gutter);
+  --color-field: var(--field);
+  --color-select: var(--select);
+  --color-primary: var(--primary);
+  --color-hairline: var(--hairline);
   --font-sans: var(--font-ui);
-  --font-heading: var(--font-heading);
   --font-tooltip: var(--font-tooltip);
   --font-mono: var(--font-mono);
+}
+
+/* One size for the interface, the body's; these are the few others. */
+@theme {
+  --text-title: 13px;
+  --text-title--line-height: 18px;
+  --text-small: 11px;
+  --text-small--line-height: 14px;
+  --text-mono: 11.5px;
+  --radius-ui: 3px;
 }
 
 html,
@@ -98,9 +116,9 @@ body,
 
 /* Only what is typed in can be selected: the names, values, panels and status bar cannot (Sven, 2026-10-29). */
 body {
-  background: var(--bg);
+  background: var(--gutter);
   color: var(--text);
-  font: 14px / 1.45 var(--font-ui);
+  font: 12px / 16px var(--font-ui);
   overflow: hidden;
   user-select: none;
 }
@@ -122,24 +140,28 @@ body {
     outline-color: var(--accent);
   }
 
+  /* Every page is panels on the gutter. */
+  main {
+    padding: 4px;
+    gap: 4px;
+  }
+
   input[type="checkbox"] {
     appearance: none;
     flex: none;
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     margin: 0;
-    border: 1px solid var(--faint);
-    border-radius: 3px;
-    background: var(--bg) center / 10px 10px no-repeat;
+    border: 1px solid transparent;
+    border-radius: var(--radius-ui);
+    background: var(--field) center / 10px 10px no-repeat;
     cursor: pointer;
   }
   input[type="checkbox"]:hover {
     border-color: var(--muted);
   }
   input[type="checkbox"]:checked {
-    border-color: var(--accent);
-    background-color: var(--accent);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23121212' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d0d0d0' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
   }
   input[type="checkbox"]:focus-visible {
     outline: 1px solid var(--accent-hi);
@@ -150,7 +172,7 @@ body {
     appearance: none;
     padding-right: 22px;
     background:
-      var(--bg)
+      var(--field)
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
       right 6px center / 12px 12px no-repeat;
   }
@@ -166,18 +188,80 @@ body {
   }
 }
 
-/* Scroll bars are a thin, see-through bar with no track and no arrows. */
+@layer components {
+  /* The header bar is the one shaded thing in the page (Sven, 2026-11-01). */
+  .toolbar {
+    --toolbar-light: color-mix(in srgb, var(--raised), white 12%);
+    --toolbar-dark: color-mix(in srgb, var(--bg), black 45%);
+    border-bottom: 1px solid var(--toolbar-dark);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--raised), white 8%),
+      color-mix(in srgb, var(--raised), black 10%)
+    );
+    box-shadow: inset 0 1px 0 var(--toolbar-light);
+  }
+  .toolbar-rule {
+    background: var(--toolbar-dark);
+    box-shadow: 1px 0 0 var(--toolbar-light);
+  }
+  .tool-button {
+    padding: 3px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+  }
+  .tool-button:not(:disabled):hover {
+    border-color: var(--toolbar-dark);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--raised), white 11%),
+      color-mix(in srgb, var(--raised), black 6%)
+    );
+  }
+  .tool-button[aria-pressed="true"],
+  .tool-button[aria-pressed="true"]:hover {
+    border-color: var(--toolbar-dark);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--raised), black 42%),
+      color-mix(in srgb, var(--raised), black 24%)
+    );
+    box-shadow:
+      inset 0 1px 2px rgb(0 0 0 / 0.45),
+      0 1px 0 var(--toolbar-light);
+  }
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(219 215 202 / 0.16);
+  border: 2px solid transparent;
+  border-radius: 5px;
+  background: var(--raised) padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: var(--border) padding-box;
+}
+
+/* The trigger canvas keeps the look it had before the rest of the page went matte (Sven, 2026-11-01). */
+.canvas-look {
+  font: 14px / 1.45 var(--font-canvas);
+}
+.canvas-look ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.canvas-look ::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 0;
+  background: rgb(219 215 202 / 0.16);
+}
+.canvas-look ::-webkit-scrollbar-thumb:hover {
   background: rgb(219 215 202 / 0.32);
 }

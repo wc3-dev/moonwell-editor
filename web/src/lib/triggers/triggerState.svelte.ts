@@ -43,6 +43,8 @@ type Needs = {
   onnotice: (text: string, warn?: boolean) => void;
   /** Opens a script in the Script Editor. */
   onscript: (script: OpenScript) => void;
+  /** Says something was deleted, which may be a script open in the Script Editor. */
+  ondeleted: () => void;
 };
 
 /** A place after everything in a list. */
@@ -115,12 +117,14 @@ export class TriggerState {
   readonly #queued: Needs["queued"];
   readonly notice: Needs["onnotice"];
   readonly openScriptOf: Needs["onscript"];
+  readonly #deleted: Needs["ondeleted"];
   #flights = 0;
 
-  constructor({ queued, onnotice, onscript }: Needs) {
+  constructor({ queued, onnotice, onscript, ondeleted }: Needs) {
     this.#queued = queued;
     this.notice = onnotice;
     this.openScriptOf = onscript;
+    this.#deleted = ondeleted;
   }
 
   itemOf(id: number | null | undefined): TreeItem | undefined {
@@ -241,10 +245,10 @@ export class TriggerState {
     }
   };
 
-  confirmDelete = (): void => {
+  confirmDelete = async (): Promise<void> => {
     const each = this.deleting;
     this.deleting = null;
-    if (each) this.edit(() => deleteItem(each.id));
+    if (each && (await this.edit(() => deleteItem(each.id)))) this.#deleted();
   };
 
   /** Starts renaming what is selected, where the user is: in its row, or on its card (F2). */

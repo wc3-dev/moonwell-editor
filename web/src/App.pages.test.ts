@@ -11,7 +11,9 @@ import {
   arena,
   FakeApp,
   openApp,
+  openSpell,
   press,
+  scriptAnswers,
   showObject,
   triggerAnswers,
 } from "./test/fakeApp.ts";
@@ -40,6 +42,58 @@ const selectedRow = () =>
     .getAllByRole("treeitem")
     .find((row) => row.getAttribute("aria-selected") === "true")
     ?.textContent?.trim();
+
+describe("the Script Editor's button", () => {
+  const button = () =>
+    screen.getByRole<HTMLButtonElement>("button", { name: t("header.scriptEditor") });
+
+  test("is off until a script is open, and says why", async () => {
+    await openApp(scriptAnswers);
+    expect(button().disabled).toBe(true);
+    expect(button().title).toBe(t("header.scriptEditorEmpty"));
+    await openSpell();
+    expect(button().disabled).toBe(false);
+    expect(button().title).toBe(t("header.scriptEditor"));
+  });
+
+  test("goes back to the open scripts from another page", async () => {
+    await openApp(scriptAnswers);
+    await openSpell();
+    await clickHeader(t("header.objectEditor"));
+    await clickHeader(t("header.scriptEditor"));
+    expect(pressed(t("header.scriptEditor"))).toBe(true);
+  });
+
+  test("is off once the last script closes, with the page still shown", async () => {
+    await openApp(scriptAnswers);
+    await openSpell();
+    await clickHeader(t("scripts.close", { name: "Spell" }));
+    await waitFor(() => expect(button().disabled).toBe(true));
+    expect(pressed(t("header.scriptEditor"))).toBe(true);
+    await screen.findByText(t("scripts.empty"));
+  });
+
+  test("is off once the script is deleted in the Trigger Editor", async () => {
+    const app = await openApp(scriptAnswers);
+    await openSpell();
+    await clickHeader(t("header.triggerEditor"));
+    await fireEvent.contextMenu(await screen.findByRole("treeitem", { name: /Spell/ }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: t("triggers.delete") }));
+    const dialog = within(await screen.findByRole("dialog"));
+    app.answers.triggerTree = triggerAnswers.triggerTree;
+    await fireEvent.click(dialog.getByRole("button", { name: t("triggers.delete") }));
+    await waitFor(() => expect(button().disabled).toBe(true));
+  });
+
+  test("is off with another map", async () => {
+    await openApp({ ...scriptAnswers, openMap: { ...arena, path: "C:/Maps/Other" } });
+    await openSpell();
+    await clickHeader(t("header.menu"));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: t("header.openFolder") }));
+    await waitFor(() => expect(document.title).toContain("C:/Maps/Other"));
+    await waitFor(() => expect(button().disabled).toBe(true));
+  });
+});
 
 describe("the header", () => {
   test("with no map the editors are off", async () => {
@@ -258,9 +312,9 @@ describe("the trigger and script editors", () => {
   });
 
   test("each reads the scripts again when it shows", async () => {
-    const app = await openApp(triggerAnswers);
+    const app = await openApp(scriptAnswers);
+    await openSpell();
     await clickHeader(t("header.triggerEditor"));
-    await screen.findByRole("treeitem", { name: /Start/ });
     await settled();
     const asked = app.count("triggerTree");
     await clickHeader(t("header.scriptEditor"));
@@ -281,14 +335,7 @@ describe("the trigger and script editors", () => {
   });
 
   test("a double click on a script opens it in the Script Editor", async () => {
-    const tree = {
-      ...triggerAnswers.triggerTree,
-      items: [
-        ...triggerAnswers.triggerTree.items,
-        { id: 3, parent: 1, kind: "custom", name: "Spell", enabled: true, expanded: true, ref: "" },
-      ],
-    };
-    await openApp({ ...triggerAnswers, triggerTree: tree, trigger: { code: "function x" } });
+    await openApp(scriptAnswers);
     await clickHeader(t("header.triggerEditor"));
     await fireEvent.dblClick(await screen.findByRole("treeitem", { name: /Spell/ }));
     await waitFor(() => expect(pressed(t("header.scriptEditor"))).toBe(true));

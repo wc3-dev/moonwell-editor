@@ -109,7 +109,7 @@ const Token = Node.create({
         title,
         contenteditable: "false",
         class:
-          "mx-px inline-block cursor-default rounded border border-current/40 bg-white/10 px-1 align-baseline text-[0.85em] leading-tight",
+          "mx-px inline-block cursor-default rounded-ui border border-current/40 bg-white/10 px-1 align-baseline text-[0.85em] leading-tight",
       },
       label,
     ];
@@ -337,7 +337,7 @@ export function insert(token: string): void {
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         data-popup
-        class="z-40 max-h-[280px] w-[380px] overflow-auto rounded-lg border border-line bg-surface p-1 text-[13px] text-body shadow-[0_4px_12px_rgba(0,0,0,.3)] outline-none"
+        class="z-40 max-h-[280px] w-[380px] overflow-auto rounded-ui border border-line bg-surface p-1 text-body outline-none"
       >
         <div bind:this={list} role="listbox" aria-label={label}>
           {#each slash.items as item, index (item.token)}
@@ -346,7 +346,7 @@ export function insert(token: string): void {
               tabindex="-1"
               aria-selected={index === slash.index}
               data-index={index}
-              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 {index === slash.index
+              class="flex cursor-pointer items-center gap-2 rounded-ui px-2 py-1 {index === slash.index
                 ? 'bg-hover text-fg'
                 : ''}"
               onpointerdown={(event) => event.preventDefault()}
@@ -357,9 +357,9 @@ export function insert(token: string): void {
               <span class="min-w-0 flex-1 truncate" title={item.owner ? `${item.owner}: ${item.name}` : item.name}>
                 {#if item.owner}<span class="text-muted">{item.owner}: </span>{/if}{item.name}
               </span>
-              <span class="shrink-0 font-mono text-[11.5px] text-faint">{item.token}</span>
+              <span class="shrink-0 font-mono text-mono text-faint">{item.token}</span>
               {#if item.value !== undefined}
-                <span class="shrink-0 font-mono text-[11.5px] text-muted">{item.value}</span>
+                <span class="shrink-0 font-mono text-mono text-muted">{item.value}</span>
               {/if}
             </div>
           {/each}

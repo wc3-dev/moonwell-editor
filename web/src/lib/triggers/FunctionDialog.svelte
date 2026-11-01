@@ -63,13 +63,13 @@ $effect(() => {
         snug
       />
       <input
-        class="w-0 min-w-0 flex-1 rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-0 min-w-0 flex-1 rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
         placeholder={t("triggers.function.filter")}
         aria-label={t("triggers.function.filter")}
         bind:value={text}
       />
     </div>
-    <div class="h-[340px] overflow-auto rounded-[5px] border border-line" role="listbox" aria-label={title}>
+    <div class="h-[340px] overflow-auto rounded-ui border border-line" role="listbox" aria-label={title}>
       {#each functions as each (each.name)}
         <button
           type="button"

@@ -29,14 +29,17 @@ type Props = {
   onnotice: (text: string, warn?: boolean) => void;
   /** Opens a script in the Script Editor. */
   onscript: (script: OpenScript) => void;
+  /** Says something was deleted, which may be a script open in the Script Editor. */
+  ondeleted: () => void;
 };
 
-let { mode, queued, onnotice, onscript }: Props = $props();
+let { mode, queued, onnotice, onscript, ondeleted }: Props = $props();
 
 const state = new TriggerState({
   queued: (run) => queued(run),
   onnotice: (text, warn) => onnotice(text, warn),
   onscript: (script) => onscript(script),
+  ondeleted: () => ondeleted(),
 });
 const drag = new TriggerDrag(state);
 
@@ -78,22 +81,22 @@ onMount(() => {
 });
 </script>
 
-<div class="grid h-full min-h-0 grid-cols-[320px_1fr] max-[1100px]:grid-cols-[250px_1fr]" data-testid="trigger-editor">
+<div class="grid h-full min-h-0 grid-cols-[320px_1fr] gap-1 max-[1100px]:grid-cols-[250px_1fr]" data-testid="trigger-editor">
   <TriggerTree {state} {drag} />
 
   {#if state.problem}
-    <div class="bg-bg p-4"><p class="m-0 text-warn">{state.problem}</p></div>
+    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-warn">{state.problem}</p></div>
   {:else if !state.tree || !state.catalog}
-    <div class="bg-bg p-4"><p class="m-0 text-muted">{t("triggers.loading")}</p></div>
+    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-muted">{t("triggers.loading")}</p></div>
   {:else if state.shown}
     <div
-      class="flex min-h-0 flex-col"
+      class="flex min-h-0 flex-col overflow-hidden rounded-ui"
       role="presentation"
       onpointerdown={() => (state.zone = "grid")}
       onfocusin={() => (state.zone = "grid")}
     >
       {#if state.tree.problem}
-        <p class="m-0 border-b border-line bg-surface px-3 py-1 text-warn">{state.tree.problem}</p>
+        <p class="m-0 bg-surface px-3 py-1 text-warn">{state.tree.problem}</p>
       {/if}
       <div class="min-h-0 flex-1">
         <TriggerCanvas
@@ -120,7 +123,7 @@ onMount(() => {
   {:else if state.item?.kind === "root"}
     <MapHeaderPanel {state} tree={state.tree} root={state.item} />
   {:else if state.gridParent === null}
-    <div class="bg-bg p-4"><p class="m-0 text-muted">{t("triggers.nothingSelected")}</p></div>
+    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-muted">{t("triggers.nothingSelected")}</p></div>
   {/if}
 </div>
 

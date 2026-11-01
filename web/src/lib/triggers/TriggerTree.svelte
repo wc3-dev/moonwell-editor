@@ -35,12 +35,12 @@ const iconOf: Record<TreeKind, typeof Folder> = {
 </script>
 
 <aside
-  class="flex min-h-0 flex-col border-r border-line bg-surface"
+  class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-surface"
   aria-label={t("triggers.tree")}
   onpointerdown={() => (state.zone = "tree")}
   onfocusin={() => (state.zone = "tree")}
 >
-  <div class="flex items-center gap-0.5 border-b border-line px-2 py-1">
+  <div class="flex items-center gap-0.5 px-[3px] py-px">
     <button type="button" class={toolButton} disabled={state.readOnly} title={t("triggers.new.category")} aria-label={t("triggers.new.category")} onclick={() => state.add("category")}>
       <FolderPlus size={16} />
     </button>
@@ -57,7 +57,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
       <SquareFunction size={16} />
     </button>
   </div>
-  <div class="border-b border-line p-2">
+  <div class="px-[3px] pb-[3px]">
     <input class={box} placeholder={t("triggers.filter")} aria-label={t("triggers.filter")} bind:value={state.filter} />
   </div>
   <div class="min-h-0 flex-1 overflow-auto py-1" role="tree" aria-label={t("triggers.tree")}>
@@ -66,7 +66,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
       {@const renaming = state.renaming?.id === row.item.id}
       {@const dropHere = drag.dropAt?.id === row.item.id ? drag.dropAt.place : null}
       <div
-        class="flex h-[26px] items-center gap-1 pr-2 {dropHere === 'inside' ? 'bg-accent-lo text-fg outline-1 -outline-offset-1 outline-accent' : state.selected === row.item.id && !dropHere ? (state.zone === 'tree' ? 'bg-accent/25 text-fg shadow-[inset_2px_0_0_var(--accent)]' : 'bg-hover text-fg') : 'text-body hover:bg-hover'}"
+        class="flex h-[22px] items-center gap-1 pr-2 {dropHere === 'inside' ? 'bg-accent-lo text-fg outline-1 -outline-offset-1 outline-accent' : state.selected === row.item.id && !dropHere ? (state.zone === 'tree' ? 'bg-select text-fg [&_*]:text-inherit' : 'bg-raised text-fg') : 'text-body hover:bg-hover'}"
         class:shadow-[inset_0_2px_0_var(--accent)]={dropHere === "before"}
         class:shadow-[inset_0_-2px_0_var(--accent)]={dropHere === "after"}
         style:padding-left={`${row.depth * 16 + 4}px`}
@@ -107,7 +107,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
         <Icon size={15} class="shrink-0 {row.item.enabled ? 'text-muted' : 'text-faint'}" />
         {#if renaming && state.renaming?.where === "tree"}
           <input
-            class="min-w-0 flex-1 rounded-[3px] border border-accent bg-bg px-1 py-0 text-fg outline-none"
+            class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-fg outline-none"
             value={row.item.name}
             aria-label={t("triggers.name")}
             spellcheck="false"

@@ -77,7 +77,7 @@ function focusOnMount(element: HTMLInputElement): void {
 
 <button
   type="button"
-  class="shrink-0 rounded p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
+  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
   title={kind === "icon" ? t("assetPicker.pickIcon") : t("assetPicker.pickModel")}
   aria-label={t("assetPicker.pickThe", { field: label })}
   aria-haspopup="dialog"
@@ -91,24 +91,24 @@ function focusOnMount(element: HTMLInputElement): void {
   <Popover anchor={button} onclose={() => (open = false)} large>
     <div class="flex flex-col gap-2 {kind === 'icon' ? 'w-[430px]' : 'w-[640px]'}">
       <input
-        class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
         placeholder={kind === "icon" ? t("assetPicker.searchIcons") : t("assetPicker.searchModels")}
         aria-label={t("assetPicker.search")}
         bind:value={query}
         use:focusOnMount
       />
       {#if problem}
-        <p class="m-0 text-[12.5px] text-warn">{problem}</p>
+        <p class="m-0 text-warn">{problem}</p>
       {:else if !list}
-        <p class="m-0 text-[12.5px] text-muted">
+        <p class="m-0 text-muted">
           {kind === "icon" ? t("assetPicker.readingIcons") : t("assetPicker.readingModels")}
         </p>
       {:else if !list.ready}
-        <p class="m-0 text-[12.5px] text-warn">
+        <p class="m-0 text-warn">
           {list.error ?? t("assetPicker.notReady")}
         </p>
       {:else if shown.length === 0}
-        <p class="m-0 text-[12.5px] text-muted">{t("assetPicker.noMatch", { query })}</p>
+        <p class="m-0 text-muted">{t("assetPicker.noMatch", { query })}</p>
       {/if}
 
       {#if kind === "icon"}
@@ -116,7 +116,7 @@ function focusOnMount(element: HTMLInputElement): void {
           {#each shown as path (path)}
             <button
               type="button"
-              class="rounded border p-0.5 hover:border-accent {path.toLowerCase() === value.trim().toLowerCase()
+              class="rounded-ui border p-0.5 hover:border-accent {path.toLowerCase() === value.trim().toLowerCase()
                 ? 'border-accent bg-accent-lo'
                 : 'border-transparent'}"
               title={path}
@@ -134,7 +134,7 @@ function focusOnMount(element: HTMLInputElement): void {
                 type="button"
                 role="option"
                 aria-selected={path.toLowerCase() === value.trim().toLowerCase()}
-                class="shrink-0 truncate rounded px-1.5 py-0.5 text-left font-mono text-[12px] hover:bg-hover {path.toLowerCase() ===
+                class="shrink-0 truncate rounded-ui px-1.5 py-0.5 text-left font-mono text-mono hover:bg-hover {path.toLowerCase() ===
                 value.trim().toLowerCase()
                   ? 'text-accent-hi'
                   : 'text-body'}"
@@ -154,11 +154,11 @@ function focusOnMount(element: HTMLInputElement): void {
                 size={240}
                 teamColor={prefs.teamColor}
               />
-              <p class="m-0 mt-1 w-[240px] truncate font-mono text-[11px] text-faint" title={previewed}>
+              <p class="m-0 mt-1 w-[240px] truncate font-mono text-mono text-faint" title={previewed}>
                 {previewed}
               </p>
             {:else}
-              <div class="flex size-[240px] items-center justify-center rounded border border-dashed border-line text-[12px] text-faint">
+              <div class="flex size-[240px] items-center justify-center rounded-ui border border-dashed border-line text-faint">
                 {t("assetPicker.noModel")}
               </div>
             {/if}

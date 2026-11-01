@@ -61,7 +61,7 @@ onMount(() => {
   oncontextmenu={(event) => !typingIn(event.target) && event.preventDefault()}
 />
 
-<div class="grid h-full grid-cols-1 grid-rows-[23px_44px_1fr_26px]">
+<div class="grid h-full grid-cols-1 grid-rows-[23px_30px_1fr_22px]">
   <TitleBar
     map={session.map}
     back={history.behind.map(visitOf)}

@@ -39,16 +39,16 @@ const icons: Record<Kind, Component<{ size?: number }>> = {
     {@const Icon = icons[each]}
     <button
       type="button"
-      class="rounded-[5px] p-1.5 disabled:opacity-50 {kindText[each]} {each === kind
-        ? 'bg-raised ring-1 ring-current'
-        : 'opacity-70 hover:bg-hover hover:opacity-100'}"
+      class="tool-button disabled:opacity-50 {kindText[each]} {each === kind
+        ? ''
+        : 'opacity-70 hover:opacity-100'}"
       title={kindNames[each]}
       aria-label={kindNames[each]}
       aria-pressed={each === kind}
       {disabled}
       onclick={() => onkind(each)}
     >
-      <Icon size={17} />
+      <Icon size={16} />
     </button>
   {/each}
 </div>

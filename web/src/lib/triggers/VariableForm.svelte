@@ -40,7 +40,7 @@ const options = $derived(
 );
 const label = "mb-1 block text-muted";
 const box =
-  "w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent disabled:opacity-60";
+  "w-full rounded-ui border border-line bg-field px-2 py-1 text-fg outline-none focus:border-accent disabled:opacity-60";
 </script>
 
 <div class="flex max-w-[460px] flex-col gap-3">
@@ -79,7 +79,7 @@ const box =
     <div>
       <button
         type="button"
-        class="rounded-md border border-accent bg-raised px-3 py-1.5 text-fg hover:bg-hover"
+        class="rounded-ui bg-primary px-3 py-1 text-fg hover:brightness-110"
         onclick={() => onsave({ name: name.trim(), type, isArray, size, initial })}
       >
         {t("triggers.variable.save")}

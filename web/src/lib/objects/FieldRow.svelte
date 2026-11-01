@@ -102,9 +102,9 @@ async function flip(event: MouseEvent): Promise<void> {
 
 <div
   data-changed={field.changed || undefined}
-  class="grid min-h-[30px] grid-cols-[22px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-t border-line {selected
-    ? 'bg-accent/10 outline outline-1 -outline-offset-1 outline-accent/60'
-    : 'hover:bg-surface'}"
+  class="grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected
+    ? ''
+    : 'hover:bg-raised'}"
   role="group"
   aria-label={field.label}
   onfocusin={() => onselect(field)}
@@ -116,24 +116,24 @@ async function flip(event: MouseEvent): Promise<void> {
     onmenu(field, event.clientX, event.clientY);
   }}
 >
-  <span class="h-[18px] w-1 justify-self-center rounded-sm {field.changed ? 'bg-changed' : ''}"></span>
+  <span class="h-full w-[3px] justify-self-center {field.changed ? 'bg-changed' : ''}"></span>
   <button
     type="button"
-    class="cursor-default py-1 pr-2 text-left focus:outline-none {nested ? 'pl-5 text-muted' : ''}"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-1.5 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
     title={editable && field.modes ? title : undefined}
     onclick={() => onselect(field)}
   >
     {field.label}
-    {#if showIds}<span class="ml-1.5 font-mono text-[12.5px] text-faint">{field.id}</span>{/if}
+    {#if showIds}<span class="ml-1.5 font-mono text-mono text-faint">{field.id}</span>{/if}
   </button>
   <!-- The value starts right after the names, as World Editor lays them out (Sven, 2026-10-27). -->
-  <span class="flex min-w-0 items-center gap-1 px-2 py-[3px]">
+  <span class="flex min-w-0 items-center gap-1 px-1">
     {#if field.asset === "icon" && field.value.trim()}
       <!-- The icon the field names (Sven, 2026-10-27). -->
       <img
         src={iconUrl(field.value, graphics.mode)}
         alt=""
-        class="size-6 shrink-0 rounded-[2px]"
+        class="size-5 shrink-0 rounded-[2px]"
         draggable="false"
         onerror={(event) => ((event.currentTarget as HTMLImageElement).style.display = "none")}
       />
@@ -174,22 +174,22 @@ async function flip(event: MouseEvent): Promise<void> {
             {@const found = object.found}
             <button
               type="button"
-              class="rounded border border-line bg-raised px-1.5 text-[12.5px] hover:border-accent {field.changed
+              class="rounded-ui border border-transparent bg-raised px-1.5 hover:border-accent {field.changed
                 ? 'text-changed'
                 : 'text-fg'}"
               onclick={() => onopen(found.kind, object.id)}
             >
               {found.name}
-              <span class="font-mono text-faint">{object.id}</span>
+              <span class="font-mono text-mono text-faint">{object.id}</span>
             </button>
           {:else}
-            <span class="rounded border border-line px-1.5 font-mono text-[12.5px] text-muted">{object.id}</span>
+            <span class="rounded-ui border border-line px-1.5 font-mono text-mono text-muted">{object.id}</span>
           {/if}
         {/each}
       </span>
     {:else}
       <span
-        class="block max-w-full truncate rounded border px-1.5 py-[3px] font-mono text-[12.5px] {field.warning
+        class="block max-w-full truncate rounded-ui border px-1.5 py-px font-mono text-mono {field.warning
           ? 'border-warn bg-warn-lo'
           : 'border-transparent'} {field.changed ? 'text-changed' : 'text-fg'}"
         {title}
@@ -199,8 +199,8 @@ async function flip(event: MouseEvent): Promise<void> {
     {/if}
   </span>
   {#if error}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-xs text-warn" role="alert">{error}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn" role="alert">{error}</span>
   {:else if field.warning}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-xs text-warn">{field.warning}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn">{field.warning}</span>
   {/if}
 </div>

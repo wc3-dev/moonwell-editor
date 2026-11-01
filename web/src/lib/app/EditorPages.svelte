@@ -32,6 +32,7 @@ const notice = (text: string, warn?: boolean) => notices.say(text, { warn });
         queued={queue.run}
         onnotice={notice}
         onscript={pages.openScript}
+        ondeleted={pages.triggerDeleted}
       />
     {/key}
   </main>

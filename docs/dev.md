@@ -164,7 +164,8 @@ has a code theme of its own, which follows the interface's theme until one is ch
 
 The Script Editor (`ScriptEditor.svelte`) is a page of its own, with the scripts opened from the Trigger Editor down the
 side (`openScripts.ts`). It stays in the page for as long as the map is open, and so does the trigger editor once shown:
-the two editors read the map's scripts again when they show, as both change them.
+the two editors read the map's scripts again when they show, as both change them. Its header button is off with no
+script open, so a delete in the Trigger Editor has it read them too, as a deleted script closes.
 
 Its editor is Monaco in monaco-languageclient's extended mode, on `@codingame/monaco-vscode-api`, which is VS Code's own
 services in the page. The cards stay on CodeMirror, as the grid scales them with CSS and Monaco has reports of clicks
@@ -204,6 +205,13 @@ in `app/windowKeys.ts`, and `Editor.onkeydown` carries it out.
 
 An `$effect` here is for following something outside the state classes: the theme onto the page, the title onto the window,
 a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.
+
+The look is in `app.css`. The interface has one size, the body's, so most text has no size class; the others are
+`text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. `bg-gutter`, `bg-field`, `bg-select`,
+`bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
+shading is `.toolbar` and `.tool-button`, the only shading there is. The trigger canvas stays out of all of it: its files
+(`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
+it its font and scroll bars.
 
 ## Interface text
 

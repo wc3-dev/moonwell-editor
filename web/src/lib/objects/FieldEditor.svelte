@@ -40,7 +40,7 @@ type Props = {
   error?: string;
   /** Text the box starts with as typed (a number or text box only); null or undefined starts from the value. */
   initial?: string | null;
-  /** True when the field is the one selected: its boxes show their border, not only on hover. */
+  /** True when the field is the one selected: its boxes show as boxes, not only on hover. */
   selected?: boolean;
   /** True when the field ids are shown (Ctrl D): an object list's chips show their objects' ids. */
   showIds?: boolean;
@@ -135,10 +135,10 @@ const title = $derived(
 // background and border of its own, so it shows as a box on the row (Sven, 2026-10-27). Every box (a number, a text,
 // True or False, a dropdown) shows only its value, as the tooltip editor's texts do: a dashed border on hover, the
 // accent's while it has the cursor, and its placeholder when it is empty (Sven, 2026-10-28); a dropdown keeps its
-// arrow (Sven, 2026-10-29). The selected field's boxes show a solid border, as they do with the cursor in them (Sven,
+// arrow (Sven, 2026-10-29). The selected field's boxes show as a field, as they do with the cursor in them (Sven,
 // 2026-10-29).
 const quiet = $derived(
-  `${error || field.warning ? "border-warn bg-warn-lo" : selected ? "border-muted bg-transparent" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
+  `${error || field.warning ? "border-warn bg-warn-lo" : selected ? "border-transparent bg-field" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
     field.changed ? "text-changed" : "text-fg"
   }`,
 );
@@ -148,7 +148,7 @@ const toggleWords = $derived([
   shownValue({ ...field, value: "0" }, choices, nameOf),
 ]);
 const boxClass = $derived(
-  `min-w-0 rounded border py-[3px] font-mono text-[12.5px] outline-none placeholder:text-faint focus:border-solid focus:border-accent ${
+  `min-w-0 rounded-ui border py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field ${
     compact ? "w-full" : "field-sizing-content min-w-[8ch] max-w-full"
   } ${quiet}`,
 );
@@ -257,7 +257,7 @@ function oninput(event: Event): void {
     <!-- The word alone, with no checkbox and no box; a click turns it (Sven, 2026-10-29). -->
     <button
       type="button"
-      class="inline-grid cursor-pointer rounded border border-transparent px-1.5 py-[3px] text-left font-mono text-[12.5px] outline-none focus-visible:border-accent {error ||
+      class="inline-grid cursor-pointer rounded-ui border border-transparent px-1.5 py-px text-left font-mono text-mono outline-none focus-visible:border-accent {error ||
       field.warning
         ? 'text-warn'
         : field.changed

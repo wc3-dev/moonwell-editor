@@ -29,7 +29,7 @@ const swatch = [
 </script>
 
 {#snippet palette(each: Theme)}
-  <span class="flex shrink-0 overflow-hidden rounded-sm border border-black/30">
+  <span class="flex shrink-0 overflow-hidden rounded-ui border border-black/30">
     {#each swatch as token (token)}
       <span class="h-4 w-2.5" style:background={each.colors[token]}></span>
     {/each}
@@ -38,7 +38,7 @@ const swatch = [
 
 <button
   type="button"
-  class="flex w-72 items-center gap-2 rounded-md border border-line bg-bg px-2 py-1.5 text-left hover:border-muted"
+  class="flex w-72 items-center gap-2 rounded-ui border border-transparent bg-field px-2 py-1.5 text-left hover:border-muted"
   aria-label={label}
   aria-haspopup="listbox"
   aria-expanded={open}
@@ -57,7 +57,7 @@ const swatch = [
           type="button"
           role="option"
           aria-selected={each.id === selected.id}
-          class="flex items-center gap-2 rounded px-2 py-1 text-left hover:bg-hover"
+          class="flex items-center gap-2 rounded-ui px-2 py-1 text-left hover:bg-hover"
           onclick={() => {
             onpick(each);
             open = false;

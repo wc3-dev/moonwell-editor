@@ -12,12 +12,12 @@ type Props = { state: TriggerState; tree: TriggerTree; root: TreeItem };
 let { state, tree, root }: Props = $props();
 </script>
 
-<div class="flex min-h-0 flex-col overflow-auto bg-bg p-4">
+<div class="flex min-h-0 flex-col overflow-auto rounded-ui bg-surface p-4">
   {#if tree.problem}
     <p class="m-0 mb-3 text-warn">{tree.problem}</p>
   {/if}
   <div class="mb-1 flex items-center">
-    <h2 class="m-0 font-heading text-lg font-bold text-fg">{t("triggers.mapHeader")}</h2>
+    <h2 class="m-0 text-title font-semibold text-fg">{t("triggers.mapHeader")}</h2>
     <button type="button" class="ml-auto {toolButton}" title={t("triggers.openInScriptEditor")} aria-label={t("triggers.openInScriptEditor")} onclick={() => state.openScript(root)}>
       <SquareArrowOutUpRight size={16} />
     </button>

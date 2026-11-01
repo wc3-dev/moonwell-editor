@@ -55,7 +55,7 @@ let {
   onrename,
 }: Props = $props();
 
-const rowHeight = 26;
+const rowHeight = 22;
 const overscan = 12;
 
 // Groups the user opened or closed, by `kind:path`; any other is closed, except Custom and Standard, which start open.
@@ -151,9 +151,9 @@ function clearOnEscape(event: KeyboardEvent): void {
 </script>
 
 <div class="flex h-full min-h-0 flex-col">
-  <div class="border-b border-line px-2.5 py-2">
+  <div class="p-[3px]">
     <input
-      class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+      class="w-full rounded-ui border border-transparent bg-field px-2 py-px text-fg outline-none focus:border-accent"
       placeholder={t("tree.filterPlaceholder")}
       aria-label={t("tree.filterLabel")}
       bind:value={filter}
@@ -187,7 +187,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                  (Sven, 2026-10-27). -->
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 pr-2.5 pl-2.5 text-left text-xs tracking-[.06em] text-muted uppercase hover:text-fg"
+              class="flex w-full items-center gap-1.5 pr-2.5 pl-2.5 text-left font-semibold text-body hover:text-fg"
               style:height="{rowHeight}px"
               aria-expanded={line.open}
               onclick={() => {
@@ -199,7 +199,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                 {#if line.open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
               </span>
               {line.name}
-              <span class="ml-auto font-mono text-[11px] tracking-normal text-faint normal-case">{line.count}</span>
+              <span class="ml-auto font-mono text-mono text-faint">{line.count}</span>
             </button>
           {:else if line.type === "group"}
             <button
@@ -217,18 +217,18 @@ function clearOnEscape(event: KeyboardEvent): void {
                 {#if line.open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
               </span>
               {groupName(line.name)}
-              <span class="ml-auto font-mono text-[11px] text-faint">{line.count}</span>
+              <span class="ml-auto font-mono text-mono text-faint">{line.count}</span>
             </button>
           {:else if line.type === "entry" && line.entry.id === renaming}
             {@const entry = line.entry}
             <div
-              class="flex w-full items-center gap-1.5 bg-accent/25 pr-2.5 shadow-[inset_2px_0_0_var(--accent)]"
+              class="flex w-full items-center gap-1.5 bg-select pr-2.5"
               style:height="{rowHeight}px"
               style:padding-left="{10 + line.depth * 16}px"
             >
               <span class="w-3 shrink-0"></span>
               <input
-                class="min-w-0 flex-1 rounded-[3px] border border-accent bg-bg px-1 py-0 text-fg outline-none"
+                class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-fg outline-none"
                 value={entry.name}
                 aria-label={t("tree.renameLabel", { id: entry.id })}
                 spellcheck="false"
@@ -240,7 +240,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                 }}
                 onblur={(event) => finishRename(entry.id, event.currentTarget.value)}
               />
-              <span class="pl-2 font-mono text-[12.5px] text-faint">{entry.id}</span>
+              <span class="pl-2 font-mono text-mono text-faint">{entry.id}</span>
             </div>
           {:else if line.type === "entry"}
             {@const entry = line.entry}
@@ -252,8 +252,8 @@ function clearOnEscape(event: KeyboardEvent): void {
               class="flex w-full items-center gap-1.5 pr-2.5 text-left whitespace-nowrap {entry.id ===
               selected
                 ? active
-                  ? 'bg-accent/25 text-fg shadow-[inset_2px_0_0_var(--accent)]'
-                  : 'bg-hover text-fg'
+                  ? 'bg-select text-fg [&_*]:text-inherit'
+                  : 'bg-raised text-fg'
                 : 'hover:bg-hover'}"
               style:height="{rowHeight}px"
               style:padding-left="{10 + line.depth * 16}px"
@@ -272,7 +272,7 @@ function clearOnEscape(event: KeyboardEvent): void {
               {#if entry.icon}
                 <!-- A frame in the theme's colours covers the game's own icon border; only here, in the tree (Sven,
                      2026-10-27; always, Sven, 2026-10-29). -->
-                <span class="relative size-[18px] shrink-0">
+                <span class="relative size-4 shrink-0">
                   <img
                     src={iconUrl(entry.iconModes?.[graphics.mode] ?? entry.icon, graphics.mode)}
                     alt=""
@@ -297,7 +297,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                   title={t("tree.changedStandard")}
                 ></span>
               {/if}
-              <span class="ml-auto pl-2 font-mono text-[12.5px] text-faint">{entry.id}</span>
+              <span class="ml-auto pl-2 font-mono text-mono text-faint">{entry.id}</span>
             </button>
           {/if}
         {/each}

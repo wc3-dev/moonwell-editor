@@ -72,15 +72,15 @@ async function reset(field: FieldView): Promise<void> {
 }
 </script>
 
-<div class="grid grid-cols-[22px_1fr] border-t border-line">
+<div class="grid grid-cols-[8px_1fr] border-b border-hairline">
   <span></span>
   <div class="overflow-x-auto py-1 pr-2 pb-2">
     <table class="border-collapse">
       <thead>
         <tr>
-          <th class="border border-line px-2 py-0.5"></th>
+          <th class="border border-hairline px-2 py-0.5"></th>
           {#each columns as level (level)}
-            <th class="border border-line px-2 py-0.5 text-right font-mono text-[12.5px] font-normal text-muted">
+            <th class="border border-hairline px-2 py-0.5 text-right font-mono text-mono font-normal text-muted">
               {level}
             </th>
           {/each}
@@ -89,11 +89,11 @@ async function reset(field: FieldView): Promise<void> {
       <tbody>
         {#each rows as row (row.id)}
           <tr data-changed={isChanged(row) || undefined}>
-            <th class="border border-line px-2 py-0.5 text-left font-normal whitespace-nowrap">
+            <th class="border border-hairline px-2 py-0.5 text-left font-normal whitespace-nowrap">
               <span class="inline-flex items-center gap-1.5">
-                <span class="h-3.5 w-1 rounded-sm {isChanged(row) ? 'bg-changed' : ''}"></span>
+                <span class="h-3.5 w-1 rounded-ui {isChanged(row) ? 'bg-changed' : ''}"></span>
                 {row.label}
-                {#if showIds}<span class="font-mono text-[12.5px] text-faint">{row.id}</span>{/if}
+                {#if showIds}<span class="font-mono text-mono text-faint">{row.id}</span>{/if}
               </span>
             </th>
             {#each row.levels ?? [] as field (field.level)}
@@ -103,7 +103,7 @@ async function reset(field: FieldView): Promise<void> {
                 <td
                   class="group border p-0 align-middle {field.warning || errors[key]
                     ? 'border-warn'
-                    : 'border-line'} {selected === key ? 'bg-accent/10 outline outline-1 -outline-offset-1 outline-accent/60' : ''}"
+                    : 'border-hairline'} {selected === key ? 'bg-select' : ''}"
                   title={field.warning ?? undefined}
                   onfocusin={() => onselect(field)}
                   onpointerdown={() => onselect(field)}
@@ -131,7 +131,7 @@ async function reset(field: FieldView): Promise<void> {
                     {#if field.changed}
                       <button
                         type="button"
-                        class="px-1 text-xs text-changed opacity-40 group-hover:opacity-100 hover:text-fg focus:opacity-100"
+                        class="px-1 text-changed opacity-40 group-hover:opacity-100 hover:text-fg focus:opacity-100"
                         title={t("levelGrid.resetTitle", {
                           level: field.level,
                           value: standardOf(field) || t("field.empty"),
@@ -144,19 +144,19 @@ async function reset(field: FieldView): Promise<void> {
                     {/if}
                   </span>
                   {#if errors[key]}
-                    <span class="block max-w-56 px-1.5 pb-0.5 text-[11px] whitespace-normal text-warn" role="alert">
+                    <span class="block max-w-56 px-1.5 pb-0.5 text-small whitespace-normal text-warn" role="alert">
                       {errors[key]}
                     </span>
                   {/if}
                 </td>
               {:else}
                 <td
-                  class="max-w-56 truncate border px-2 py-0.5 font-mono text-[12.5px] {field.type ===
+                  class="max-w-56 truncate border px-2 py-0.5 font-mono text-mono {field.type ===
                     'int' || field.type === 'float'
                     ? 'text-right'
                     : 'text-left'} {field.changed ? 'text-changed' : 'text-fg'} {field.warning
                     ? 'border-warn bg-warn-lo'
-                    : 'border-line'}"
+                    : 'border-hairline'}"
                   title={cellTitle(field, shown)}
                   oncontextmenu={(event) => menuOf(field, event)}
                 >

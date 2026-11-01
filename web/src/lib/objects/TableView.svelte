@@ -566,21 +566,21 @@ function bulkKeys(event: KeyboardEvent): void {
   }
 }
 
-const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespace-nowrap";
+const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
 </script>
 
-<div class="flex h-full min-h-0 flex-col">
-  <div class="flex flex-col gap-2 border-b border-line px-[18px] pt-3 pb-2.5">
+<div class="flex h-full min-h-0 flex-col overflow-hidden rounded-ui bg-surface">
+  <div class="flex flex-col gap-1 px-1.5 py-1">
     <div class="flex flex-wrap items-center gap-2">
       <input
-        class="w-60 rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-60 rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
         placeholder={t("table.filterPlaceholder")}
         aria-label={t("table.filterLabel")}
         bind:this={filterInput}
         bind:value={filter}
         onkeydown={clearOnEscape}
       />
-      <span class="text-[12.5px] text-muted" data-testid="table-count">
+      <span class="text-muted" data-testid="table-count">
         {#if shown}
           {tCount("table.objects", rows.length)}
         {/if}
@@ -592,20 +592,20 @@ const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespa
         {@const on = chips?.groups.includes(group.key) ?? false}
         <button
           type="button"
-          class="{chip} {on ? 'border-accent text-fg' : 'border-line text-muted hover:text-body'}"
+          class="{chip} border-transparent {on ? 'bg-select text-fg' : 'bg-raised text-muted hover:text-body'}"
           aria-pressed={on}
           onclick={() => toggle(group.key)}
         >
           {group.name}
-          <span class="ml-0.5 font-mono text-[11px] text-faint">{group.count}</span>
+          <span class="ml-0.5 font-mono text-mono text-faint">{group.count}</span>
         </button>
       {/each}
       <span class="mx-1 h-4 w-px bg-line"></span>
       <button
         type="button"
         class="{chip} {chips?.changed
-          ? 'border-changed text-changed'
-          : 'border-line text-muted hover:text-body'}"
+          ? 'border-changed bg-raised text-changed'
+          : 'border-transparent bg-raised text-muted hover:text-body'}"
         aria-pressed={chips?.changed ?? false}
         title={t("table.changedTitle")}
         onclick={toggleChanged}
@@ -613,17 +613,17 @@ const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespa
         {t("table.changedChip")}
       </button>
       {#if chips && chips.groups.length === 0}
-        <span class="text-[12.5px] text-faint">{t("table.everyGroup")}</span>
+        <span class="text-faint">{t("table.everyGroup")}</span>
       {/if}
     </div>
-    <div class="flex flex-wrap items-center gap-2 text-[12.5px]" role="group" aria-label={t("table.bulkLabel")}>
+    <div class="flex flex-wrap items-center gap-2" role="group" aria-label={t("table.bulkLabel")}>
       <span class="text-muted" data-testid="table-selection">{selectedText} ·</span>
       <label class="flex items-center gap-2 text-muted">
         {t("table.setTo")}
         <input
-          class="w-36 rounded-[5px] border bg-bg px-2 py-0.5 font-mono text-fg outline-none focus:border-accent {bulkError
+          class="w-36 rounded-ui border bg-field px-2 py-0.5 font-mono text-mono text-fg outline-none focus:border-accent {bulkError
             ? 'border-warn'
-            : 'border-line'}"
+            : 'border-transparent'}"
           placeholder={t("table.bulkPlaceholder")}
           spellcheck="false"
           aria-invalid={!!bulkError}
@@ -634,7 +634,7 @@ const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespa
       </label>
       <button
         type="button"
-        class="rounded-[5px] border border-line bg-raised px-2.5 py-0.5 text-fg hover:border-accent disabled:opacity-40 disabled:hover:border-line"
+        class="rounded-ui border border-transparent bg-raised px-2.5 py-0.5 text-fg hover:border-accent disabled:opacity-40 disabled:hover:border-transparent"
         disabled={!selection || bulkText.trim() === ""}
         onclick={apply}
       >
@@ -647,7 +647,7 @@ const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespa
       {/if}
     </div>
     {#if treeError || fieldsError || rowsError || pickerError}
-      <p class="m-0 text-[12.5px] text-warn" role="alert">
+      <p class="m-0 text-warn" role="alert">
         {treeError || fieldsError || rowsError || pickerError}
       </p>
     {/if}
@@ -655,7 +655,7 @@ const chip = "rounded-full border bg-raised px-2.5 py-0.5 text-[12.5px] whitespa
 
   {#if !entries || !kindFields || !shown}
     {#if !treeError && !fieldsError && !rowsError}
-      <p class="mx-[18px] mt-3.5 text-muted">{t("table.loading")}</p>
+      <p class="mx-2 mt-1.5 text-muted">{t("table.loading")}</p>
     {/if}
   {:else}
     <TableGrid

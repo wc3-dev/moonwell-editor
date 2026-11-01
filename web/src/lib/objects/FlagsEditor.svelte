@@ -63,7 +63,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
 
 <button
   type="button"
-  class="flex min-w-0 cursor-pointer items-center gap-1 rounded border py-[3px] pr-1 pl-1.5 text-left font-mono text-[12.5px] focus:border-solid focus:border-accent focus:outline-none {tone} {compact
+  class="flex min-w-0 cursor-pointer items-center gap-1 rounded-ui border py-px pr-1 pl-1.5 text-left font-mono text-mono focus:border-solid focus:border-accent focus:outline-none {tone} {compact
     ? 'w-full max-w-56'
     : 'max-w-full'}"
   style:width={compact ? undefined : `calc(${width}ch + 32px)`}
@@ -81,7 +81,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
   <Popover anchor={button} onclose={() => (open = false)}>
     <div class="flex flex-col" role="group" aria-label={field.label}>
       {#each options as option (option.value)}
-        <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-hover">
+        <label class="flex cursor-pointer items-center gap-2 rounded-ui px-2 py-1 hover:bg-hover">
           <input
             type="checkbox"
             class="accent-accent"
@@ -89,7 +89,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
             onchange={(event) => toggle(option.value, event.currentTarget.checked)}
           />
           <span class="flex-1">{option.label}</span>
-          <span class="font-mono text-[11.5px] text-faint">{option.value}</span>
+          <span class="font-mono text-mono text-faint">{option.value}</span>
         </label>
       {/each}
     </div>

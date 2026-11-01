@@ -20,7 +20,7 @@ let { value, onpick }: Props = $props();
     {@const chosen = playerIndex(value) === index}
     <button
       type="button"
-      class="aspect-square rounded-sm border {chosen
+      class="aspect-square rounded-ui border {chosen
         ? 'relative z-10 border-bg outline-2 outline-fg'
         : 'border-line hover:border-muted'}"
       style="background-color: {colour.hex}"

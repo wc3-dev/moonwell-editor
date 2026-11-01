@@ -33,7 +33,7 @@ async function pick(x: number, y: number): Promise<void> {
 
 <button
   type="button"
-  class="shrink-0 rounded p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
+  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
   title={t("commandCard.pickTitle")}
   aria-label={t("commandCard.pickLabel", { field: pair.x.label.replace(/\s*\(X\)$/, "") })}
   aria-haspopup="dialog"
@@ -46,16 +46,16 @@ async function pick(x: number, y: number): Promise<void> {
 {#if open && button}
   <Popover anchor={button} onclose={() => (open = false)}>
     <div class="p-1">
-      <p class="m-0 mb-2 text-xs text-muted">{t("commandCard.heading")}</p>
+      <p class="m-0 mb-2 text-muted">{t("commandCard.heading")}</p>
       <div class="grid grid-cols-4 gap-1" role="grid" aria-label={t("commandCard.label")}>
         {#each rows as y (y)}
           {#each columns as x (x)}
             {@const here = at.x === x && at.y === y}
             <button
               type="button"
-              class="flex size-10 items-center justify-center rounded border font-mono text-[11px] {here
+              class="flex size-10 items-center justify-center rounded-ui border font-mono text-mono {here
                 ? 'border-accent bg-accent-lo text-accent-hi'
-                : 'border-line bg-bg text-faint hover:border-muted hover:text-fg'}"
+                : 'border-transparent bg-field text-faint hover:border-muted hover:text-fg'}"
               title={t("commandCard.cell", { x, y })}
               aria-pressed={here}
               onclick={() => pick(x, y)}
@@ -66,7 +66,7 @@ async function pick(x: number, y: number): Promise<void> {
         {/each}
       </div>
       {#if error}
-        <p class="m-0 mt-1 max-w-44 text-[11.5px] text-warn" role="alert">{error}</p>
+        <p class="m-0 mt-1 max-w-44 text-small text-warn" role="alert">{error}</p>
       {/if}
     </div>
   </Popover>

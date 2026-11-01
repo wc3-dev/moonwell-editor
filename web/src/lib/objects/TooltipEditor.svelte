@@ -390,7 +390,7 @@ const changedCount = $derived(
   {@const key = keyOf(part.field)}
   <!-- Hovered or edited, a text names its field at the bottom, where it covers nothing (Sven, 2026-10-29). -->
   <div
-    class="-mx-1 rounded px-1 outline-1 outline-transparent outline-dashed hover:outline-white/30 focus-within:outline-accent"
+    class="-mx-1 rounded-ui px-1 outline-1 outline-transparent outline-dashed hover:outline-white/30 focus-within:outline-accent"
     role="group"
     onmouseenter={() => (hovered = key)}
     onmouseleave={() => (hovered = null)}
@@ -421,7 +421,7 @@ const changedCount = $derived(
     {#each presets as preset (preset.css)}
       <button
         type="button"
-        class="size-5 rounded border border-line hover:border-fg"
+        class="size-5 rounded-ui border border-line hover:border-fg"
         style:background-color={preset.css}
         title={t("tooltipEditor.presetTitle", { name: preset.name, colour: preset.css })}
         aria-label={t("tooltipEditor.colourTitle", { colour: preset.name })}
@@ -431,7 +431,7 @@ const changedCount = $derived(
     {/each}
     <button
       type="button"
-      class="flex size-5 items-center justify-center rounded border border-line text-muted hover:border-fg hover:text-fg"
+      class="flex size-5 items-center justify-center rounded-ui border border-transparent bg-raised text-muted hover:border-fg hover:text-fg"
       title={t("tooltipEditor.noColourTitle")}
       aria-label={t("tooltipEditor.noColourTitle")}
       onpointerdown={(event) => event.preventDefault()}
@@ -444,7 +444,7 @@ const changedCount = $derived(
     {#each own as colour, index (index)}
       <button
         type="button"
-        class="size-5 rounded border hover:border-fg {picking?.index === index ? 'border-fg' : 'border-line'}"
+        class="size-5 rounded-ui border hover:border-fg {picking?.index === index ? 'border-fg' : 'border-line'}"
         style:background-color={colour}
         title={t("tooltipEditor.ownTitle", { colour })}
         aria-label={t("tooltipEditor.ownTitle", { colour })}
@@ -464,7 +464,7 @@ const changedCount = $derived(
     {#if own.length < maxOwn}
       <button
         type="button"
-        class="flex size-5 items-center justify-center rounded border border-dashed text-muted hover:border-accent hover:text-fg {picking?.index ===
+        class="flex size-5 items-center justify-center rounded-ui border border-dashed text-muted hover:border-accent hover:text-fg {picking?.index ===
         null
           ? 'border-accent'
           : 'border-line'}"
@@ -481,7 +481,7 @@ const changedCount = $derived(
       <span class="mx-1 h-4 w-px bg-line" aria-hidden="true"></span>
       <button
         type="button"
-        class="flex items-center gap-1 rounded border border-line bg-raised px-2 py-0.5 text-[12.5px] text-fg hover:border-accent"
+        class="flex items-center gap-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-fg hover:border-accent"
         aria-haspopup="dialog"
         aria-expanded={inserting}
         bind:this={insertButton}
@@ -493,10 +493,10 @@ const changedCount = $derived(
       </button>
     {/if}
     {#if view.levels > 1}
-      <div class="ml-auto flex items-center gap-1 text-[12.5px] text-muted">
+      <div class="ml-auto flex items-center gap-1 text-muted">
         <button
           type="button"
-          class="rounded p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
           aria-label={t("tooltip.levelBefore")}
           disabled={shownLevel <= 1}
           onclick={() => (level = shownLevel - 1)}
@@ -506,7 +506,7 @@ const changedCount = $derived(
         <span class="min-w-16 text-center">{t("tooltip.level", { level: shownLevel, levels: view.levels })}</span>
         <button
           type="button"
-          class="rounded p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
           aria-label={t("tooltip.levelAfter")}
           disabled={shownLevel >= view.levels}
           onclick={() => (level = shownLevel + 1)}
@@ -554,7 +554,7 @@ const changedCount = $derived(
   {#if inserting && insertButton}
     <Popover anchor={insertButton} onclose={() => (inserting = false)}>
       <div class="flex flex-col" role="menu" aria-label={t("tooltipEditor.insert")}>
-        <p class="m-0 px-2 pt-1 pb-1.5 text-[12px] text-faint">
+        <p class="m-0 px-2 pt-1 pb-1.5 text-faint">
           {view.kind === "ability"
             ? t("tooltipEditor.insertNote", { level: shownLevel })
             : t("tooltipEditor.insertNoteWhole")}
@@ -564,21 +564,21 @@ const changedCount = $derived(
           <button
             type="button"
             role="menuitem"
-            class="flex items-center gap-3 rounded px-2 py-1 text-left hover:bg-hover hover:text-fg"
+            class="flex items-center gap-3 rounded-ui px-2 py-1 text-left hover:bg-hover hover:text-fg"
             onpointerdown={(event) => event.preventDefault()}
             onclick={() => insert(each)}
           >
             <span class="flex-1">{keyNames[each.key] ?? each.name}</span>
-            <span class="font-mono text-[11.5px] text-faint"
+            <span class="font-mono text-mono text-faint"
               >{each.key}{each.whole ? "" : shownLevel}{at.form ? `,${at.form}` : ""}</span
             >
             {#if at.value !== undefined}
-              <span class="font-mono text-[11.5px] text-muted">{placeholderNumber(at.value, at.form)}</span>
+              <span class="font-mono text-mono text-muted">{placeholderNumber(at.value, at.form)}</span>
             {/if}
           </button>
         {/each}
         <div
-          class="mt-1 flex items-center gap-1 border-t border-line px-2 pt-1.5 pb-0.5 text-[12.5px]"
+          class="mt-1 flex items-center gap-1 border-t border-line px-2 pt-1.5 pb-0.5"
           role="radiogroup"
           aria-label={t("tooltipEditor.form.label")}
         >
@@ -589,9 +589,9 @@ const changedCount = $derived(
               role="radio"
               aria-checked={form === each.form}
               title={each.title}
-              class="rounded border px-2 py-0.5 {form === each.form
-                ? 'border-accent text-fg'
-                : 'border-line text-muted hover:text-fg'}"
+              class="rounded-ui border border-transparent px-2 py-0.5 {form === each.form
+                ? 'bg-select text-fg'
+                : 'bg-raised text-muted hover:text-fg'}"
               onpointerdown={(event) => event.preventDefault()}
               onclick={() => (form = each.form)}
             >
@@ -605,7 +605,7 @@ const changedCount = $derived(
 
   {#each shownBoxes as box (box.key)}
     {#if box.key !== "main"}
-      <div class="mt-3 mb-1 text-[12px] tracking-[.06em] text-faint uppercase">{boxNames[box.key]}</div>
+      <div class="mt-3 mb-1 text-faint">{boxNames[box.key]}</div>
     {/if}
     <div class="rounded-md border border-line bg-black/85 px-3 py-2.5 font-tooltip text-[13px] leading-snug text-white shadow-lg">
       {#if box.key === "main" && tip}
@@ -632,7 +632,7 @@ const changedCount = $derived(
             {/each}
             {#if tip.costs.length > 0}
               <!-- Shown as the game shows them; they are edited in their fields. -->
-              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] opacity-80" title={t("tooltipEditor.notHere")}>
+              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 opacity-80" title={t("tooltipEditor.notHere")}>
                 {#each tip.costs as cost (cost.label)}
                   <span class="inline-flex items-center gap-1">
                     {#if cost.icon}
@@ -659,11 +659,11 @@ const changedCount = $derived(
   {/each}
 
   {#if buffComma}
-    <p class="mt-3 mb-0 text-[12.5px] text-warn">
+    <p class="mt-3 mb-0 text-warn">
       {t("tooltipEditor.buffComma")}
       <button
         type="button"
-        class="ml-1 rounded-[5px] border border-line px-2 py-0.5 text-body hover:border-muted"
+        class="ml-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-body hover:border-muted"
         title={t("tooltipEditor.swapCommasTitle")}
         onclick={swapCommas}
       >
@@ -673,20 +673,20 @@ const changedCount = $derived(
   {/if}
 
   {#if error}
-    <p class="mt-3 mb-0 text-[12.5px] text-warn" role="alert">{error}</p>
+    <p class="mt-3 mb-0 text-warn" role="alert">{error}</p>
   {/if}
 
   {#snippet actions()}
     <!-- The text hovered or edited is named here, over the count of changed texts, so the colours sit right above the
          tooltip (Sven, 2026-10-29). -->
-    <div class="mr-auto flex min-w-0 flex-col self-center text-[12.5px] text-muted">
+    <div class="mr-auto flex min-w-0 flex-col self-center text-muted">
       <span class="h-[1.45em] truncate">
         {#if named}
-          {named.field.label} · <span class="font-mono">{named.field.id}</span>{#if named.field.level > 0}
+          {named.field.label} · <span class="font-mono text-mono">{named.field.id}</span>{#if named.field.level > 0}
             · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
           {#if named.field.maxLength}
             {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
-            · <span class="font-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
+            · <span class="font-mono text-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
               >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
             >
           {/if}

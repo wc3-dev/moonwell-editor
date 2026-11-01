@@ -292,17 +292,17 @@ function clearOnEscape(event: KeyboardEvent): void {
 </script>
 
 <div class="relative flex min-h-0 flex-1 flex-col" style:--label-width="{labelWidth}px" bind:this={root}>
-  <div class="shrink-0 border-b border-line bg-bg px-[18px] pt-3.5 pb-2.5">
+  <div class="shrink-0 px-2 py-[5px]">
     <div class="flex items-start gap-2">
-      <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2.5 font-heading text-xl font-bold text-fg">
+      <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2 text-title font-semibold text-fg">
         <span class="truncate">{view.name}</span>
-        <span class="font-mono text-[12.5px] font-normal text-muted">{view.id}</span>
+        <span class="font-mono text-mono font-normal text-muted">{view.id}</span>
       </h1>
       {#if editable && custom}
         <div class="flex shrink-0 gap-1" role="group" aria-label={t("details.objectGroup")}>
           <button
             type="button"
-            class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-accent hover:text-fg"
+            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-body hover:border-accent hover:text-fg"
             title={t("details.copyTitle")}
             onclick={oncopy}
           >
@@ -311,7 +311,7 @@ function clearOnEscape(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="flex items-center gap-1 rounded-[5px] border border-line bg-raised px-2 py-0.5 text-[12.5px] text-body hover:border-warn hover:text-warn"
+            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-body hover:border-warn hover:text-warn"
             title={t("details.deleteTitle")}
             onclick={ondelete}
           >
@@ -321,7 +321,7 @@ function clearOnEscape(event: KeyboardEvent): void {
         </div>
       {/if}
     </div>
-    <div class="mt-1 text-[13px] text-muted">
+    <div class="text-muted">
       {#each view.chain as link, index (index)}
         {#if index > 0}<span class="mx-0.5">›</span>{/if}
         {#if index === view.chain.length - 1 && link.id}
@@ -334,7 +334,7 @@ function clearOnEscape(event: KeyboardEvent): void {
           >
             {link.name}
           </button>
-          <span class="font-mono text-[12.5px]">{link.id}</span>
+          <span class="font-mono text-mono">{link.id}</span>
         {:else}
           <span>{link.name}</span>
         {/if}
@@ -344,13 +344,13 @@ function clearOnEscape(event: KeyboardEvent): void {
         : tCount("details.fieldsChanged", changedCount)}
     </div>
     {#if view.readOnly}
-      <p class="mt-2 flex items-center gap-1.5 text-[12.5px] text-warn" data-testid="read-only">
+      <p class="mt-2 flex items-center gap-1.5 text-warn" data-testid="read-only">
         <Lock size={14} />
         {t("details.readOnly", { reason: view.readOnly })}
       </p>
     {/if}
     <input
-      class="mt-2.5 w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+      class="mt-1 w-full rounded-ui border border-transparent bg-field px-2 py-px text-fg outline-none focus:border-accent"
       placeholder={t("details.filterPlaceholder")}
       aria-label={t("details.filterLabel")}
       bind:this={filterInput}
@@ -363,7 +363,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   <div class="relative flex min-h-0 flex-1">
   <div class="min-h-0 flex-1 overflow-auto pb-16" bind:this={scroller}>
     {#if categories.length === 0}
-      <p class="mx-[18px] mt-3.5 text-muted">
+      <p class="mx-2 mt-1.5 text-muted">
         {changedOnly && !filter ? t("details.noChangedFields") : t("details.noFieldMatches")}
       </p>
     {/if}
@@ -372,17 +372,17 @@ function clearOnEscape(event: KeyboardEvent): void {
     {#key `${view.kind}:${view.id}`}
       {#each categories as category (category.key)}
         {@const open = !closed[category.key]}
-        <div class="mx-[18px] mt-3.5 overflow-hidden rounded-[7px] border border-line">
+        <div>
           <button
             type="button"
-            class="flex w-full items-center gap-2 bg-surface px-2.5 py-1.5 text-left font-bold text-fg"
+            class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-fg"
             data-changed={(!open && category.rows.some(isChanged)) || undefined}
             aria-expanded={open}
             onclick={() => (closed[category.key] = open)}
           >
-            {#if open}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+            {#if open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
             {category.name}
-            <span class="ml-auto text-xs font-normal text-faint">
+            <span class="ml-auto font-normal text-faint">
               {tCount("details.fieldCount", category.rows.length)}
               {#if category.rows.some(isChanged)}· <span class="text-changed">{t("details.categoryChanged")}</span>{/if}
             </span>
@@ -454,12 +454,12 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   <!-- The changed fields' places beside the scroll bar, as a code editor marks changed lines; a click goes there. -->
-  <div class="pointer-events-none absolute inset-y-0 right-0 w-2" aria-hidden="true">
+  <div class="pointer-events-none absolute inset-y-2.5 right-[3px] w-1" aria-hidden="true">
     {#each marks as mark, index (index)}
       <button
         type="button"
         tabindex="-1"
-        class="pointer-events-auto absolute right-0 h-[3px] w-2 rounded-[1px] bg-changed/80 hover:bg-changed"
+        class="pointer-events-auto absolute right-0 h-[3px] w-full rounded-[1px] bg-changed/80 hover:bg-changed"
         style:top="{mark.top}%"
         title={t("details.markTitle", { field: mark.label })}
         onclick={() => mark.element.scrollIntoView({ block: "center" })}
@@ -471,7 +471,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   <!-- Floats at the bottom of the panel, over the fields, and never moves (Sven, 2026-10-27): icons, named by their
        tooltips. -->
   <div
-    class="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-line bg-raised p-0.5 shadow-lg shadow-black/40"
+    class="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-ui bg-raised p-px"
     role="toolbar"
     aria-label={t("details.bar")}
   >
@@ -501,9 +501,9 @@ function clearOnEscape(event: KeyboardEvent): void {
 )}
   <button
     type="button"
-    class="rounded-full p-1.5 {pressed
+    class="rounded-ui p-1 {pressed
       ? 'bg-accent-lo text-accent-hi'
-      : 'text-muted hover:bg-hover hover:text-fg'}"
+      : 'text-muted hover:bg-line hover:text-fg'}"
     title={label}
     aria-label={label}
     aria-pressed={pressed}

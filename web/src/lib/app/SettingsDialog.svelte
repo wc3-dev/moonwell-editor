@@ -111,12 +111,12 @@ function resetAll(): void {
 {#snippet row(label: string, value: string, mono = false)}
   <div class="flex gap-3 py-0.5">
     <span class="w-32 shrink-0 text-muted">{label}</span>
-    <span class="min-w-0 break-words {mono ? 'font-mono text-[12.5px]' : ''} text-fg">{value}</span>
+    <span class="min-w-0 break-words {mono ? 'font-mono text-mono' : ''} text-fg">{value}</span>
   </div>
 {/snippet}
 
 {#snippet heading(text: string)}
-  <h3 class="m-0 mt-4 mb-2 text-[12px] tracking-[.06em] text-muted uppercase first:mt-1">{text}</h3>
+  <h3 class="m-0 mt-2.5 mb-[3px] font-semibold text-fg first:mt-1">{text}</h3>
 {/snippet}
 
 <Dialog
@@ -125,15 +125,15 @@ function resetAll(): void {
   wide
   focus={false}
 >
-  <div class="mb-3 flex gap-1 border-b border-line" role="tablist">
+  <div class="mb-2 flex border-b border-line" role="tablist">
     {#each tabs as each (each.tab)}
       <button
         type="button"
         role="tab"
         aria-selected={tab === each.tab}
-        class="-mb-px border-b-2 px-3 py-1.5 {tab === each.tab
-          ? 'border-accent text-fg'
-          : 'border-transparent text-muted hover:text-fg'}"
+        class="-mb-px rounded-t-ui border-b px-2.5 py-0.5 {tab === each.tab
+          ? 'border-transparent bg-raised text-fg'
+          : 'border-line text-muted hover:text-fg'}"
         onclick={() => (tab = each.tab)}
       >
         {each.name}
@@ -150,9 +150,9 @@ function resetAll(): void {
             type="button"
             role="radio"
             aria-checked={graphics.mode === each.mode}
-            class="rounded-md border px-3 py-1 {graphics.mode === each.mode
-              ? 'border-accent bg-accent-lo/40 text-fg'
-              : 'border-line text-body hover:border-muted'}"
+            class="rounded-ui border border-transparent px-3 py-0.5 {graphics.mode === each.mode
+              ? 'bg-select text-fg'
+              : 'bg-raised text-body hover:border-muted'}"
             onclick={() => setGraphicsMode(each.mode)}
           >
             {each.name}
@@ -167,9 +167,9 @@ function resetAll(): void {
             type="button"
             role="radio"
             aria-checked={prefs.uiScale === percent}
-            class="rounded-md border px-2.5 py-1 font-mono text-[12.5px] {prefs.uiScale === percent
-              ? 'border-accent bg-accent-lo/40 text-fg'
-              : 'border-line text-body hover:border-muted'}"
+            class="rounded-ui border border-transparent px-2.5 py-0.5 font-mono text-mono {prefs.uiScale === percent
+              ? 'bg-select text-fg'
+              : 'bg-raised text-body hover:border-muted'}"
             onclick={() => {
               setPref("uiScale", percent);
               uiScale(percent).catch(() => {});
@@ -219,7 +219,7 @@ function resetAll(): void {
           <div class="flex items-center gap-2 border-t border-line py-1 first:border-t-0">
             <span class="min-w-0 flex-1 truncate {changed ? 'text-changed' : 'text-body'}">{each.name}</span>
             {#if clash.length > 0}
-              <span class="text-[11.5px] text-warn" title={t("settings.clashTitle")}>
+              <span class="text-small text-warn" title={t("settings.clashTitle")}>
                 {t("settings.clash", {
                   action: actionList.find((other) => other.action === clash[0])?.name ?? "",
                 })}
@@ -227,9 +227,9 @@ function resetAll(): void {
             {/if}
             <button
               type="button"
-              class="min-w-28 rounded border px-2 py-0.5 text-right font-mono text-[12px] {listening === each.action
-                ? 'border-accent text-accent-hi'
-                : 'border-line text-fg hover:border-muted'}"
+              class="min-w-28 rounded-ui border px-2 py-0.5 text-right font-mono text-mono {listening === each.action
+                ? 'border-accent bg-field text-accent-hi'
+                : 'border-transparent bg-field text-fg hover:border-muted'}"
               onclick={() => (listening = listening === each.action ? null : each.action)}
             >
               {listening === each.action
@@ -238,7 +238,7 @@ function resetAll(): void {
             </button>
             <button
               type="button"
-              class="rounded p-1 text-faint hover:text-fg disabled:opacity-30"
+              class="rounded-ui p-1 text-faint hover:text-fg disabled:opacity-30"
               title={t("settings.resetTitle", { keys: each.keys.map(shownKey).join(", ") })}
               aria-label={t("settings.resetLabel", { action: each.name })}
               disabled={!changed}
@@ -249,7 +249,7 @@ function resetAll(): void {
           </div>
         {/each}
       </div>
-      <button type="button" class="mt-3 text-[12.5px] text-muted hover:text-fg" onclick={resetAll}>
+      <button type="button" class="mt-3 text-muted hover:text-fg" onclick={resetAll}>
         {t("settings.resetAll")}
       </button>
     {:else if tab === "map"}
@@ -315,7 +315,7 @@ function resetAll(): void {
       )}
       <button
         type="button"
-        class="mt-3 rounded-md border border-line px-3 py-1 text-body hover:border-muted"
+        class="mt-3 rounded-ui border border-transparent bg-raised px-3 py-0.5 text-body hover:border-muted"
         onclick={onchoose}
       >
         {t("settings.data.change")}

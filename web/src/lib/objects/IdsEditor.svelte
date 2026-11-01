@@ -111,7 +111,7 @@ function focusOnMount(element: HTMLInputElement): void {
 >
   {#each objects as object, at (at)}
     <span
-      class="inline-flex items-center rounded border border-line bg-raised text-[12.5px] {field.changed
+      class="inline-flex items-center rounded-ui border border-line bg-raised {field.changed
         ? 'text-changed'
         : 'text-fg'} {field.warning ? 'border-warn' : ''}"
     >
@@ -119,16 +119,16 @@ function focusOnMount(element: HTMLInputElement): void {
         {@const found = object.found}
         <button
           type="button"
-          class="rounded-l px-1.5 hover:text-accent-hi"
+          class="rounded-l-ui px-1.5 hover:text-accent-hi"
           title={t("ids.open", { name: found.name })}
           onclick={() => onopen(found.kind, object.id)}
         >
           <!-- A skin list names its abilities without their suffixes, as World Editor shows it. -->
           {field.meta === "abilitySkinList" ? (found.bare ?? found.name) : found.name}
-          {#if showIds}<span class="font-mono text-faint">{object.id}</span>{/if}
+          {#if showIds}<span class="font-mono text-mono text-faint">{object.id}</span>{/if}
         </button>
       {:else}
-        <span class="px-1.5 font-mono text-muted">{object.id}</span>
+        <span class="px-1.5 font-mono text-mono text-muted">{object.id}</span>
       {/if}
       <button
         type="button"
@@ -142,7 +142,7 @@ function focusOnMount(element: HTMLInputElement): void {
   {/each}
   <button
     type="button"
-    class="inline-flex items-center rounded border border-dashed border-line px-1 py-px text-muted hover:border-accent hover:text-fg focus:border-accent focus:outline-none"
+    class="inline-flex items-center rounded-ui border border-dashed border-line px-1 py-px text-muted hover:border-accent hover:text-fg focus:border-accent focus:outline-none"
     aria-label={single
       ? t("ids.chooseLabel", { field: field.label })
       : t("ids.addLabel", { field: field.label })}
@@ -157,7 +157,7 @@ function focusOnMount(element: HTMLInputElement): void {
 {#if open && addButton}
   <Popover anchor={addButton} onclose={close}>
     <input
-      class="w-[300px] rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+      class="w-[300px] rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
       placeholder={searchPrompt(kinds)}
       aria-label={t("ids.search")}
       bind:value={query}
@@ -174,14 +174,14 @@ function focusOnMount(element: HTMLInputElement): void {
       {#each hits as hit, at (`${hit.kind}:${hit.id}`)}
         <button
           type="button"
-          class="flex items-center gap-2 rounded px-2 py-1 text-left {at === index
+          class="flex items-center gap-2 rounded-ui px-2 py-1 text-left {at === index
             ? 'bg-hover text-fg'
             : 'hover:bg-hover'}"
           onclick={() => add(hit)}
         >
           <span class="truncate">{hit.name}</span>
-          <span class="truncate text-xs text-faint">{hit.detail}</span>
-          <span class="ml-auto pl-2 font-mono text-[12px] text-faint">{hit.id}</span>
+          <span class="truncate text-faint">{hit.detail}</span>
+          <span class="ml-auto pl-2 font-mono text-mono text-faint">{hit.id}</span>
         </button>
       {/each}
     </div>

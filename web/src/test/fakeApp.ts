@@ -105,6 +105,18 @@ export const triggerAnswers = {
   triggerCards: [],
 };
 
+export const scriptAnswers = {
+  ...triggerAnswers,
+  triggerTree: {
+    ...triggerAnswers.triggerTree,
+    items: [
+      ...triggerAnswers.triggerTree.items,
+      { id: 3, parent: 1, kind: "custom", name: "Spell", enabled: true, expanded: true, ref: "" },
+    ],
+  },
+  trigger: { code: "function x" },
+};
+
 const started = {
   ping: "pong",
   windowState: { maximized: false },
@@ -242,6 +254,13 @@ export async function openApp(
 export async function showObject(name: string | RegExp): Promise<void> {
   await fireEvent.click(await screen.findByRole("treeitem", { name }));
   await screen.findByRole("textbox", { name: t("details.filterLabel") });
+}
+
+/** Opens the script in `scriptAnswers` from the Trigger Editor, which is how the Script Editor is reached. */
+export async function openSpell(): Promise<void> {
+  await fireEvent.click(screen.getByRole("button", { name: t("header.triggerEditor") }));
+  await fireEvent.dblClick(await screen.findByRole("treeitem", { name: /Spell/ }));
+  await screen.findByRole("button", { name: t("scripts.close", { name: "Spell" }) });
 }
 
 /** Presses a key on what has the focus, as the window sees it. */

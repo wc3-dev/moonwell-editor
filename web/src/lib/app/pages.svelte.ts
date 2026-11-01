@@ -14,7 +14,11 @@ type DetailsView = {
 };
 type TableView = { focusFilter(): void };
 type TriggerEditor = { refresh(): Promise<void>; startRename(): void; deleteSelected(): void };
-type ScriptEditor = { refresh(): Promise<void>; open(script: OpenScript): Promise<void> };
+type ScriptEditor = {
+  refresh(): Promise<void>;
+  open(script: OpenScript): Promise<void>;
+  hasScripts(): boolean;
+};
 
 /** Which page the middle of the window shows, and the page components that are there to act on. */
 export class Pages {
@@ -29,6 +33,7 @@ export class Pages {
   scriptEditor = $state<ScriptEditor>();
 
   readonly inObjectEditor = $derived(this.page === "details" || this.page === "table");
+  readonly scriptsOpen = $derived(this.scriptEditor?.hasScripts() ?? false);
 
   #objectPage: ObjectPage = "details";
   #beforePick: Exclude<Page, "map"> | null = null;
@@ -50,6 +55,10 @@ export class Pages {
   openScript = (script: OpenScript): void => {
     this.scriptEditor?.open(script);
     this.show("scripts");
+  };
+
+  triggerDeleted = (): void => {
+    this.scriptEditor?.refresh();
   };
 
   refreshEditors(): Promise<unknown> {

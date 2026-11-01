@@ -37,8 +37,8 @@ export function labelColumnWidth(
 ): number {
   let widest = 0;
   for (const each of labels) {
-    let width = textWidth(each.label, `14px ${uiFonts()}`);
-    if (showIds) width += 6 + textWidth(each.id, '12.5px "JetBrains Mono Variable"');
+    let width = textWidth(each.label, `12px ${uiFonts()}`);
+    if (showIds) width += 6 + textWidth(each.id, '11.5px "JetBrains Mono Variable"');
     widest = Math.max(widest, width);
   }
   return Math.round(Math.min(labelColumn.max, Math.max(labelColumn.min, widest + 16)));

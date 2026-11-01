@@ -61,10 +61,10 @@ let broken = $state("");
 {/snippet}
 
 {#if view.levels > 1}
-  <div class="mb-2 flex items-center gap-1 text-[12.5px] text-muted">
+  <div class="mb-2 flex items-center gap-1 text-muted">
     <button
       type="button"
-      class="rounded p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
       aria-label={t("tooltip.levelBefore")}
       disabled={shown <= 1}
       onclick={() => (level = shown - 1)}
@@ -74,7 +74,7 @@ let broken = $state("");
     <span class="min-w-16 text-center">{t("tooltip.level", { level: shown, levels: view.levels })}</span>
     <button
       type="button"
-      class="rounded p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
       aria-label={t("tooltip.levelAfter")}
       disabled={shown >= view.levels}
       onclick={() => (level = shown + 1)}
@@ -111,7 +111,7 @@ let broken = $state("");
 </div>
 
 {#if tip?.learn}
-  <div class="mt-2 rounded-md border border-line bg-black/85 px-2.5 py-2 text-[13px] leading-snug text-white shadow-lg">
+  <div class="mt-2 rounded-md border border-line bg-black/85 px-2.5 py-2 font-tooltip text-[13px] leading-snug text-white shadow-lg">
     {@render lines(tip.learn.title, "font-semibold")}
     {#if tip.learn.text}
       {@render lines(tip.learn.text, "mt-2")}

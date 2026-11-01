@@ -120,20 +120,20 @@ const buttonClass =
   </button>
 {/snippet}
 
-<div class="relative flex min-w-0 items-stretch bg-surface select-none [app-region:drag]">
+<div class="relative flex min-w-0 items-stretch bg-gutter select-none [app-region:drag]">
   <img src={logo} alt="" class="mx-2 size-4 self-center" draggable="false" />
   {@render arrow("back")}
   {@render arrow("forward")}
   <!-- Every piece on one centre line (Sven, 2026-10-27): one line height, tags as boxes of a fixed height. -->
-  <span class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2 text-xs leading-none">
+  <span class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2 leading-none">
     {#if map}
       <b class="shrink-0 font-semibold text-fg">{title}</b>
-      <span class="flex h-4 shrink-0 items-center rounded-[3px] border border-line px-1 pt-px text-[10.5px] text-muted">
+      <span class="flex h-4 shrink-0 items-center rounded-ui border border-line px-1 pt-px text-small text-muted">
         {map.archive ? t("titleBar.archive") : t("titleBar.folder")}
       </span>
       {#if map.expansion !== null && map.expansion !== undefined}
         <span
-          class="flex h-4 shrink-0 items-center rounded-[3px] border border-line px-1 pt-px text-[10.5px] text-muted"
+          class="flex h-4 shrink-0 items-center rounded-ui border border-line px-1 pt-px text-small text-muted"
           title={map.expansion ? t("titleBar.expansionTitle") : t("titleBar.rocTitle")}
         >
           {map.expansion ? t("titleBar.expansion") : t("titleBar.roc")}
@@ -195,11 +195,11 @@ const buttonClass =
           <button
             type="button"
             role="menuitem"
-            class="flex items-center gap-3 rounded px-2 py-1 text-left hover:bg-hover"
+            class="flex items-center gap-3 rounded-ui px-2 py-1 text-left hover:bg-hover"
             onclick={() => jump(visit.at)}
           >
             <span class="min-w-0 flex-1 truncate text-fg">{visit.name}</span>
-            <span class="font-mono text-[12px] text-faint">{visit.id}</span>
+            <span class="font-mono text-mono text-faint">{visit.id}</span>
           </button>
         {/each}
       </div>

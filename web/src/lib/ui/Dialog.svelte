@@ -4,8 +4,7 @@
  * click on the veil cancels; the first input, else the first button, gets the focus when it opens, Tab stays inside
  * it, and the focus goes back where it was when it closes. It stays open until the page takes it away: a cancel the
  * page does not act on (the settings' Esc while a hotkey is being pressed) leaves it there, where Bits UI had closed
- * it on its own and the page, still thinking it open, could not open it again (Sven, 2026-10-29). Its shadow is a
- * small one (Sven, 2026-10-29).
+ * it on its own and the page, still thinking it open, could not open it again (Sven, 2026-10-29).
  */
 import { Dialog } from "bits-ui";
 import type { Component, Snippet } from "svelte";
@@ -66,7 +65,7 @@ function focusFirst(event: Event): void {
 
 <Dialog.Root bind:open {onOpenChange}>
   <Dialog.Portal>
-    <Dialog.Overlay class="fixed inset-0 z-30 bg-black/55" />
+    <Dialog.Overlay class="fixed inset-0 z-30 bg-black/30" />
     <Dialog.Content
       bind:ref={box}
       tabindex={-1}
@@ -75,17 +74,17 @@ function focusFirst(event: Event): void {
         ? 'top-[60px] max-h-[calc(100%-90px)] w-[760px] overflow-auto'
         : wide
           ? 'top-[60px] max-h-[calc(100%-90px)] w-[620px] overflow-auto'
-          : 'top-[120px] w-[460px]'} max-w-[calc(100%-32px)] rounded-[10px] border border-line bg-surface p-4 shadow-[0_6px_18px_rgba(0,0,0,.35)] outline-none"
+          : 'top-[120px] w-[460px]'} max-w-[calc(100%-32px)] rounded-ui border border-line bg-surface px-2.5 pb-2.5 outline-none"
     >
       <Dialog.Title
-        class="m-0 mb-2 flex gap-2 font-heading text-base font-bold text-fg {Icon ? 'items-center' : 'items-baseline'}"
+        class="-mx-2.5 mt-0 mb-2 flex gap-2 bg-raised px-2 py-[3px] font-semibold text-fg {Icon ? 'items-center' : 'items-baseline'}"
       >
-        {#if Icon}<Icon size={18} class="shrink-0 text-changed" />{/if}
+        {#if Icon}<Icon size={14} class="shrink-0 text-changed" />{/if}
         {title}
-        {#if note}<span class="font-mono text-[12.5px] font-normal text-muted">{note}</span>{/if}
+        {#if note}<span class="font-mono text-mono font-normal text-muted">{note}</span>{/if}
       </Dialog.Title>
-      <div class="text-[13.5px] text-body">{@render children()}</div>
-      <div class="mt-4 flex justify-end gap-2">{@render actions()}</div>
+      <div class="text-body">{@render children()}</div>
+      <div class="mt-2.5 flex justify-end gap-1.5">{@render actions()}</div>
     </Dialog.Content>
   </Dialog.Portal>
 </Dialog.Root>

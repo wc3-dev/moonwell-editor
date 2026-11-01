@@ -126,6 +126,7 @@ const answers = {
 
 const notices: [string, boolean | undefined][] = [];
 const scripts: unknown[] = [];
+let deleted = 0;
 
 beforeEach(() => {
   globalThis.ResizeObserver = class {
@@ -139,6 +140,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, value: 800 });
   notices.length = 0;
   scripts.length = 0;
+  deleted = 0;
 });
 
 afterEach(async () => {
@@ -153,6 +155,7 @@ async function open(more: Record<string, unknown> = {}): Promise<FakeApp> {
     queued: new CommandQueue().run,
     onnotice: (text: string, warn?: boolean) => notices.push([text, warn]),
     onscript: (each: unknown) => scripts.push(each),
+    ondeleted: () => deleted++,
   });
   await screen.findByRole("treeitem", { name: /Start/ });
   return app;
@@ -313,6 +316,16 @@ describe("deleting", () => {
     dialog.getByText(t("triggers.deleteAsk", { name: "Start" }));
     await fireEvent.click(dialog.getByRole("button", { name: t("triggers.delete") }));
     await waitFor(() => expect(app.args("triggerDelete")).toEqual({ id: 2 }));
+    await waitFor(() => expect(deleted).toBe(1));
+  });
+
+  test("a delete refused says nothing went", async () => {
+    await open({ triggerDelete: new Refusal("failed", "No") });
+    const dialog = await askDelete(/Start/);
+    await fireEvent.click(dialog.getByRole("button", { name: t("triggers.delete") }));
+    await waitFor(() => expect(notices).toEqual([["No", true]]));
+    await settled();
+    expect(deleted).toBe(0);
   });
 
   test("a category says all of it goes", async () => {
@@ -623,6 +636,7 @@ describe("what the map's triggers say", () => {
       queued: new CommandQueue().run,
       onnotice: () => {},
       onscript: () => {},
+      ondeleted: () => {},
     });
     await screen.findByText("No catalog");
   });

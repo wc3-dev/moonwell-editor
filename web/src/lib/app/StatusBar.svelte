@@ -90,10 +90,10 @@ const folderName = $derived(
 </script>
 
 {#snippet folderText(parts: TextPart[])}
-  {#each parts as part, index (index)}{#if part.slot === "folder"}<span class="font-mono">{folderName}</span>{:else}{part.text}{/if}{/each}
+  {#each parts as part, index (index)}{#if part.slot === "folder"}{folderName}{:else}{part.text}{/if}{/each}
 {/snippet}
 
-<footer class="relative flex items-center gap-4 border-t border-line bg-surface px-3 text-xs text-muted">
+<footer class="relative flex items-center gap-4 px-2 text-muted">
   {#if connection}
     <span class="text-warn" data-testid="status">{connection}</span>
   {/if}
@@ -152,7 +152,7 @@ const folderName = $derived(
 
   {#if loadingText}
     <span
-      class="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 bg-surface px-2 text-fg"
+      class="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 bg-gutter px-2 text-fg"
       data-testid="loading"
       role="status"
     >
@@ -163,12 +163,12 @@ const folderName = $derived(
 
   {#if showProblems && problems.length > 0}
     <div
-      class="absolute bottom-[30px] left-3 z-10 w-[560px] max-w-[calc(100%-24px)] rounded-lg border border-line bg-surface p-3 text-[13px] text-body shadow-[0_4px_12px_rgba(0,0,0,.3)]"
+      class="absolute bottom-[26px] left-1 z-10 w-[560px] max-w-[calc(100%-24px)] rounded-ui border border-line bg-surface p-3 text-body"
       role="dialog"
       aria-label={t("status.problemsTitle")}
     >
       <div class="mb-2 flex items-center">
-        <span class="font-bold text-fg">{t("status.problemsTitle")}</span>
+        <span class="font-semibold text-fg">{t("status.problemsTitle")}</span>
         <button
           type="button"
           class="ml-auto text-muted hover:text-fg"

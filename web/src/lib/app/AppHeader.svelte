@@ -22,7 +22,9 @@ type HeaderIcon = Component<{ size?: number }>;
 const editor = getEditor();
 const { objects, pages, session } = editor;
 
-const editors = $derived<{ name: string; Icon: HeaderIcon; shows: boolean; open: () => void }[]>([
+const editors = $derived<
+  { name: string; Icon: HeaderIcon; shows: boolean; offBecause?: string; open: () => void }[]
+>([
   {
     name: t("header.objectEditor"),
     Icon: Boxes,
@@ -45,6 +47,7 @@ const editors = $derived<{ name: string; Icon: HeaderIcon; shows: boolean; open:
     name: t("header.scriptEditor"),
     Icon: CodeXml,
     shows: pages.page === "scripts",
+    offBecause: pages.scriptsOpen ? undefined : t("header.scriptEditorEmpty"),
     open: () => pages.show("scripts"),
   },
 ]);
@@ -60,38 +63,38 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
 {#snippet pageButton(name: string, title: string, Icon: HeaderIcon, shows: boolean, disabled: boolean, onclick: () => void)}
   <button
     type="button"
-    class="rounded-[5px] p-1.5 {shows
-      ? 'bg-accent-lo text-accent-hi'
-      : 'text-muted hover:bg-hover hover:text-fg disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted'}"
+    class="tool-button {shows
+      ? 'text-accent-hi'
+      : 'text-muted hover:text-fg disabled:opacity-50 disabled:hover:text-muted'}"
     {title}
     aria-label={name}
     aria-pressed={shows}
     {disabled}
     {onclick}
   >
-    <Icon size={17} />
+    <Icon size={16} />
   </button>
 {/snippet}
 
 {#snippet comingButton(name: string, title: string, Icon: HeaderIcon)}
-  <button type="button" class="rounded-[5px] p-1.5 text-muted opacity-50" disabled {title} aria-label={name}>
-    <Icon size={17} />
+  <button type="button" class="tool-button text-muted opacity-50" disabled {title} aria-label={name}>
+    <Icon size={16} />
   </button>
 {/snippet}
 
-<header class="flex items-center gap-2.5 border-b border-line bg-surface px-3">
+<header class="toolbar flex items-center gap-1 px-1">
   <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.editors")}>
     {#each editors as each (each.name)}
-      {@render pageButton(each.name, each.name, each.Icon, each.shows, !session.map, each.open)}
+      {@render pageButton(each.name, each.offBecause ?? each.name, each.Icon, each.shows, !session.map || each.offBecause !== undefined, each.open)}
     {/each}
     {#each comingEditors as each (each.name)}
       {@render comingButton(each.name, t("header.comingSoon", { name: each.name }), each.Icon)}
     {/each}
   </div>
   {#if pages.inObjectEditor}
-    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+    <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <KindBar kind={objects.kind} disabled={!session.map} onkind={objects.switchKind} />
-    <span class="h-5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+    <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.views")}>
       {@render pageButton(t("header.details"), t("header.details"), Columns3, pages.page === "details", !session.map, () => pages.show("details"))}
       {@render pageButton(
@@ -107,12 +110,12 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   {/if}
   <button
     type="button"
-    class="ml-auto shrink-0 rounded-[5px] p-1.5 text-muted hover:bg-hover hover:text-fg"
+    class="tool-button ml-auto shrink-0 text-muted hover:text-fg"
     title={t("header.menu")}
     aria-label={t("header.menu")}
     aria-haspopup="menu"
     onclick={(event) => editor.openMainMenu(event.currentTarget)}
   >
-    <Menu size={17} />
+    <Menu size={16} />
   </button>
 </header>

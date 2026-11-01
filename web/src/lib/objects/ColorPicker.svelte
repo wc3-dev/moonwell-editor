@@ -95,7 +95,7 @@ function type(text: string): void {
 
 <div class="flex w-[220px] flex-col gap-2 p-0.5">
   <div
-    class="relative h-[140px] cursor-crosshair rounded outline-none focus-visible:ring-1 focus-visible:ring-accent"
+    class="relative h-[140px] cursor-crosshair rounded-ui outline-none focus-visible:ring-1 focus-visible:ring-accent"
     style:background-color="hsl({colour.h} 100% 50%)"
     role="slider"
     tabindex="0"
@@ -105,8 +105,8 @@ function type(text: string): void {
     onpointerdown={(event) => drag(event, setSquare)}
     onkeydown={squareKey}
   >
-    <div class="absolute inset-0 rounded bg-linear-to-r from-white to-transparent"></div>
-    <div class="absolute inset-0 rounded bg-linear-to-t from-black to-transparent"></div>
+    <div class="absolute inset-0 rounded-ui bg-linear-to-r from-white to-transparent"></div>
+    <div class="absolute inset-0 rounded-ui bg-linear-to-t from-black to-transparent"></div>
     <div
       class="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.6)]"
       style:left="{colour.s * 100}%"
@@ -114,7 +114,7 @@ function type(text: string): void {
     ></div>
   </div>
   <div
-    class="relative h-3 cursor-pointer rounded outline-none focus-visible:ring-1 focus-visible:ring-accent"
+    class="relative h-3 cursor-pointer rounded-ui outline-none focus-visible:ring-1 focus-visible:ring-accent"
     style:background="linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)"
     role="slider"
     tabindex="0"
@@ -126,17 +126,17 @@ function type(text: string): void {
     onkeydown={hueKey}
   >
     <div
-      class="pointer-events-none absolute inset-y-[-2px] w-1.5 -translate-x-1/2 rounded-sm border border-white shadow-[0_0_0_1px_rgba(0,0,0,.6)]"
+      class="pointer-events-none absolute inset-y-[-2px] w-1.5 -translate-x-1/2 rounded-ui border border-white shadow-[0_0_0_1px_rgba(0,0,0,.6)]"
       style:left="{(colour.h / 360) * 100}%"
     ></div>
   </div>
   <div class="flex items-center gap-1.5">
-    <span class="size-6 shrink-0 rounded border border-line" style:background-color={hex}></span>
+    <span class="size-6 shrink-0 rounded-ui border border-line" style:background-color={hex}></span>
     <input
-      class="w-0 min-w-0 flex-1 rounded border px-1.5 py-[3px] font-mono text-[12.5px] text-fg outline-none focus:border-accent {typed !==
+      class="w-0 min-w-0 flex-1 rounded-ui border px-1.5 py-[3px] font-mono text-mono text-fg outline-none focus:border-accent {typed !==
         null && !parseHex(typed)
         ? 'border-warn'
-        : 'border-line'} bg-bg"
+        : 'border-transparent'} bg-field"
       value={typed ?? hex}
       spellcheck="false"
       aria-label={t("colourPicker.code")}
@@ -150,7 +150,7 @@ function type(text: string): void {
     />
     <button
       type="button"
-      class="rounded-[5px] bg-accent px-2.5 py-[3px] text-[12.5px] font-bold text-bg hover:bg-accent-hi"
+      class="rounded-ui bg-primary px-2.5 py-[3px] text-fg hover:brightness-110"
       onpointerdown={(event) => event.preventDefault()}
       onclick={() => onpick(hex)}
     >

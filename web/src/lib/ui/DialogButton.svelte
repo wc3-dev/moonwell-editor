@@ -1,12 +1,12 @@
 <script module lang="ts">
+const shape = "min-w-[72px] rounded-ui border px-4 py-0.5";
+
 const looks = {
-  primary:
-    "rounded-[5px] bg-accent px-3 py-1 font-bold text-bg hover:bg-accent-hi disabled:opacity-50",
-  plain: "rounded-[5px] border border-line bg-raised px-3 py-1 text-fg hover:border-accent",
-  danger: "rounded-[5px] border border-warn px-3 py-1 font-bold text-warn hover:bg-warn-lo",
-  outline: "rounded-md border border-line bg-raised px-3 py-1.5 text-fg hover:bg-hover",
-  accent:
-    "rounded-md border border-accent bg-raised px-3 py-1.5 text-fg hover:bg-hover disabled:opacity-50",
+  primary: `${shape} border-transparent bg-primary text-fg hover:brightness-110 disabled:opacity-50`,
+  plain: `${shape} border-transparent bg-raised text-fg hover:border-accent`,
+  danger: `${shape} border-warn bg-warn-lo text-fg hover:brightness-125`,
+  outline: `${shape} border-transparent bg-raised text-fg hover:border-accent`,
+  accent: `${shape} border-transparent bg-primary text-fg hover:brightness-110 disabled:opacity-50`,
 };
 </script>
 

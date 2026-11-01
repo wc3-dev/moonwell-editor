@@ -329,6 +329,7 @@
   "header.save": "Save",
   "header.saving": "Saving…",
   "header.scriptEditor": "Script Editor",
+  "header.scriptEditorEmpty": "Script Editor: no script is open. Open one from the Trigger Editor",
   "header.settings": "Settings",
   "header.soundEditor": "Sound Editor",
   "header.table": "Table",

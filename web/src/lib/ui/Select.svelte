@@ -62,7 +62,7 @@ const width = $derived(
   {disabled}
 >
   <Select.Trigger
-    class="flex min-w-0 cursor-pointer items-center gap-1 rounded border py-[3px] pr-1 pl-1.5 text-left font-mono text-[12.5px] focus:border-solid focus:border-accent focus:outline-none disabled:cursor-default disabled:text-faint {tone} {compact
+    class="flex min-w-0 cursor-pointer items-center gap-1 rounded-ui border py-px pr-1 pl-1.5 text-left font-mono text-mono focus:border-solid focus:border-accent focus:outline-none disabled:cursor-default disabled:text-faint {tone} {compact
       ? 'w-full'
       : 'max-w-full'}"
     style={compact ? undefined : `width: ${width}`}
@@ -79,19 +79,19 @@ const width = $derived(
       sideOffset={4}
       collisionPadding={8}
       data-popup
-      class="z-40 w-max max-w-[360px] min-w-[200px] rounded-lg border border-line bg-surface p-1.5 text-[13px] text-body shadow-[0_4px_12px_rgba(0,0,0,.3)] outline-none"
+      class="z-40 w-max max-w-[360px] min-w-[200px] rounded-ui border border-line bg-surface p-0.5 text-body outline-none"
     >
       <Select.Viewport class="max-h-[306px]">
         {#each options as option, index (index)}
           {#if option.group && option.group !== options[index - 1]?.group}
-            <div class="px-2 pt-1.5 pb-0.5 text-[11px] tracking-[.06em] text-faint uppercase" role="presentation">
+            <div class="px-2 pt-1.5 pb-0.5 text-small text-faint" role="presentation">
               {option.group}
             </div>
           {/if}
           <Select.Item
             value={option.value}
             label={option.label}
-            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 outline-none data-highlighted:bg-hover data-highlighted:text-fg data-selected:text-accent-hi {option.group
+            class="flex cursor-pointer items-center gap-2 px-4 py-0.5 outline-none data-highlighted:bg-select data-highlighted:text-fg data-selected:text-accent-hi {option.group
               ? 'pl-3'
               : ''}"
           >

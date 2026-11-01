@@ -178,7 +178,7 @@ function findObjects(): void {
       {#each ways as each (each.way)}
         <button
           type="button"
-          class="rounded-[5px] px-2 py-1 {way === each.way
+          class="rounded-ui px-2 py-1 {way === each.way
             ? 'bg-accent-lo text-accent-hi'
             : 'text-muted hover:bg-hover hover:text-fg'}"
           aria-pressed={way === each.way}
@@ -190,7 +190,7 @@ function findObjects(): void {
       {#if pickKind}
         <button
           type="button"
-          class="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-1 text-muted hover:bg-hover hover:text-fg"
+          class="ml-auto inline-flex items-center gap-1 rounded-ui px-2 py-1 text-muted hover:bg-hover hover:text-fg"
           onclick={pick}
         >
           <Crosshair size={14} />
@@ -203,7 +203,7 @@ function findObjects(): void {
       {#if parameter.function}
         {#each parameter.function.sentence as part, index (index)}{#if part.parameter}{@const inner = part.parameter}<button
               type="button"
-              class="rounded-sm underline decoration-dotted underline-offset-2 hover:bg-accent-lo {inner.kind === 'none'
+              class="rounded-ui underline decoration-dotted underline-offset-2 hover:bg-accent-lo {inner.kind === 'none'
                 ? 'text-warn'
                 : 'text-accent-hi'}"
               onclick={() => onopen(inner)}>{part.text}</button
@@ -211,7 +211,7 @@ function findObjects(): void {
       {:else if parameter.index}
         {parameter.value}[<button
           type="button"
-          class="rounded-sm text-accent-hi underline decoration-dotted underline-offset-2 hover:bg-accent-lo"
+          class="rounded-ui text-accent-hi underline decoration-dotted underline-offset-2 hover:bg-accent-lo"
           title={t("triggers.parameter.index")}
           onclick={() => parameter.index && onopen(parameter.index)}>{parameter.index.text}</button
         >]
@@ -224,7 +224,7 @@ function findObjects(): void {
 
     {#if way === "value"}
       <input
-        class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
         placeholder={objectKind ? t("triggers.parameter.search") : ""}
         aria-label={t("triggers.parameter.value")}
         bind:value={text}
@@ -238,26 +238,26 @@ function findObjects(): void {
         onchange={() => !objectKind && sendValue()}
       />
       {#if objectKind}
-        <div class="h-[260px] overflow-auto rounded-[5px] border border-line">
+        <div class="h-[260px] overflow-auto rounded-ui border border-line">
           {#each hits as hit (hit.id)}
             <button
               type="button"
               class="flex w-full items-baseline gap-2 px-2 py-[3px] text-left text-body hover:bg-hover"
               onclick={() => set("value", hit.id)}
             >
-              {hit.name}<span class="font-mono text-[12px] text-faint">{hit.id}</span>
+              {hit.name}<span class="font-mono text-mono text-faint">{hit.id}</span>
             </button>
           {/each}
         </div>
       {/if}
     {:else if way !== null}
       <input
-        class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
         placeholder={t("triggers.parameter.filter")}
         aria-label={t("triggers.parameter.filter")}
         bind:value={filter}
       />
-      <div class="h-[260px] overflow-auto rounded-[5px] border border-line" role="listbox" aria-label={typeTitle}>
+      <div class="h-[260px] overflow-auto rounded-ui border border-line" role="listbox" aria-label={typeTitle}>
         {#if way === "preset"}
           {#each shownPresets as each (each.key)}
             <button

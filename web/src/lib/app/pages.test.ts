@@ -12,6 +12,7 @@ function withEditors() {
   pages.scriptEditor = {
     refresh: async () => void calls.push("scripts"),
     open: async () => void calls.push("open"),
+    hasScripts: () => false,
   };
   return { pages, calls };
 }

@@ -96,21 +96,21 @@ let coloursButton: HTMLButtonElement | undefined = $state();
 <div class="flex shrink-0 flex-col gap-1.5" style="width: {size}px">
   <div
     bind:this={host}
-    class="relative shrink-0 overflow-hidden rounded border border-line bg-bg"
+    class="relative shrink-0 overflow-hidden rounded-ui border border-line bg-field"
     style="width: {size}px; height: {size}px"
   >
     {#if view.status === "loading"}
-      <p class="absolute inset-0 m-0 flex items-center justify-center text-xs text-faint">{t("model.loading")}</p>
+      <p class="absolute inset-0 m-0 flex items-center justify-center text-faint">{t("model.loading")}</p>
     {:else if view.status === "error"}
       <p
-        class="absolute inset-0 m-0 flex items-center justify-center p-3 text-center text-xs text-warn"
+        class="absolute inset-0 m-0 flex items-center justify-center p-3 text-center text-warn"
         role="alert"
       >
         {view.error}
       </p>
     {:else if view.missing.length > 0}
       <p
-        class="absolute right-0 bottom-0 m-0 truncate px-2 py-1 text-[11px] text-faint"
+        class="absolute right-0 bottom-0 m-0 truncate px-2 py-1 text-small text-faint"
         title={view.missing.join("\n")}
       >
         {tCount("model.texturesMissing", view.missing.length)}
@@ -137,7 +137,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
       value={String(view.playing)}
       label={t("model.animation")}
       missing={view.status === "loading" ? t("model.animationsLoading") : t("model.noAnimations")}
-      tone="border-line bg-raised text-fg hover:border-muted"
+      tone="border-transparent bg-field text-fg hover:border-muted"
       compact
       disabled={view.sequences.length === 0}
       onpick={(value) => current?.play(Number(value))}
@@ -148,7 +148,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
     {@const shown = teamColors[playerIndex(teamColor)]}
     <button
       type="button"
-      class="shrink-0 self-stretch rounded border border-line hover:border-muted"
+      class="shrink-0 self-stretch rounded-ui border border-line hover:border-muted"
       style:width="{rowHeight}px"
       style:background-color={shown?.hex}
       title={t("model.teamColourTitle", { colour: shown?.name ?? "" })}
@@ -176,7 +176,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
 {#snippet overlayButton(label: string, Icon: typeof RotateCw, onclick: () => void)}
   <button
     type="button"
-    class="cursor-pointer rounded-full bg-surface/70 p-1.5 text-muted opacity-70 hover:text-fg hover:opacity-100"
+    class="cursor-pointer rounded-ui bg-surface/70 p-1.5 text-muted opacity-70 hover:text-fg hover:opacity-100"
     title={label}
     aria-label={label}
     {onclick}

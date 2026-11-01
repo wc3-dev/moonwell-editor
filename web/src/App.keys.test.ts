@@ -8,12 +8,26 @@ import {
   arena,
   footmanEntry,
   openApp,
+  openSpell,
   press,
   Refusal,
+  scriptAnswers,
   showObject,
   triggerAnswers,
   unit,
 } from "./test/fakeApp.ts";
+
+vi.mock("./lib/scripts/monaco/scriptsEditor.ts", () => ({
+  ScriptsEditor: {
+    create: async () => ({
+      setTheme() {},
+      async show() {},
+      async setText() {},
+      async close() {},
+      async dispose() {},
+    }),
+  },
+}));
 
 appTests();
 
@@ -373,8 +387,8 @@ describe("in the script editor", () => {
   }
 
   test("Save and Settings reach the window past Monaco", async () => {
-    const app = await openApp({ save: { written: [], backup: "", note: "" } });
-    await clickHeader(t("header.scriptEditor"));
+    const app = await openApp({ ...scriptAnswers, save: { written: [], backup: "", note: "" } });
+    await openSpell();
     const box = monacoBox();
     await press("s", { ctrlKey: true });
     await waitFor(() => expect(app.count("save")).toBe(1));
@@ -384,8 +398,8 @@ describe("in the script editor", () => {
   });
 
   test("Monaco keeps its other keys", async () => {
-    const app = await openApp({ undo: true });
-    await clickHeader(t("header.scriptEditor"));
+    const app = await openApp({ ...scriptAnswers, undo: true });
+    await openSpell();
     const box = monacoBox();
     await press("z", { ctrlKey: true });
     await settled();
@@ -394,9 +408,9 @@ describe("in the script editor", () => {
   });
 
   test("the object editor's keys do nothing", async () => {
-    const app = await openApp({ nextId: "h002" });
+    const app = await openApp({ ...scriptAnswers, nextId: "h002" });
     await showObject(/Footman/);
-    await clickHeader(t("header.scriptEditor"));
+    await openSpell();
     await press("n", { ctrlKey: true, shiftKey: true });
     await settled();
     expect(app.count("nextId")).toBe(0);

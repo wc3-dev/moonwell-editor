@@ -46,13 +46,13 @@ function onkeydown(event: KeyboardEvent): void {
 }
 
 const small =
-  "shrink-0 rounded border border-line bg-raised px-1.5 text-xs text-body hover:border-accent hover:text-fg disabled:opacity-40 disabled:hover:border-line";
+  "shrink-0 rounded-ui border border-line bg-raised px-1.5 text-body hover:border-accent hover:text-fg disabled:opacity-40 disabled:hover:border-line";
 </script>
 
 <Popover {anchor} {onclose}>
   <div class="flex w-[340px] flex-col gap-1">
     <input
-      class="w-full rounded-[5px] border border-line bg-bg px-2 py-1 text-fg outline-none focus:border-accent"
+      class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
       placeholder={t("columnPicker.placeholder")}
       aria-label={t("columnPicker.label")}
       bind:this={input}
@@ -60,7 +60,7 @@ const small =
       {onkeydown}
     />
     {#if note}
-      <p class="m-0 px-1 text-[12px] text-changed" role="status">{note}</p>
+      <p class="m-0 px-1 text-changed" role="status">{note}</p>
     {/if}
     {#if found.length === 0}
       <p class="m-0 px-1 py-1 text-muted">{t("columnPicker.noMatch")}</p>
@@ -68,12 +68,12 @@ const small =
     <ul class="m-0 list-none p-0" aria-label={t("columnPicker.fields")}>
       {#each found as field (field.id)}
         {@const added = isShown(field)}
-        <li class="flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-hover">
+        <li class="flex items-center gap-1.5 rounded-ui px-1 py-0.5 hover:bg-hover">
           <span class="min-w-0 flex-1 truncate {added ? 'text-faint' : 'text-fg'}" title={field.label}>
             {field.label}
-            <span class="ml-1 font-mono text-[11.5px] text-faint">{field.id}</span>
+            <span class="ml-1 font-mono text-mono text-faint">{field.id}</span>
           </span>
-          <span class="shrink-0 text-[11.5px] text-faint">{categoryName(field.category)}</span>
+          <span class="shrink-0 text-small text-faint">{categoryName(field.category)}</span>
           {#if field.perLevel}
             <button
               type="button"

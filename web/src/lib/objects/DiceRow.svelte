@@ -129,10 +129,10 @@ async function resetAll(): Promise<void> {
 
 <div
   data-changed={changed || undefined}
-  class="grid min-h-[30px] grid-cols-[22px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-t border-line {selected ===
+  class="grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected ===
   `${fields.base.id}:total`
-    ? 'bg-accent/10 outline outline-1 -outline-offset-1 outline-accent/60'
-    : 'hover:bg-surface'}"
+    ? ''
+    : 'hover:bg-raised'}"
   role="group"
   aria-label={label}
   onfocusin={() => onselecttotal(fields)}
@@ -153,25 +153,25 @@ async function resetAll(): Promise<void> {
     aria-label={open ? t("dice.hideParts") : t("dice.showParts")}
     onclick={ontoggle}
   >
-    {#if open}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+    {#if open}<ChevronDown size={10} />{:else}<ChevronRight size={10} />{/if}
   </button>
   <button
     type="button"
-    class="cursor-default py-1 pr-2 text-left focus:outline-none"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-1.5 pl-0.5 text-left focus:outline-none {selected === `${fields.base.id}:total` ? 'bg-select text-fg' : ''}"
     aria-expanded={open}
     title={open ? t("dice.hideParts") : t("dice.showParts")}
     onclick={ontoggle}
   >
     {label}
   </button>
-  <span class="flex min-w-0 items-center gap-1 px-2 py-[3px]">
+  <span class="flex min-w-0 items-center gap-1 px-1">
     {#if editable}
-      <!-- Shows only its value, as the other boxes do; a solid border while the total is selected (Sven, 2026-10-29). -->
+      <!-- Shows only its value, as the other boxes do; a field while the total is selected (Sven, 2026-10-29). -->
       <input
-        class="field-sizing-content min-w-[8ch] max-w-full rounded border px-1.5 py-[3px] font-mono text-[12.5px] outline-none placeholder:text-faint focus:border-solid focus:border-accent {error
+        class="field-sizing-content min-w-[8ch] max-w-full rounded-ui border px-1.5 py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field {error
           ? 'border-warn bg-warn-lo'
           : selected === `${fields.base.id}:total`
-            ? 'border-muted bg-transparent'
+            ? 'border-transparent bg-field'
             : 'border-transparent bg-transparent hover:border-dashed hover:border-muted'} {changed ? 'text-changed' : 'text-fg'}"
         value={draft ?? rangeText(range)}
         placeholder="0"
@@ -198,13 +198,13 @@ async function resetAll(): Promise<void> {
         </button>
       {/if}
     {:else}
-      <span class="px-1.5 py-[3px] font-mono text-[12.5px] {changed ? 'text-changed' : 'text-fg'}"
+      <span class="px-1.5 py-px font-mono text-mono {changed ? 'text-changed' : 'text-fg'}"
         >{rangeText(range)}</span
       >
     {/if}
   </span>
   {#if error}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-xs text-warn" role="alert">{error}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn" role="alert">{error}</span>
   {/if}
 </div>
 {#if open}
