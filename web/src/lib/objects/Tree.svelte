@@ -183,11 +183,11 @@ function clearOnEscape(event: KeyboardEvent): void {
       <div class="absolute inset-x-0 top-0" style:transform="translateY({first * rowHeight}px)">
         {#each visible as line (line.key)}
           {#if line.type === "group" && line.depth < 0}
-            <!-- Custom and Standard: the same heading, which opens and closes, its arrow in the groups' arrow column
-                 (Sven, 2026-10-27). -->
+            <!-- Custom and Standard: the same heading, which opens and closes with no arrow of its own, so it stands left
+                 of what it holds (Sven, 2026-11-01). -->
             <button
               type="button"
-              class="flex w-full items-center gap-1.5 pr-2.5 pl-2.5 text-left font-semibold text-body hover:text-fg"
+              class="flex w-full items-center pr-2.5 pl-1 text-left font-semibold text-body hover:text-fg"
               style:height="{rowHeight}px"
               aria-expanded={line.open}
               onclick={() => {
@@ -195,9 +195,6 @@ function clearOnEscape(event: KeyboardEvent): void {
                 focusTree();
               }}
             >
-              <span class="flex w-3 shrink-0 items-center text-faint">
-                {#if line.open}<ChevronDown size={12} />{:else}<ChevronRight size={12} />{/if}
-              </span>
               {line.name}
               <span class="ml-auto font-mono text-mono text-faint">{line.count}</span>
             </button>
