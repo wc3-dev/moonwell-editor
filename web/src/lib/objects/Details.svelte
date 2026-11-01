@@ -454,7 +454,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   <!-- The changed fields' places beside the scroll bar, as a code editor marks changed lines; a click goes there. -->
-  <div class="pointer-events-none absolute inset-y-2.5 right-[3px] w-1" aria-hidden="true">
+  <div class="pointer-events-none absolute inset-y-0 right-0 w-2" aria-hidden="true">
     {#each marks as mark, index (index)}
       <button
         type="button"

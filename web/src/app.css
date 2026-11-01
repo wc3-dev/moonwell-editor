@@ -234,36 +234,23 @@ body {
   }
 }
 
+/* Plain rectangles, as Monaco's are (Sven, 2026-11-01). */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 5px;
-  background: var(--raised) padding-box;
+  background: rgb(219 215 202 / 0.16);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border) padding-box;
+  background: rgb(219 215 202 / 0.32);
 }
 
 /* The trigger canvas keeps the look it had before the rest of the page went matte (Sven, 2026-11-01). */
 .canvas-look {
   font: 14px / 1.45 var(--font-canvas);
-}
-.canvas-look ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.canvas-look ::-webkit-scrollbar-thumb {
-  border: 0;
-  border-radius: 0;
-  background: rgb(219 215 202 / 0.16);
-}
-.canvas-look ::-webkit-scrollbar-thumb:hover {
-  background: rgb(219 215 202 / 0.32);
 }

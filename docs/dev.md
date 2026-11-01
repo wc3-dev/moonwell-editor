@@ -212,7 +212,7 @@ The look is in `app.css`. The interface has one size, the body's, so most text h
 `bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
 shading is `.toolbar` and `.tool-button`, the only shading there is. The trigger canvas stays out of all of it: its files
 (`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
-it its font and scroll bars.
+it its font.
 
 ## Interface text
 
