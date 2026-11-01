@@ -469,7 +469,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   <!-- Floats at the bottom of the panel, over the fields, and never moves (Sven, 2026-10-27): icons, named by their
-       tooltips. -->
+       tooltips. A button is rounded only where it meets the bar's own corners (Sven, 2026-11-01). -->
   <div
     class="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-ui bg-raised p-px"
     role="toolbar"
@@ -501,7 +501,7 @@ function clearOnEscape(event: KeyboardEvent): void {
 )}
   <button
     type="button"
-    class="rounded-ui p-1 {pressed
+    class="p-1 first:rounded-l-[2px] last:rounded-r-[2px] {pressed
       ? 'bg-accent-lo text-accent-hi'
       : 'text-muted hover:bg-line hover:text-fg'}"
     title={label}
