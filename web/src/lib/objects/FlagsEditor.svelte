@@ -48,8 +48,15 @@ const options = $derived([
 ]);
 
 // As wide as what it shows (Sven, 2026-10-29: the widest choice made a long button), in characters of the fixed-width
-// font and one spare; the padding, border, gap and chevron take 32 pixels.
-const width = $derived(Math.max(4, (shown === "" ? t("flags.none") : shown).length) + 1);
+// font and one spare; the padding, border, gap and chevron take 32 pixels. While open it is as wide as its list, which
+// shows each label beside its value after a checkbox.
+const width = $derived(
+  Math.max(
+    4,
+    (shown === "" ? t("flags.none") : shown).length,
+    ...(open ? options.map((option) => option.label.length + option.value.length + 4) : []),
+  ) + 1,
+);
 
 async function toggle(value: string, on: boolean): Promise<void> {
   const next = on ? [...ticked, value] : ticked.filter((each) => each !== value);
@@ -63,7 +70,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
 
 <button
   type="button"
-  class="flex min-w-0 cursor-pointer items-center gap-1 rounded-ui border py-px pr-1 pl-1.5 text-left font-mono text-mono focus:border-solid focus:border-accent focus:outline-none {tone} {compact
+  class="dropdown flex min-w-0 cursor-pointer items-center gap-1 rounded-ui border py-px pr-1 pl-1.5 text-left font-mono text-mono focus:border-solid focus:border-accent focus:outline-none {tone} {compact
     ? 'w-full max-w-56'
     : 'max-w-full'}"
   style:width={compact ? undefined : `calc(${width}ch + 32px)`}
@@ -78,10 +85,10 @@ async function toggle(value: string, on: boolean): Promise<void> {
   <ChevronDown size={12} class="shrink-0 text-faint" />
 </button>
 {#if open && button}
-  <Popover anchor={button} onclose={() => (open = false)}>
+  <Popover anchor={button} onclose={() => (open = false)} dropdown>
     <div class="flex flex-col" role="group" aria-label={field.label}>
       {#each options as option (option.value)}
-        <label class="flex cursor-pointer items-center gap-2 rounded-ui px-2 py-1 hover:bg-hover">
+        <label class="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-select hover:text-fg">
           <input
             type="checkbox"
             class="accent-accent"

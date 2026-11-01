@@ -31,6 +31,8 @@ const libraries: [string, string][] = [
   ["monaco-vscode-api", "MIT"],
   ["monaco-languageclient", "MIT"],
   ["language-jass", "MIT"],
+  ["tm-themes", "MIT"],
+  ["Material Theme", "Apache-2.0"],
   ["Tailwind CSS", "MIT"],
   ["Lucide", "ISC"],
   ["war3-model", "MIT"],

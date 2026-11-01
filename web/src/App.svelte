@@ -17,13 +17,13 @@ import { windowTitle } from "./lib/app/title.ts";
 import UnsavedDialog from "./lib/app/UnsavedDialog.svelte";
 import WelcomeScreen from "./lib/app/WelcomeScreen.svelte";
 import { typingIn } from "./lib/app/windowKeys.ts";
+import { applyCodeTheme } from "./lib/codeThemes.ts";
 import { picking } from "./lib/map/pick.svelte.ts";
 import DeleteObjectDialog from "./lib/objects/DeleteObjectDialog.svelte";
 import NewObjectDialog from "./lib/objects/NewObjectDialog.svelte";
 import TooltipEditor from "./lib/objects/TooltipEditor.svelte";
 import { prefs } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
-import { applyCodeTheme } from "./lib/themes.ts";
 import ContextMenu from "./lib/ui/ContextMenu.svelte";
 
 const editor = new Editor();

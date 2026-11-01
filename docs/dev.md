@@ -160,8 +160,10 @@ and never both. Nothing picks C# yet, as no script in a map's triggers is in C#.
 a click lands on the right character at every zoom, and it draws only the lines in view: 150 scripts of 300 lines open in
 1.3 s, where textareas took 2.2 s. The caret and the selection stay the browser's.
 
-A script's colours are the `--code-*` tokens in `app.css`, which `themes.ts` sets apart from the interface's: Settings
-has a code theme of its own, which follows the interface's theme until one is chosen (`prefs.codeTheme`).
+The code themes (`codeThemes.ts`) are VS Code's own theme files, from Shiki's `tm-themes` package, whose `NOTICE` has
+each one's licence; Aurora X is left out for its GPL. Monaco reads a file as it is. A script box reads one colour per
+kind of word from it, as VS Code would pick it for that scope, into the `--code-*` tokens in `app.css`. Settings has a
+code theme of its own, which follows the interface's theme until one is chosen (`prefs.codeTheme`).
 
 The Script Editor (`ScriptEditor.svelte`) is a page of its own, with the scripts opened from the Trigger Editor down the
 side (`openScripts.ts`). It stays in the page for as long as the map is open, and so does the trigger editor once shown:
@@ -173,7 +175,7 @@ services in the page. The cards stay on CodeMirror, as the grid scales them with
 landing wrong there. `web/src/lib/scripts/monaco/` holds it, and the page loads it when a script first opens, so a map
 that never opens one does not pay for it (about 15 MB of the page's 16). `setup.ts` starts it once. VS Code's extensions
 bring Lua and C#, and JASS comes as an extension of ours with Drake53's TextMate grammar, kept unchanged with its licence;
-`editorThemes.ts` makes a VS Code theme of each code theme. `scriptsEditor.ts` has one editor and a document per open
+`editorThemes.ts` gives VS Code the code themes as an extension. `scriptsEditor.ts` has one editor and a document per open
 script, so each keeps its caret, scroll and undo. A document is a file in VS Code's in-memory file system, held by a
 reference (`createModelReference`): VS Code disposes a model made with `editor.createModel`, and a language server will
 want files. Monaco keeps the keys it knows from the window, so `Editor.onkeydowncapture` takes Save and Settings before it does. No
@@ -210,7 +212,8 @@ a pick asked of the map, a setting turned off. What the classes do to each other
 The look is in `app.css`. The interface has one size, the body's, so most text has no size class; the others are
 `text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. `bg-gutter`, `bg-field`, `bg-select`,
 `bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
-shading is `.toolbar` and `.tool-button`, the only shading there is. The trigger canvas stays out of all of it: its files
+shading is `.toolbar` and `.tool-button`, the only shading there is. A dropdown's button and list are one shape, `.dropdown`
+and `.dropdown-list`: use `ui/Select.svelte` for one choice, or `ui/Popover.svelte`'s `dropdown` for anything else. The trigger canvas stays out of all of it: its files
 (`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
 it its font.
 

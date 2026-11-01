@@ -1,6 +1,7 @@
 import { frameColors } from "../api.ts";
+import { codeThemeOf } from "../codeThemes.ts";
 import { prefs } from "../prefs.svelte.ts";
-import { applyTheme, codeThemeOf, savedTheme, saveTheme, type Theme } from "../themes.ts";
+import { applyTheme, savedTheme, saveTheme, type Theme } from "../themes.ts";
 
 export class Appearance {
   theme = $state(savedTheme());

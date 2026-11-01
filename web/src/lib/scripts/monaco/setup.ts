@@ -8,21 +8,21 @@ import "@codingame/monaco-vscode-lua-default-extension";
 import { updateUserConfiguration } from "@codingame/monaco-vscode-configuration-service-override";
 import { MonacoVscodeApiWrapper } from "monaco-languageclient/vscodeApiWrapper";
 import { configureDefaultWorkerFactory } from "monaco-languageclient/workerFactory";
-import type { Theme } from "../../themes.ts";
+import type { CodeTheme } from "../../codeThemes.ts";
 import { editorThemeId, editorThemes } from "./editorThemes.ts";
 import jassConfiguration from "./jass.language-configuration.json?raw";
 import jassGrammar from "./jass.tmLanguage.json?raw";
 
 let started: Promise<void> | null = null;
 
-function settings(theme: Theme): string {
+function settings(theme: CodeTheme): string {
   return JSON.stringify({
     "workbench.colorTheme": editorThemeId(theme),
     "editor.bracketPairColorization.enabled": false,
   });
 }
 
-function start(container: HTMLElement, theme: Theme): Promise<void> {
+function start(container: HTMLElement, theme: CodeTheme): Promise<void> {
   const codeThemes = editorThemes();
   const wrapper = new MonacoVscodeApiWrapper({
     $type: "extended",
@@ -71,12 +71,12 @@ function start(container: HTMLElement, theme: Theme): Promise<void> {
 }
 
 /** Starts Monaco, the first time it is asked. */
-export function startMonaco(container: HTMLElement, theme: Theme): Promise<void> {
+export function startMonaco(container: HTMLElement, theme: CodeTheme): Promise<void> {
   started ??= start(container, theme);
   return started;
 }
 
 /** Colours Monaco in a code theme. */
-export function setEditorTheme(theme: Theme): Promise<void> {
+export function setEditorTheme(theme: CodeTheme): Promise<void> {
   return updateUserConfiguration(settings(theme));
 }
