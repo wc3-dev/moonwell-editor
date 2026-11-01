@@ -1,7 +1,7 @@
 <script lang="ts">
-import Dialog from "../Dialog.svelte";
-import DialogButton from "../DialogButton.svelte";
 import { t, tCount } from "../text.ts";
+import Dialog from "../ui/Dialog.svelte";
+import DialogButton from "../ui/DialogButton.svelte";
 import { getEditor } from "./editor.svelte.ts";
 
 const { session } = getEditor();

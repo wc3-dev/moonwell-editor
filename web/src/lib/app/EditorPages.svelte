@@ -1,11 +1,11 @@
 <script lang="ts">
 import { graphics } from "../graphics.svelte.ts";
-import MapView from "../MapView.svelte";
+import MapView from "../map/MapView.svelte";
 import DetailsPage from "../objects/DetailsPage.svelte";
-import ScriptEditor from "../ScriptEditor.svelte";
-import TableView from "../TableView.svelte";
-import TriggerEditor from "../TriggerEditor.svelte";
+import TableView from "../objects/TableView.svelte";
+import ScriptEditor from "../scripts/ScriptEditor.svelte";
 import { t } from "../text.ts";
+import TriggerEditor from "../triggers/TriggerEditor.svelte";
 import { getEditor } from "./editor.svelte.ts";
 
 const editor = getEditor();

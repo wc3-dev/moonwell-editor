@@ -1,8 +1,8 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import AboutDialog from "./lib/AboutDialog.svelte";
-import AlphaNotice from "./lib/AlphaNotice.svelte";
 import { uiScale } from "./lib/api.ts";
+import AboutDialog from "./lib/app/AboutDialog.svelte";
+import AlphaNotice from "./lib/app/AlphaNotice.svelte";
 import AppHeader from "./lib/app/AppHeader.svelte";
 import DiskChangedDialog from "./lib/app/DiskChangedDialog.svelte";
 import EditorPages from "./lib/app/EditorPages.svelte";
@@ -10,21 +10,21 @@ import { Editor, setEditor } from "./lib/app/editor.svelte.ts";
 import type { Place } from "./lib/app/history.svelte.ts";
 import NoMapScreen from "./lib/app/NoMapScreen.svelte";
 import ReloadDialog from "./lib/app/ReloadDialog.svelte";
+import SettingsDialog from "./lib/app/SettingsDialog.svelte";
+import StatusBar from "./lib/app/StatusBar.svelte";
+import TitleBar, { type Visit } from "./lib/app/TitleBar.svelte";
+import { windowTitle } from "./lib/app/title.ts";
 import UnsavedDialog from "./lib/app/UnsavedDialog.svelte";
 import WelcomeScreen from "./lib/app/WelcomeScreen.svelte";
 import { typingIn } from "./lib/app/windowKeys.ts";
-import ContextMenu from "./lib/ContextMenu.svelte";
-import { picking } from "./lib/map/pick.ts";
+import { picking } from "./lib/map/pick.svelte.ts";
 import DeleteObjectDialog from "./lib/objects/DeleteObjectDialog.svelte";
 import NewObjectDialog from "./lib/objects/NewObjectDialog.svelte";
+import TooltipEditor from "./lib/objects/TooltipEditor.svelte";
 import { prefs } from "./lib/prefs.svelte.ts";
-import SettingsDialog from "./lib/SettingsDialog.svelte";
-import StatusBar from "./lib/StatusBar.svelte";
-import TitleBar, { type Visit } from "./lib/TitleBar.svelte";
-import TooltipEditor from "./lib/TooltipEditor.svelte";
 import { t } from "./lib/text.ts";
 import { applyCodeTheme } from "./lib/themes.ts";
-import { windowTitle } from "./lib/title.ts";
+import ContextMenu from "./lib/ui/ContextMenu.svelte";
 
 const editor = new Editor();
 setEditor(editor);
@@ -32,8 +32,8 @@ const { appearance, history, notices, objects, pages, startup } = editor;
 const { objectActions, session } = editor;
 
 $effect(() => applyCodeTheme(appearance.codeTheme));
-$effect(() => pages.followPick($picking.kind !== null, session.map !== null));
-// The table view is an experimental feature (Sven, 2026-10-29): turning them off goes back to the details.
+$effect(() => pages.followPick(picking.kind !== null, session.map !== null));
+// The table view is an experimental feature: turning them off goes back to the details.
 $effect(() => {
   if (!prefs.experimental && pages.page === "table") pages.show("details");
 });

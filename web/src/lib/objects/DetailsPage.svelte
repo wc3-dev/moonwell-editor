@@ -1,10 +1,10 @@
 <script lang="ts">
 import { getEditor } from "../app/editor.svelte.ts";
 import { hasTooltip } from "../app/objectActions.svelte.ts";
-import Details from "../Details.svelte";
-import SidePanel from "../SidePanel.svelte";
-import Tree from "../Tree.svelte";
 import { t } from "../text.ts";
+import Details from "./Details.svelte";
+import SidePanel from "./SidePanel.svelte";
+import Tree from "./Tree.svelte";
 
 const editor = getEditor();
 const { notices, objectActions, objects, pages, session, startup } = editor;

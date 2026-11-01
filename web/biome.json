@@ -8,7 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!package-lock.json", "!src/lib/monaco/jass.*.json"]
+    "includes": ["**", "!package-lock.json", "!src/lib/scripts/monaco/jass.*.json"]
   },
   "formatter": {
     "enabled": true,

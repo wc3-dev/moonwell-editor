@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
 import { arena, FakeApp, footmanEntry, knightEntry, unit } from "../../test/fakeApp.ts";
-import type { MenuItem } from "../ContextMenu.svelte";
 import { t } from "../text.ts";
+import type { MenuItem } from "../ui/ContextMenu.svelte";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
 import { MapSession } from "./mapSession.svelte.ts";

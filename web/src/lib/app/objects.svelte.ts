@@ -12,10 +12,10 @@ import {
   tree,
 } from "../api.ts";
 import { errorText } from "../errors.ts";
-import { type Lookup, listKinds } from "../fields.ts";
 import { graphics, viewInMode } from "../graphics.svelte.ts";
-import type { EditResult } from "../TableView.svelte";
-import { newTableState, type TableState } from "../table.ts";
+import { type Lookup, listKinds } from "../objects/fields.ts";
+import type { EditResult } from "../objects/TableView.svelte";
+import { newTableState, type TableState } from "../objects/table.ts";
 import { t } from "../text.ts";
 import type { CommandQueue } from "./commandQueue.ts";
 import type { History } from "./history.svelte.ts";

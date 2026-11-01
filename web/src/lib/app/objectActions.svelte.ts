@@ -8,12 +8,12 @@ import {
   object,
   setCells,
 } from "../api.ts";
-import type { MenuItem } from "../ContextMenu.svelte";
 import { errorText } from "../errors.ts";
-import { isTypedId } from "../fields.ts";
+import { isTypedId } from "../objects/fields.ts";
+import { nameField } from "../objects/values.ts";
 import { prefs } from "../prefs.svelte.ts";
 import { t, tCount } from "../text.ts";
-import { nameField } from "../values.ts";
+import type { MenuItem } from "../ui/ContextMenu.svelte";
 import type { CommandQueue } from "./commandQueue.ts";
 import type { MapSession } from "./mapSession.svelte.ts";
 import type { Notices } from "./notices.svelte.ts";
@@ -21,7 +21,7 @@ import type { Objects } from "./objects.svelte.ts";
 import type { Pages } from "./pages.svelte.ts";
 
 /**
- * An object copied, for Ctrl V to paste as a new custom object. There is no cut (Sven, 2026-10-29): a paste never
+ * An object copied, for Ctrl V to paste as a new custom object. There is no cut: a paste never
  * deletes the object it came from.
  */
 type Clip = { kind: Kind; id: string; name: string; baseId: string };

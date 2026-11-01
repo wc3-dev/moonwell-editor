@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
-import type { Action } from "../keymap.ts";
+import type { Action } from "./keymap.ts";
 import type { Page } from "./pages.svelte.ts";
 import { answerKey, inMonaco, inPopup, type KeyPlace, typingIn } from "./windowKeys.ts";
 

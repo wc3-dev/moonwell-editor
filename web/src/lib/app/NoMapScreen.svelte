@@ -1,7 +1,7 @@
 <script lang="ts">
-import OpenMapMenu from "../OpenMapMenu.svelte";
 import { t } from "../text.ts";
 import { getEditor } from "./editor.svelte.ts";
+import OpenMapMenu from "./OpenMapMenu.svelte";
 
 const { session, startup } = getEditor();
 </script>

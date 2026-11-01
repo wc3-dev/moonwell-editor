@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/sve
 import { tick } from "svelte";
 import { describe, expect, test, vi } from "vitest";
 import App from "./App.svelte";
-import { answer, pickOnMap } from "./lib/map/pick.ts";
+import { answer, pickOnMap } from "./lib/map/pick.svelte.ts";
 import { setPref } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
 import {
@@ -16,7 +16,7 @@ import {
   triggerAnswers,
 } from "./test/fakeApp.ts";
 
-vi.mock("./lib/monaco/scriptsEditor.ts", () => ({
+vi.mock("./lib/scripts/monaco/scriptsEditor.ts", () => ({
   ScriptsEditor: {
     create: async () => ({
       setTheme() {},

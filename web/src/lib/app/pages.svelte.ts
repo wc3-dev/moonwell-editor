@@ -1,6 +1,6 @@
 import { untrack } from "svelte";
 import type { FieldView } from "../api.ts";
-import type { OpenScript } from "../triggers/openScripts.ts";
+import type { OpenScript } from "../scripts/openScripts.ts";
 
 type ObjectPage = "details" | "table";
 export type Page = ObjectPage | "map" | "triggers" | "scripts";

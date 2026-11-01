@@ -12,7 +12,7 @@ import Package from "@lucide/svelte/icons/package";
 import Table2 from "@lucide/svelte/icons/table-2";
 import Workflow from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
-import KindBar from "../KindBar.svelte";
+import KindBar from "../objects/KindBar.svelte";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
 import { getEditor } from "./editor.svelte.ts";

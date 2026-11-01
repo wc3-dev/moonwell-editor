@@ -12,7 +12,7 @@ import {
 import { loadAssetNames } from "../assetNames.svelte.ts";
 import { call, on } from "../bridge.ts";
 import { errorText } from "../errors.ts";
-import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "../gameData.ts";
+import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "./gameData.ts";
 import type { MapSession } from "./mapSession.svelte.ts";
 
 /** Reaching the app and its game data: everything else waits for this. */

@@ -120,7 +120,8 @@ strings (War3Net's bundled copy lags the game, and its reader stops at lines the
 corrects them first); `TriggerDocument` is the map's `war3map.wtg` and `war3map.wct` with the edits and the views the page
 draws; `TriggerScript` and `TriggerJass` write the script. `Session.Triggers.cs` reads the document when the view first
 asks, makes each edit one undo step and adds the files to a save. The bridge commands are in `Commands.Triggers.cs` and
-the page in `web/src/lib/TriggerEditor.svelte` and `web/src/lib/triggers/`.
+the page in `web/src/lib/triggers/`, from `TriggerEditor.svelte`: `triggerState.svelte.ts` keeps the state and makes the
+edits, `triggerDrag.svelte.ts` has the drags and `triggerMenus.ts` the context menus.
 
 An edit never changes an item in place: it copies the item, so a snapshot taken before stays as it was and an undo step
 costs a list of references. A file War3Net does not write back to the same bytes, an older format or a pair of files that
@@ -167,17 +168,42 @@ the two editors read the map's scripts again when they show, as both change them
 
 Its editor is Monaco in monaco-languageclient's extended mode, on `@codingame/monaco-vscode-api`, which is VS Code's own
 services in the page. The cards stay on CodeMirror, as the grid scales them with CSS and Monaco has reports of clicks
-landing wrong there. `web/src/lib/monaco/` holds it, and the page loads it when a script first opens, so a map
+landing wrong there. `web/src/lib/scripts/monaco/` holds it, and the page loads it when a script first opens, so a map
 that never opens one does not pay for it (about 15 MB of the page's 16). `setup.ts` starts it once. VS Code's extensions
 bring Lua and C#, and JASS comes as an extension of ours with Drake53's TextMate grammar, kept unchanged with its licence;
 `editorThemes.ts` makes a VS Code theme of each code theme. `scriptsEditor.ts` has one editor and a document per open
 script, so each keeps its caret, scroll and undo. A document is a file in VS Code's in-memory file system, held by a
 reference (`createModelReference`): VS Code disposes a model made with `editor.createModel`, and a language server will
-want files. Monaco keeps the keys it knows from the window, so `App.svelte` takes Save and Settings before it does. No
+want files. Monaco keeps the keys it knows from the window, so `Editor.onkeydowncapture` takes Save and Settings before it does. No
 language server runs yet.
 
 All the `@codingame/monaco-vscode-*` packages must be the one version that `monaco-languageclient` asks for, and the
 `vscode` package is an alias of `@codingame/monaco-vscode-extension-api` at that version: move them together.
+
+## The page's code
+
+`web/src/lib` has a folder for each part of the editor, with what several of them use at its top (`api.ts`, `bridge.ts`,
+`text.ts`, `themes.ts`, `prefs.svelte.ts`):
+
+| Folder | What is in it |
+| --- | --- |
+| `app` | The window: the state below, the header, title bar, status bar, settings and the dialogs about the map |
+| `objects` | The Object Editor: the tree, the details, the table, the tooltip editor, the model preview |
+| `triggers` | The Trigger Editor |
+| `scripts` | The Script Editor and Monaco |
+| `map` | The Terrain Editor's view and its WebGL |
+| `ui` | Dialogs, menus and pickers any part can use |
+
+The state is in classes with `$state` fields, in `.svelte.ts` files, so it can be tested without a page. `Editor`
+(`app/editor.svelte.ts`) makes one of each for the window: `Pages` (which page shows), `Objects` (the trees, the object
+shown, its edits), `MapSession` (opening, saving, reloading, unsaved edits, closing), `ObjectActions` (new, copy, delete,
+reset, rename), `History`, `Notices`, `Startup`, `Appearance` and the `CommandQueue`. `App.svelte` puts it in the context
+and lays out the window. The components under it that belong to the app ask with `getEditor()`; the small ones (a field's
+row, the tree) take props and know nothing of it. What a key means where it was pressed is the plain function `answerKey`
+in `app/windowKeys.ts`, and `Editor.onkeydown` carries it out.
+
+An `$effect` here is for following something outside the state classes: the theme onto the page, the title onto the window,
+a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.
 
 ## Interface text
 
@@ -196,3 +222,7 @@ cd web && npm run check
 ```
 
 `dotnet test` runs every test project in the solution. `npm run check` is Biome plus svelte-check.
+
+`src/App.*.test.ts` run the whole page in jsdom against `FakeApp` (`src/test/fakeApp.ts`), which stands in for the C# side
+of the bridge: it answers commands from a table, keeps what was asked and sends events. jsdom has no layout, WebGL or
+Monaco, so the map view, the grid's pan and zoom, and what Monaco draws show only in the real window.

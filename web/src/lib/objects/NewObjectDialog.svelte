@@ -1,8 +1,8 @@
 <script lang="ts">
 import { getEditor } from "../app/editor.svelte.ts";
-import Dialog from "../Dialog.svelte";
-import DialogButton from "../DialogButton.svelte";
 import { t } from "../text.ts";
+import Dialog from "../ui/Dialog.svelte";
+import DialogButton from "../ui/DialogButton.svelte";
 
 const { objectActions } = getEditor();
 </script>

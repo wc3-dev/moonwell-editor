@@ -1,0 +1,23 @@
+<script lang="ts">
+/**
+ * The notice the editor opens with (Sven, 2026-10-27): it is alpha software, so keep backups, and the map must be
+ * closed in World Editor and left alone by anything else while the editor has it open. The warning sign is on the
+ * title's row, and only Settings stops it opening (Sven, 2026-10-28).
+ */
+import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
+import { t } from "../text.ts";
+import Dialog from "../ui/Dialog.svelte";
+import DialogButton from "../ui/DialogButton.svelte";
+
+let { onclose }: { onclose: () => void } = $props();
+</script>
+
+<Dialog title={t("alpha.title")} icon={TriangleAlert} oncancel={onclose}>
+  <div class="flex flex-col gap-2">
+    <p class="m-0">{t("alpha.backup")}</p>
+    <p class="m-0">{t("alpha.closeFirst")}</p>
+  </div>
+  {#snippet actions()}
+    <DialogButton look="primary" onclick={onclose}>{t("alpha.understood")}</DialogButton>
+  {/snippet}
+</Dialog>

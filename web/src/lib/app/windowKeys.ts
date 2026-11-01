@@ -1,4 +1,4 @@
-import type { Action } from "../keymap.ts";
+import type { Action } from "./keymap.ts";
 import type { Page } from "./pages.svelte.ts";
 
 export type KeyCommand =

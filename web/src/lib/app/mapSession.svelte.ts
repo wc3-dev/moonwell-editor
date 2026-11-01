@@ -12,16 +12,16 @@ import {
 } from "../api.ts";
 import { BridgeError } from "../bridge.ts";
 import { errorText } from "../errors.ts";
-import { type OpenEntry, openFrom } from "../openMenu.ts";
+import { savedText } from "../objects/values.ts";
 import { prefs } from "../prefs.svelte.ts";
-import { type Choice, dropUnsaved, type Settling, settleUnsaved } from "../settle.ts";
 import { t } from "../text.ts";
 import { hasTyped, sendTyped } from "../typing.ts";
-import { savedText } from "../values.ts";
 import type { CommandQueue } from "./commandQueue.ts";
 import type { Notices } from "./notices.svelte.ts";
 import type { Objects } from "./objects.svelte.ts";
+import { type OpenEntry, openFrom } from "./openMenu.ts";
 import type { Pages } from "./pages.svelte.ts";
+import { type Choice, dropUnsaved, type Settling, settleUnsaved } from "./settle.ts";
 
 /** The unsaved-changes dialog: its question, whether Save is offered, and how it answers. */
 type Unsaved = { question: string; canSave: boolean; answer: (choice: Choice) => void };
@@ -197,8 +197,8 @@ export class MapSession {
   }
 
   /**
-   * The reload button (Sven, 2026-10-27): one question, "Are you sure...?", which says so when there are unsaved
-   * changes. With the settings' questions off it reloads at once and drops them (Sven, 2026-10-29).
+   * The reload button: one question, "Are you sure...?", which says so when there are unsaved
+   * changes. With the settings' questions off it reloads at once and drops them.
    */
   askReload = (): void => {
     if (!prefs.confirm) this.reloadFromDisk(true);

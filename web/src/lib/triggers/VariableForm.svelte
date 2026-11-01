@@ -1,7 +1,8 @@
 <script lang="ts">
 /** A variable's fields, as World Editor's Variable dialog has them. A change is sent with the Save button. */
-import Select from "../Select.svelte";
+
 import { t } from "../text.ts";
+import Select from "../ui/Select.svelte";
 import type { Catalog, VariableInput } from "./api.ts";
 
 type Props = {

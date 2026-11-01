@@ -7,11 +7,11 @@
 
 import Crosshair from "@lucide/svelte/icons/crosshair";
 import { type Hit, search } from "../api.ts";
-import Dialog from "../Dialog.svelte";
-import DialogButton from "../DialogButton.svelte";
 import { errorText } from "../errors.ts";
-import { pickOnMap } from "../map/pick.ts";
+import { pickOnMap } from "../map/pick.svelte.ts";
 import { t } from "../text.ts";
+import Dialog from "../ui/Dialog.svelte";
+import DialogButton from "../ui/DialogButton.svelte";
 import type {
   Catalog,
   MapReference,

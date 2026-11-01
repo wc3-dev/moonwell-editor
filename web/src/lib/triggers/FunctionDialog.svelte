@@ -1,9 +1,10 @@
 <script lang="ts">
 /** Picks a function of a kind: by category and typed text, with its sentence and World Editor's hint below the list. */
-import Dialog from "../Dialog.svelte";
-import DialogButton from "../DialogButton.svelte";
-import Select, { type SelectOption } from "../Select.svelte";
+
 import { t } from "../text.ts";
+import Dialog from "../ui/Dialog.svelte";
+import DialogButton from "../ui/DialogButton.svelte";
+import Select, { type SelectOption } from "../ui/Select.svelte";
 import type { Catalog, CatalogFunction, FunctionKind } from "./api.ts";
 import { functionsOf, functionTitle } from "./lists.ts";
 

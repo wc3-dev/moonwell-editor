@@ -4,7 +4,7 @@
  * as they arrive.
  */
 import { assetNames } from "./api.ts";
-import { setAssetNames } from "./fields.ts";
+import { setAssetNames } from "./objects/fields.ts";
 
 let groups = $state.raw<Record<string, Record<string, string[]>> | null>(null);
 

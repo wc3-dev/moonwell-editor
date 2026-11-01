@@ -1,17 +1,17 @@
 import { createContext, tick } from "svelte";
 import type { Kind } from "../api.ts";
-import type { MenuItem } from "../ContextMenu.svelte";
-import { actionOf, loadKeymap, shownKey } from "../keymap.ts";
-import { openEntries } from "../openMenu.ts";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
+import type { MenuItem } from "../ui/ContextMenu.svelte";
 import { Appearance } from "./appearance.svelte.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
+import { actionOf, loadKeymap, shownKey } from "./keymap.ts";
 import { MapSession } from "./mapSession.svelte.ts";
 import { Notices } from "./notices.svelte.ts";
 import { ObjectActions } from "./objectActions.svelte.ts";
 import { Objects } from "./objects.svelte.ts";
+import { openEntries } from "./openMenu.ts";
 import { Pages } from "./pages.svelte.ts";
 import { Startup } from "./startup.svelte.ts";
 import { answerKey, inMonaco, inPopup, typingIn } from "./windowKeys.ts";
@@ -48,7 +48,7 @@ export class Editor {
   keymap = $state(loadKeymap());
   settingsOpen = $state(false);
   aboutOpen = $state(false);
-  /** The notice the editor opens with, until Settings turns it off (Sven, 2026-10-28). */
+  /** The notice the editor opens with, until Settings turns it off. */
   alphaOpen = $state(prefs.alphaNotice);
   menu = $state.raw<Menu | null>(null);
 
@@ -153,7 +153,7 @@ export class Editor {
     switch (command) {
       case "dismiss":
         // An Esc that closed a list or a menu is spent (Bits UI marks it). Otherwise it also lets go of a button clicked
-        // last (a kind, a view), which would show its focus ring (Sven, 2026-10-29).
+        // last (a kind, a view), which would show its focus ring.
         if (!event.defaultPrevented) {
           session.problemsOpen = false;
           if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();

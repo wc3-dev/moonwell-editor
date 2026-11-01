@@ -3,7 +3,7 @@ import { tick } from "svelte";
 import { afterEach, beforeEach, expect } from "vitest";
 import App from "../App.svelte";
 import type { CurrentMap, FieldView, MapInfo, ObjectView, TreeEntry } from "../lib/api.ts";
-import type { GameDataState } from "../lib/gameData.ts";
+import type { GameDataState } from "../lib/app/gameData.ts";
 import { prefs, setPref } from "../lib/prefs.svelte.ts";
 import { t } from "../lib/text.ts";
 

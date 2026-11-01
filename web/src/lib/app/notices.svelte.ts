@@ -1,4 +1,4 @@
-import type { Notice } from "../StatusBar.svelte";
+import type { Notice } from "./StatusBar.svelte";
 
 export class Notices {
   current = $state.raw<Notice | null>(null);
