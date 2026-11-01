@@ -32,6 +32,19 @@ describe("the keymap", () => {
     expect(clashes(keymap, "save", "Ctrl+Z")).toEqual(["undo"]);
   });
 
+  it("opens the command palette with Ctrl Shift P out of the box", () => {
+    expect(actionOf(press("P", { ctrl: true, shift: true }), defaultKeymap())).toBe(
+      "commandPalette",
+    );
+  });
+
+  it("finds a command that has no key until one is set", () => {
+    const keymap = defaultKeymap();
+    expect(keymap.showTriggers).toEqual([]);
+    keymap.showTriggers = ["Ctrl+1"];
+    expect(actionOf(press("1", { ctrl: true }), keymap)).toBe("showTriggers");
+  });
+
   it("shows arrows as arrows", () => {
     expect(shownKey("Alt+ArrowRight")).toBe("Alt →");
   });

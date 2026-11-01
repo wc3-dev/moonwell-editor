@@ -187,6 +187,53 @@ test("on the scripts page F2 and Delete are the editor's own", () => {
   expect(answerKey("deleteObject", false, on("scripts"))).toEqual({});
 });
 
+const everyPage: Page[] = ["details", "table", "map", "triggers", "scripts"];
+
+describe("the command palette's key", () => {
+  test.each(everyPage)("opens it on %s", (page) => {
+    expect(answerKey("commandPalette", false, on(page))).toEqual({
+      command: "commandPalette",
+      prevent: true,
+    });
+  });
+
+  test("opens it from a box", () => {
+    expect(answerKey("commandPalette", false, on("details", { typing: true })).command).toBe(
+      "commandPalette",
+    );
+  });
+
+  test("leaves a popup alone", () => {
+    expect(answerKey("commandPalette", false, on("details", { inPopup: true }))).toEqual({});
+  });
+
+  test("leaves a dialog alone", () => {
+    expect(answerKey("commandPalette", false, on("details", { dialogOpen: true }))).toEqual({});
+  });
+});
+
+describe("a key set for a command of the window", () => {
+  test.each(everyPage)("runs on %s", (page) => {
+    expect(answerKey("showTriggers", false, on(page)).command).toBe("showTriggers");
+    expect(answerKey("kindAbility", false, on(page)).command).toBe("kindAbility");
+    expect(answerKey("about", false, on(page)).command).toBe("about");
+  });
+});
+
+describe.each<Action>(["changedOnly", "collapseAll", "expandAll"])("%s", (action) => {
+  test("runs on the details page", () => {
+    expect(answerKey(action, false, details).command).toBe(action);
+  });
+
+  test("does nothing in the table, but takes the key", () => {
+    expect(answerKey(action, false, on("table"))).toEqual({ prevent: true });
+  });
+
+  test.each<Page>(["map", "triggers", "scripts"])("is left to %s", (page) => {
+    expect(answerKey(action, false, on(page))).toEqual({});
+  });
+});
+
 describe("where a key goes", () => {
   const element = (html: string) => {
     document.body.innerHTML = html;

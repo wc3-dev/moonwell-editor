@@ -1,10 +1,23 @@
 /**
  * The editor's hotkeys (Sven, 2026-10-27): each action's keys, World Editor's where it has them, which the settings'
  * Hotkeys tab changes. A key is written as its modifiers and its key: `Ctrl+Shift+N`, `F2`, `Alt+ArrowLeft`. The
- * changes are remembered in the window's storage; the table's own keys (arrows, Enter, Ctrl A) are not here.
+ * changes are remembered in the window's storage; the table's own keys (arrows, Enter, Ctrl A) are not here. This is
+ * also the list the command palette offers (Sven, 2026-11-01), so any command can be given a key.
  */
 
+import type { Kind } from "../api.ts";
 import { t } from "../text.ts";
+
+/** The commands that show a kind of object. */
+export const kindActions = {
+  kindUnit: "unit",
+  kindItem: "item",
+  kindDestructable: "destructable",
+  kindDoodad: "doodad",
+  kindAbility: "ability",
+  kindBuff: "buff",
+  kindUpgrade: "upgrade",
+} as const satisfies Record<string, Kind>;
 
 export type Action =
   | "save"
@@ -20,7 +33,22 @@ export type Action =
   | "fieldIds"
   | "back"
   | "forward"
-  | "settings";
+  | "settings"
+  | "commandPalette"
+  | "openFolder"
+  | "openArchive"
+  | "reload"
+  | "about"
+  | "showTerrain"
+  | "showTriggers"
+  | "showObjects"
+  | "showScripts"
+  | "showDetails"
+  | "showTable"
+  | keyof typeof kindActions
+  | "changedOnly"
+  | "collapseAll"
+  | "expandAll";
 
 /** Every action, in the order the settings list them, with its name and its keys out of the box. */
 export const actionList: { action: Action; name: string; keys: string[] }[] = [
@@ -38,6 +66,27 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "back", name: t("hotkey.back"), keys: ["Alt+ArrowLeft"] },
   { action: "forward", name: t("hotkey.forward"), keys: ["Alt+ArrowRight"] },
   { action: "settings", name: t("hotkey.settings"), keys: ["F10"] },
+  { action: "commandPalette", name: t("hotkey.commandPalette"), keys: ["Ctrl+Shift+P"] },
+  { action: "openFolder", name: t("hotkey.openFolder"), keys: [] },
+  { action: "openArchive", name: t("hotkey.openArchive"), keys: [] },
+  { action: "reload", name: t("hotkey.reload"), keys: [] },
+  { action: "about", name: t("hotkey.about"), keys: [] },
+  { action: "showTerrain", name: t("hotkey.showTerrain"), keys: [] },
+  { action: "showTriggers", name: t("hotkey.showTriggers"), keys: [] },
+  { action: "showObjects", name: t("hotkey.showObjects"), keys: [] },
+  { action: "showScripts", name: t("hotkey.showScripts"), keys: [] },
+  { action: "showDetails", name: t("hotkey.showDetails"), keys: [] },
+  { action: "showTable", name: t("hotkey.showTable"), keys: [] },
+  { action: "kindUnit", name: t("hotkey.kindUnit"), keys: [] },
+  { action: "kindItem", name: t("hotkey.kindItem"), keys: [] },
+  { action: "kindDestructable", name: t("hotkey.kindDestructable"), keys: [] },
+  { action: "kindDoodad", name: t("hotkey.kindDoodad"), keys: [] },
+  { action: "kindAbility", name: t("hotkey.kindAbility"), keys: [] },
+  { action: "kindBuff", name: t("hotkey.kindBuff"), keys: [] },
+  { action: "kindUpgrade", name: t("hotkey.kindUpgrade"), keys: [] },
+  { action: "changedOnly", name: t("hotkey.changedOnly"), keys: [] },
+  { action: "collapseAll", name: t("hotkey.collapseAll"), keys: [] },
+  { action: "expandAll", name: t("hotkey.expandAll"), keys: [] },
 ];
 
 export type Keymap = Record<Action, string[]>;

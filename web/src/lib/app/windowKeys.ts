@@ -1,4 +1,4 @@
-import type { Action } from "./keymap.ts";
+import { type Action, kindActions } from "./keymap.ts";
 import type { Page } from "./pages.svelte.ts";
 
 export type KeyCommand =
@@ -32,8 +32,27 @@ const keysOfTheObjectShown: Action[] = [
   "copyObject",
   "back",
   "forward",
+  "changedOnly",
+  "collapseAll",
+  "expandAll",
 ];
-const keysEverywhere: Action[] = ["save", "settings"];
+/** The keys of the window, which act on every page and in Monaco too. */
+export const keysEverywhere: Action[] = [
+  "save",
+  "settings",
+  "commandPalette",
+  "openFolder",
+  "openArchive",
+  "reload",
+  "about",
+  "showTerrain",
+  "showTriggers",
+  "showObjects",
+  "showScripts",
+  "showDetails",
+  "showTable",
+  ...(Object.keys(kindActions) as Action[]),
+];
 const keysOfTheScripts: Action[] = [...keysEverywhere, "undo", "redo"];
 
 /** The keys that act differently in the table; null for the others. */
@@ -56,6 +75,7 @@ export function answerKey(
   place: KeyPlace,
 ): KeyAnswer {
   if (place.dialogOpen) return left;
+  if (action === "commandPalette" && place.inPopup) return left;
   if (place.page === "table") {
     const answer = inTable(action);
     if (answer) return answer;

@@ -4,6 +4,7 @@ import { uiScale } from "./lib/api.ts";
 import AboutDialog from "./lib/app/AboutDialog.svelte";
 import AlphaNotice from "./lib/app/AlphaNotice.svelte";
 import AppHeader from "./lib/app/AppHeader.svelte";
+import CommandPalette from "./lib/app/CommandPalette.svelte";
 import DiskChangedDialog from "./lib/app/DiskChangedDialog.svelte";
 import EditorPages from "./lib/app/EditorPages.svelte";
 import { Editor, setEditor } from "./lib/app/editor.svelte.ts";
@@ -128,4 +129,8 @@ onMount(() => {
 
 {#if editor.alphaOpen}
   <AlphaNotice onclose={() => (editor.alphaOpen = false)} />
+{/if}
+
+{#if editor.paletteOpen}
+  <CommandPalette />
 {/if}
