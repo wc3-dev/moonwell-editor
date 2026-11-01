@@ -36,19 +36,28 @@ public static class Shells
         var gitRoot = git == null ? null : Path.GetDirectoryName(Path.GetDirectoryName(git));
 
         var shells = new List<Shell>();
-        void Add(string id, string? path, string arguments)
+        void Add(string id, string name, string? path, string arguments)
         {
             if (path != null)
             {
-                shells.Add(new Shell(id, Texts.Get($"app.terminal.{id}"), path, arguments));
+                shells.Add(new Shell(id, name, path, arguments));
             }
         }
 
-        Add("pwsh", First(Under("ProgramFiles", "PowerShell", "7", "pwsh.exe")) ?? OnPath("pwsh.exe"), "-NoLogo");
-        Add("powershell", First(Under("SystemRoot", "System32", "WindowsPowerShell", "v1.0", "powershell.exe")), "-NoLogo");
-        Add("cmd", First(variable("ComSpec")), "");
+        Add(
+            "pwsh",
+            Texts.Get("app.terminal.pwsh"),
+            First(Under("ProgramFiles", "PowerShell", "7", "pwsh.exe")) ?? OnPath("pwsh.exe"),
+            "-NoLogo");
+        Add(
+            "powershell",
+            Texts.Get("app.terminal.powershell"),
+            First(Under("SystemRoot", "System32", "WindowsPowerShell", "v1.0", "powershell.exe")),
+            "-NoLogo");
+        Add("cmd", Texts.Get("app.terminal.cmd"), First(variable("ComSpec")), "");
         Add(
             "bash",
+            Texts.Get("app.terminal.bash"),
             First(
                 Under("ProgramFiles", "Git", "bin", "bash.exe"),
                 Under("ProgramFiles(x86)", "Git", "bin", "bash.exe"),
