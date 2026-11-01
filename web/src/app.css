@@ -248,20 +248,15 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border) padding-box;
 }
+/* A script's theme can differ from the interface's, where --raised may match its background. */
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--code-fg) 20%, var(--code-bg)) padding-box;
+}
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--code-fg) 34%, var(--code-bg)) padding-box;
+}
 
 /* The trigger canvas keeps the look it had before the rest of the page went matte (Sven, 2026-11-01). */
 .canvas-look {
   font: 14px / 1.45 var(--font-canvas);
-}
-.canvas-look ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.canvas-look ::-webkit-scrollbar-thumb {
-  border: 0;
-  border-radius: 0;
-  background: rgb(219 215 202 / 0.16);
-}
-.canvas-look ::-webkit-scrollbar-thumb:hover {
-  background: rgb(219 215 202 / 0.32);
 }
