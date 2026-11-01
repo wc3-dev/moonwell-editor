@@ -234,7 +234,7 @@ export function later<T>(value: T): { answer: Promise<T>; release: () => void } 
   return { answer, release };
 }
 
-/** Mounts the page against an app that has a map open. */
+/** Mounts the page against an app that has a map open, on the Object Editor. */
 export async function openApp(
   answers: Record<string, unknown> = {},
   current: CurrentMap = { map: arena, session: { dirty: false, changedObjects: 0 } },
@@ -247,6 +247,7 @@ export async function openApp(
   });
   render(App);
   await waitFor(() => expect(app.count("tree")).toBeGreaterThan(0));
+  await fireEvent.click(screen.getByRole("button", { name: t("header.objectEditor") }));
   return app;
 }
 
