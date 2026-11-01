@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/google-sans";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
@@ -44,9 +45,9 @@
   --code-function: #8ba4b0;
   --code-special: #c4b28a;
   --code-operator: #a6a69c;
-  /* Segoe UI, as a Windows program has (Sven, 2026-11-01). The game's tooltips are in Inter everywhere, ids and values
-     in JetBrains Mono. The trigger canvas keeps Apple's New York where Windows has it installed, and Inter where not. */
-  --font-ui: "Segoe UI", system-ui, sans-serif;
+  /* Google Sans (Sven, 2026-11-01). The game's tooltips are in Inter everywhere, ids and values in JetBrains Mono. The
+     trigger canvas keeps Apple's New York where Windows has it installed, and Inter where not. */
+  --font-ui: "Google Sans Variable", system-ui, sans-serif;
   --font-canvas:
     "New York", "New York Small", "New York Medium", "Inter Variable", ui-sans-serif, system-ui,
     sans-serif;
