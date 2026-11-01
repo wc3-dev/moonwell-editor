@@ -22,7 +22,7 @@ type ScriptEditor = {
 
 /** Which page the middle of the window shows, and the page components that are there to act on. */
 export class Pages {
-  page = $state<Page>("details");
+  page = $state<Page>("map");
   /** Where the user last clicked or moved the focus: the tree (Ctrl C copies the object) or a field's value. */
   zone = $state<"tree" | "details">("tree");
   /** The trigger editor stays in the page once shown for a map, so its dialogs and place come back. */

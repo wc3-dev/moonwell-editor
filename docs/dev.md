@@ -87,7 +87,8 @@ map-archive test that opens Blizzard's `(4)losttemple.w3m` takes it from a folde
 
 ## The map view
 
-The Terrain Editor button shows the whole map, read only (design: wc3-cs `docs/plans/2026-10-29-map-view-design.md`).
+The Terrain Editor is the page a map opens on, and its button shows the whole map, read only (design: wc3-cs
+`docs/plans/2026-10-29-map-view-design.md`).
 `MoonwellEditor.Map` reads the map's `war3map.w3e`, `war3map.doo`, `war3mapUnits.doo`, `war3map.w3r`, `war3map.w3c`
 and `war3map.w3i` with War3Net, and works out the corner heights, the tiles' texture pieces, the cliff and ramp
 models and each placed thing's model and trigger name (`gg_unit_hfoo_0001`). The page asks for it with the `mapScene`
@@ -211,7 +212,7 @@ The look is in `app.css`. The interface has one size, the body's, so most text h
 `bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. The header bar's
 shading is `.toolbar` and `.tool-button`, the only shading there is. The trigger canvas stays out of all of it: its files
 (`TriggerCanvas`, `TriggerCard`, `FunctionCard`, `ScriptBox`, `cards.ts`) keep their own classes, and `.canvas-look` gives
-it its font and scroll bars.
+it its font.
 
 ## Interface text
 

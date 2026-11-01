@@ -141,10 +141,10 @@ $effect(() => {
 <div class="relative">
   {@render heading("tooltip", t("side.tooltip"), null, "mt-1")}
   {#if onedittooltip}
-    <!-- As tall as the heading's text (Sven, 2026-10-29). -->
+    <!-- Flush with the heading's end, in its square corners (Sven, 2026-11-01). -->
     <button
       type="button"
-      class="absolute top-px right-0 flex h-[18px] items-center gap-1 rounded-ui px-1 text-muted hover:bg-line hover:text-fg"
+      class="absolute top-0 -right-1.5 flex h-5 items-center gap-1 px-1.5 text-muted hover:bg-line hover:text-fg"
       title={t("side.editTooltip")}
       onclick={onedittooltip}
     >
