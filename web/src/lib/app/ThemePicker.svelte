@@ -14,7 +14,9 @@ type Props = {
 let { label, options, selected, swatch, onpick }: Props = $props();
 
 // By place in the list: a Select's value cannot be empty, and the code theme's first choice has no id.
-const choices = $derived(options.map((each, index) => ({ value: String(index), label: each.name })));
+const choices = $derived(
+  options.map((each, index) => ({ value: String(index), label: each.name })),
+);
 const value = $derived(String(options.findIndex((each) => each.id === selected.id)));
 const themeAt = (index: string): T => options[Number(index)] as T;
 </script>

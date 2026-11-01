@@ -285,6 +285,7 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
   border-bottom-left-radius: var(--radius-ui);
 }
 .dropdown-list [data-select-viewport] {
+  /* biome-ignore lint/complexity/noImportantStyles: Bits UI hides this scroll bar with !important. */
   scrollbar-width: auto !important;
 }
 .dropdown-list [data-select-viewport]::-webkit-scrollbar {
