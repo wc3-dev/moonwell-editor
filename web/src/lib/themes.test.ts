@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { codeThemes } from "./codeThemes.ts";
 import { applyTheme, defaultTheme, themeOf, themes, tokens } from "./themes.ts";
 
 const css = readFileSync(new URL("../app.css", import.meta.url), "utf8").toLowerCase();
@@ -20,10 +21,33 @@ describe("the themes", () => {
     for (const token of tokens) expect(css).toContain(`--${token}: ${dragon.colors[token]};`);
   });
 
-  it("include the ones Sven asked for", () => {
-    const names = themes.map((each) => each.name);
-    for (const name of ["Kanagawa Wave", "Gruvbox Dark", "Dracula", "Catppuccin Mocha"]) {
-      expect(names).toContain(name);
+  it("are every VS Code theme, dark and light", () => {
+    expect(themes.map((each) => each.id).sort()).toEqual(codeThemes.map((each) => each.id).sort());
+    expect(themes.filter((each) => each.type === "light").length).toBeGreaterThan(0);
+  });
+
+  it("list the dark ones first after the default", () => {
+    const types = themes.map((each) => each.type);
+    expect(types.lastIndexOf("dark")).toBeLessThan(types.indexOf("light"));
+  });
+
+  it("take over a choice saved from the palettes before them", () => {
+    expect(themeOf("gruvbox-dark").id).toBe("gruvbox-dark-medium");
+    expect(themeOf("one-dark").id).toBe("one-dark-pro");
+    for (const id of [
+      "kanagawa-dragon",
+      "kanagawa-wave",
+      "vitesse-dark",
+      "dracula",
+      "catppuccin-mocha",
+      "catppuccin-macchiato",
+      "tokyo-night",
+      "nord",
+      "rose-pine",
+      "everforest-dark",
+      "solarized-dark",
+    ]) {
+      expect(themeOf(id).id).toBe(id);
     }
   });
 
@@ -35,7 +59,10 @@ describe("the themes", () => {
   it("put their colours on the page", () => {
     const set: Record<string, string> = {};
     const root = {
-      style: { setProperty: (name: string, value: string) => (set[name] = value) },
+      style: {
+        setProperty: (name: string, value: string) => (set[name] = value),
+        colorScheme: "",
+      },
       dataset: {} as Record<string, string>,
     };
     const kanagawa = themeOf("kanagawa-wave");
@@ -43,5 +70,17 @@ describe("the themes", () => {
     expect(set["--bg"]).toBe(kanagawa.colors.bg);
     expect(set["--kind-upgrade"]).toBe(kanagawa.colors["kind-upgrade"]);
     expect(root.dataset.theme).toBe("kanagawa-wave");
+    expect(root.dataset.scheme).toBe("dark");
+    expect(root.style.colorScheme).toBe("dark");
+  });
+
+  it("tell the page when a theme is light", () => {
+    const root = {
+      style: { setProperty: () => {}, colorScheme: "" },
+      dataset: {} as Record<string, string>,
+    };
+    applyTheme(themeOf("github-light"), root as unknown as HTMLElement);
+    expect(root.dataset.scheme).toBe("light");
+    expect(root.style.colorScheme).toBe("light");
   });
 });

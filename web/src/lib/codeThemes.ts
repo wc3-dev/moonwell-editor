@@ -3,7 +3,7 @@
  * script looks as it does in VS Code (Sven, 2026-11-01). Monaco reads the files as they are. A script box on a card has
  * one colour per kind of word, read from the same file. Aurora X is left out, for its GPL.
  */
-import { defaultTheme, type Theme } from "./themes.ts";
+import type { Theme } from "./themes.ts";
 
 const files = import.meta.glob<string>(
   ["/node_modules/tm-themes/themes/*.json", "!/node_modules/tm-themes/themes/aurora-x.json"],
@@ -33,19 +33,20 @@ export const codeThemes: CodeTheme[] = Object.entries(files)
   .map(([path, file]) => read(path, file))
   .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
 
-/** The code theme of an interface theme whose id is not the code theme's own. */
-const codeThemeIds: Record<string, string> = {
+/** The ids of the palettes from before the interface used VS Code's themes, whose twins took over. */
+const earlierIds: Record<string, string> = {
   "gruvbox-dark": "gruvbox-dark-medium",
   "one-dark": "one-dark-pro",
 };
 
-function codeThemeWith(id: string): CodeTheme | undefined {
-  return codeThemes.find((each) => each.id === (codeThemeIds[id] ?? id));
+/** The code theme with this id, or the id of a palette from before. */
+export function codeThemeWith(id: string): CodeTheme | undefined {
+  return codeThemes.find((each) => each.id === (earlierIds[id] ?? id));
 }
 
 /** The theme scripts are drawn in: the one chosen for them (Sven, 2026-10-31), or the interface's when none is. */
 export function codeThemeOf(id: string, theme: Theme): CodeTheme {
-  return codeThemeWith(id) ?? codeThemeWith(theme.id) ?? (codeThemeWith(defaultTheme) as CodeTheme);
+  return codeThemeWith(id) ?? (codeThemeWith(theme.id) as CodeTheme);
 }
 
 /** The colours a script is drawn in, as app.css names them without the `--`. */
@@ -72,7 +73,7 @@ function selectors(scope: TokenRule["scope"]): string[] {
 }
 
 /** The colour a scope gets, as VS Code picks it: the rule that names most of the scope, the later of two the same. */
-function scopeColor(theme: CodeTheme, scope: string, otherwise: string): string {
+export function scopeColor(theme: CodeTheme, scope: string, otherwise: string): string {
   let color = otherwise;
   let matched = 0;
   for (const rule of theme.tokenColors) {
