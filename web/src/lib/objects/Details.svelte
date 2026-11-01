@@ -279,7 +279,7 @@ function runs(rows: Row[]): { grid: boolean; rows: Row[] }[] {
 }
 
 /** Closes every category (true) or opens every one (false); they stay so from object to object. */
-function collapseAll(collapse: boolean): void {
+export function collapseAll(collapse: boolean): void {
   closed = collapse ? Object.fromEntries(categories.map((category) => [category.key, true])) : {};
 }
 

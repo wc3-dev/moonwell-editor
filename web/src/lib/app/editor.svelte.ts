@@ -6,17 +6,47 @@ import type { MenuItem } from "../ui/ContextMenu.svelte";
 import { Appearance } from "./appearance.svelte.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
-import { actionOf, loadKeymap, shownKey } from "./keymap.ts";
+import { type Action, actionList, actionOf, kindActions, loadKeymap, shownKey } from "./keymap.ts";
 import { MapSession } from "./mapSession.svelte.ts";
 import { Notices } from "./notices.svelte.ts";
 import { ObjectActions } from "./objectActions.svelte.ts";
 import { Objects } from "./objects.svelte.ts";
 import { openEntries } from "./openMenu.ts";
-import { Pages } from "./pages.svelte.ts";
+import { type Page, Pages } from "./pages.svelte.ts";
 import { Startup } from "./startup.svelte.ts";
-import { answerKey, inMonaco, inPopup, typingIn } from "./windowKeys.ts";
+import {
+  answerKey,
+  inMonaco,
+  inPopup,
+  type KeyCommand,
+  type KeyPlace,
+  keysEverywhere,
+  typingIn,
+} from "./windowKeys.ts";
 
 type Menu = { x: number; y: number; items: MenuItem[] };
+
+/** One line of the command palette: a command and its keys. */
+export type PaletteCommand = { action: Action; name: string; keys: string[] };
+
+const pageCommands: Partial<Record<Action, Page>> = {
+  showTerrain: "map",
+  showTriggers: "triggers",
+  showScripts: "scripts",
+  showDetails: "details",
+  showTable: "table",
+};
+
+// The commands that act on the object shown.
+const objectCommands: Action[] = [
+  "newObject",
+  "copy",
+  "rename",
+  "fieldIds",
+  "changedOnly",
+  "collapseAll",
+  "expandAll",
+];
 
 /** The editor's state and what acts across it: one for the page, which the components under `App` ask for. */
 export class Editor {
@@ -50,6 +80,7 @@ export class Editor {
   aboutOpen = $state(false);
   /** The notice the editor opens with, until Settings turns it off. */
   alphaOpen = $state(prefs.alphaNotice);
+  paletteOpen = $state(false);
   menu = $state.raw<Menu | null>(null);
 
   readonly #dialogOpen = $derived(
@@ -61,6 +92,7 @@ export class Editor {
         this.settingsOpen ||
         this.aboutOpen ||
         this.alphaOpen ||
+        this.paletteOpen ||
         this.session.confirmingReload,
     ),
   );
@@ -72,6 +104,7 @@ export class Editor {
     const { map, saving, state } = this.session;
     const saveKey = this.keymap.save[0];
     const settingsKey = this.keymap.settings[0];
+    const paletteKey = this.keymap.commandPalette[0];
     this.menu = {
       x: box.right,
       y: box.bottom + 4,
@@ -94,6 +127,11 @@ export class Editor {
           label: t("header.settings"),
           shortcut: settingsKey ? shownKey(settingsKey) : undefined,
           run: () => (this.settingsOpen = true),
+        },
+        {
+          label: t("header.commandPalette"),
+          shortcut: paletteKey ? shownKey(paletteKey) : undefined,
+          run: () => (this.paletteOpen = true),
         },
         { label: t("header.about"), run: () => (this.aboutOpen = true) },
       ],
@@ -129,36 +167,133 @@ export class Editor {
     this.walk(event.button === 3 ? -1 : 1);
   };
 
-  // Monaco keeps the keys it knows from the window, and Save and Settings stay the window's there too.
+  // Monaco keeps the keys it knows from the window, and the window's own keys stay the window's there too.
   onkeydowncapture = (event: KeyboardEvent): void => {
     if (!inMonaco(event.target)) return;
     const action = actionOf(event, this.keymap);
-    if (action !== "save" && action !== "settings") return;
+    if (!action || !keysEverywhere.includes(action)) return;
     event.stopPropagation();
     this.onkeydown(event);
   };
 
   onkeydown = (event: KeyboardEvent): void => {
-    const { pages, session, objectActions, objects } = this;
     const typing = typingIn(event.target);
     const { command, prevent } = answerKey(actionOf(event, this.keymap), event.key === "Escape", {
-      page: pages.page,
+      ...this.#here,
       dialogOpen: this.#dialogOpen,
-      mapOpen: session.map !== null,
       typing,
       inPopup: inPopup(event.target),
       textSelected: (window.getSelection()?.toString() ?? "") !== "",
     });
     if (prevent) event.preventDefault();
+    if (command === "dismiss") {
+      // An Esc that closed a list or a menu is spent (Bits UI marks it). Otherwise it also lets go of a button clicked
+      // last (a kind, a view), which would show its focus ring.
+      if (!event.defaultPrevented) {
+        this.session.problemsOpen = false;
+        if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();
+      }
+    } else if (command) {
+      this.#carryOut(command, typing);
+    }
+  };
+
+  /** The commands the palette lists: those that can run where the user is. */
+  commands = (): PaletteCommand[] =>
+    actionList
+      .filter((each) => this.#listed(each.action))
+      .map(({ action, name }) => ({ action, name, keys: this.keymap[action] }));
+
+  /** Runs a command the palette picked, as its key would on the page. */
+  runCommand = (action: Action): void => {
+    const { command } = answerKey(action, false, this.#here);
+    if (command && command !== "dismiss") this.#carryOut(command, false);
+  };
+
+  // Where the user is, with nothing open and the focus on no box.
+  get #here(): KeyPlace {
+    return {
+      page: this.pages.page,
+      dialogOpen: false,
+      mapOpen: this.session.map !== null,
+      typing: false,
+      inPopup: false,
+      textSelected: false,
+    };
+  }
+
+  // A key that does something else here (F2 and Delete act on a trigger in the trigger editor) is not its command.
+  #listed(action: Action): boolean {
+    if (action === "commandPalette") return false;
+    const { command } = answerKey(action, false, this.#here);
+    return (command === action || command === "focusTableFilter") && this.#canRun(action);
+  }
+
+  #canRun(action: Action): boolean {
+    const { history, objects, pages, session, startup } = this;
+    const page = pageCommands[action];
+    if (page) {
+      if (!session.map || page === pages.page) return false;
+      if (page === "scripts") return pages.scriptsOpen;
+      return page !== "table" || prefs.experimental;
+    }
+    if (objectCommands.includes(action)) return objects.current !== null;
+    switch (action) {
+      case "settings":
+      case "about":
+        return true;
+      case "openFolder":
+      case "openArchive":
+        return startup.view === "ready" && !session.opening;
+      case "showObjects":
+        return session.map !== null && !pages.inObjectEditor;
+      case "copyObject":
+      case "deleteObject":
+        return Boolean(objects.current?.baseId);
+      case "filterFields":
+        return pages.page === "table" || objects.current !== null;
+      case "back":
+        return history.behind.length > 0;
+      case "forward":
+        return history.ahead.length > 0;
+      default:
+        return session.map !== null;
+    }
+  }
+
+  // The commands with no key out of the box. A key set for one works on any page, so it checks it can run first.
+  readonly #windowCommands: Partial<Record<KeyCommand, () => void>> = {
+    openFolder: () => this.session.openAnother(openEntries[0]),
+    openArchive: () => this.session.openAnother(openEntries[1]),
+    reload: () => this.session.askReload(),
+    about: () => (this.aboutOpen = true),
+    showTerrain: () => this.pages.show("map"),
+    showTriggers: () => this.pages.show("triggers"),
+    showObjects: () => this.pages.showObjectEditor(),
+    showScripts: () => this.pages.show("scripts"),
+    showDetails: () => this.pages.show("details"),
+    showTable: () => this.pages.show("table"),
+    changedOnly: () => (this.objects.changedOnly = !this.objects.changedOnly),
+    collapseAll: () => this.pages.details?.collapseAll(true),
+    expandAll: () => this.pages.details?.collapseAll(false),
+    ...Object.fromEntries(
+      Object.entries(kindActions).map(([action, each]) => [action, () => this.#showKind(each)]),
+    ),
+  };
+
+  #showKind(each: Kind): void {
+    this.pages.showObjectEditor();
+    this.objects.switchKind(each);
+  }
+
+  #carryOut(command: Exclude<KeyCommand, "dismiss">, typing: boolean): void {
+    const { pages, session, objectActions, objects } = this;
+    const windowCommand = this.#windowCommands[command];
+    if (windowCommand) {
+      if (this.#canRun(command as Action)) windowCommand();
+      return;
+    }
     switch (command) {
-      case "dismiss":
-        // An Esc that closed a list or a menu is spent (Bits UI marks it). Otherwise it also lets go of a button clicked
-        // last (a kind, a view), which would show its focus ring.
-        if (!event.defaultPrevented) {
-          session.problemsOpen = false;
-          if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();
-        }
-        break;
       case "focusTableFilter":
         pages.tableView?.focusFilter();
         break;
@@ -213,8 +348,11 @@ export class Editor {
       case "settings":
         this.settingsOpen = true;
         break;
+      case "commandPalette":
+        this.paletteOpen = true;
+        break;
     }
-  };
+  }
 }
 
 export const [getEditor, setEditor] = createContext<Editor>();

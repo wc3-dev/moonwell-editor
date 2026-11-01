@@ -271,7 +271,9 @@ function resetAll(): void {
             <button
               type="button"
               class="rounded-ui p-1 text-faint hover:text-fg disabled:opacity-30"
-              title={t("settings.resetTitle", { keys: each.keys.map(shownKey).join(", ") })}
+              title={t("settings.resetTitle", {
+                keys: each.keys.map(shownKey).join(", ") || t("settings.noKeys"),
+              })}
               aria-label={t("settings.resetLabel", { action: each.name })}
               disabled={!changed}
               onclick={() => setKeys(each.action, [...each.keys])}

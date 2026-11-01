@@ -178,8 +178,8 @@ bring Lua and C#, and JASS comes as an extension of ours with Drake53's TextMate
 `editorThemes.ts` gives VS Code the code themes as an extension. `scriptsEditor.ts` has one editor and a document per open
 script, so each keeps its caret, scroll and undo. A document is a file in VS Code's in-memory file system, held by a
 reference (`createModelReference`): VS Code disposes a model made with `editor.createModel`, and a language server will
-want files. Monaco keeps the keys it knows from the window, so `Editor.onkeydowncapture` takes Save and Settings before it does. No
-language server runs yet.
+want files. Monaco keeps the keys it knows from the window, so `Editor.onkeydowncapture` takes the window's own keys
+(`keysEverywhere`) before it does. No language server runs yet.
 
 All the `@codingame/monaco-vscode-*` packages must be the one version that `monaco-languageclient` asks for, and the
 `vscode` package is an alias of `@codingame/monaco-vscode-extension-api` at that version: move them together.
@@ -205,6 +205,11 @@ reset, rename), `History`, `Notices`, `Startup`, `Appearance` and the `CommandQu
 and lays out the window. The components under it that belong to the app ask with `getEditor()`; the small ones (a field's
 row, the tree) take props and know nothing of it. What a key means where it was pressed is the plain function `answerKey`
 in `app/windowKeys.ts`, and `Editor.onkeydown` carries it out.
+
+`actionList` in `app/keymap.ts` is the one list of commands: the settings' Hotkeys tab shows it, and the command palette
+(`app/CommandPalette.svelte`) lists what `Editor.commands` keeps of it. A command runs the way its key does, so a new one
+is an entry in `actionList`, its place in `answerKey` and its case in `Editor`: `#windowCommands` when it has no key out
+of the box, and `#canRun` when it can only run in some places.
 
 An `$effect` here is for following something outside the state classes: the theme onto the page, the title onto the window,
 a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.
