@@ -34,7 +34,7 @@ const libraries: [string, string][] = [
   ["language-jass", "MIT"],
   ["tm-themes", "MIT"],
   ["Material Theme", "Apache-2.0"],
-  ["Tailwind CSS", "MIT"],
+  ["UnoCSS", "MIT"],
   ["Lucide", "ISC"],
   ["war3-model", "MIT"],
   ["gl-matrix", "MIT"],
