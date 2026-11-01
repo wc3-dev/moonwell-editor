@@ -142,6 +142,7 @@
   "app.search.custom": "Custom · {base}",
   "app.terminal.bash": "Git Bash",
   "app.terminal.cmd": "Command Prompt",
+  "app.terminal.noShell": "No shell was found on this PC.",
   "app.terminal.powershell": "Windows PowerShell",
   "app.terminal.pwsh": "PowerShell 7",
   "app.triggers.badInitial": "\"{value}\" is not a value of type {type}.",

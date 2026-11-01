@@ -363,6 +363,7 @@ public sealed partial class Commands
             "assetList" => AssetsOf(Text(args, "kind"), OptionalText(args, "mode") ?? "de"),
             "mapScene" => MapSceneOf(OptionalText(args, "mode") ?? "de"),
             _ when command.StartsWith("trigger", StringComparison.Ordinal) => RunTrigger(command, args),
+            _ when RunsAlongside(command) => RunTerminal(command, args),
             _ => throw new UnknownCommandException(command),
         };
 

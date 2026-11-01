@@ -22,8 +22,10 @@ public sealed class MainForm : Form
     private readonly Commands _commands;
     private readonly Bridge _bridge;
 
-    // The page's requests are answered one at a time, in the order they came.
+    // The page's requests are answered one at a time, in the order they came. The terminal's have a line of their own,
+    // so what is typed never waits behind a slow command, and stays in order.
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
+    private readonly SemaphoreSlim _terminalLine = new(1, 1);
 
     // The origins (https://app.moonwelleditor, and the dev server's in a Debug build) whose pages may use the bridge,
     // be navigated to and read the clipboard; set when the page starts.
@@ -92,6 +94,8 @@ public sealed class MainForm : Form
             BackColor = ColorTranslator.FromHtml(surface);
             TitleBar.SetBorder(Handle, ColorTranslator.FromHtml(border));
         });
+        _commands.Terminals.Output += (id, text) => Notify("terminalOutput", new TerminalOutput(id, text));
+        _commands.Terminals.Exited += (id, code) => Notify("terminalExit", new TerminalExit(id, code));
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
 
@@ -100,6 +104,13 @@ public sealed class MainForm : Form
             _ = _commands.StartLoading();
             await StartPage();
         };
+    }
+
+    /// <inheritdoc />
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        _commands.Terminals.Dispose();
+        base.OnFormClosed(e);
     }
 
     /// <inheritdoc />
@@ -329,6 +340,9 @@ public sealed class MainForm : Form
             }
 
             _pageLoaded = false;
+
+            // A page that loads again has no tabs for the shells of the one before.
+            _commands.Terminals.CloseAll();
         };
         core.NavigationCompleted += (_, e) => _pageLoaded = e.IsSuccess;
 
@@ -481,7 +495,8 @@ public sealed class MainForm : Form
 
     private async Task Answer(string request)
     {
-        await _oneAtATime.WaitAsync();
+        var line = Bridge.CommandOf(request) is { } command && Commands.RunsAlongside(command) ? _terminalLine : _oneAtATime;
+        await line.WaitAsync();
         try
         {
             var reply = await Task.Run(() => _bridge.Handle(request));
@@ -496,7 +511,7 @@ public sealed class MainForm : Form
         }
         finally
         {
-            _oneAtATime.Release();
+            line.Release();
         }
     }
 }
