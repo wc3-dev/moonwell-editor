@@ -14,6 +14,7 @@ import { BridgeError } from "../bridge.ts";
 import { errorText } from "../errors.ts";
 import { savedText } from "../objects/values.ts";
 import { prefs } from "../prefs.svelte.ts";
+import type { Terminals } from "../terminal/terminals.svelte.ts";
 import { t } from "../text.ts";
 import { hasTyped, sendTyped } from "../typing.ts";
 import type { CommandQueue } from "./commandQueue.ts";
@@ -26,7 +27,13 @@ import { type Choice, dropUnsaved, type Settling, settleUnsaved } from "./settle
 /** The unsaved-changes dialog: its question, whether Save is offered, and how it answers. */
 type Unsaved = { question: string; canSave: boolean; answer: (choice: Choice) => void };
 
-type Needs = { queue: CommandQueue; notices: Notices; objects: Objects; pages: Pages };
+type Needs = {
+  queue: CommandQueue;
+  notices: Notices;
+  objects: Objects;
+  pages: Pages;
+  terminals: Pick<Terminals, "mapChanged">;
+};
 
 /** The open map: opening, reloading and saving it, and what to do with its unsaved edits. */
 export class MapSession {
@@ -45,13 +52,15 @@ export class MapSession {
   readonly #notices: Notices;
   readonly #objects: Objects;
   readonly #pages: Pages;
+  readonly #terminals: Pick<Terminals, "mapChanged">;
   #closing = false;
 
-  constructor({ queue, notices, objects, pages }: Needs) {
+  constructor({ queue, notices, objects, pages, terminals }: Needs) {
     this.#queue = queue;
     this.#notices = notices;
     this.#objects = objects;
     this.#pages = pages;
+    this.#terminals = terminals;
   }
 
   /**
@@ -129,6 +138,7 @@ export class MapSession {
       if (!info) return;
       console.info(`[timing] openMap ${info.name}: ${Math.round(performance.now() - started)} ms`);
       await this.show(info);
+      this.#terminals.mapChanged();
     } catch (error) {
       if (error instanceof BridgeError && error.code === "unsaved") throw error;
       this.problem = errorText(error);

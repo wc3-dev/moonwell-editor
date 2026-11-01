@@ -124,6 +124,7 @@ const started = {
   choices: {},
   assetNames: {},
   startup: { map: null },
+  terminalShells: [],
   about: { version: "1.2.3", moonwell: "0.4.0", dotNet: "10.0", webView2: null },
   currentMap: null,
 };

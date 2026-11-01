@@ -75,6 +75,74 @@ function colourful(color: string): boolean {
   return Math.max(...rgb) - Math.min(...rgb) >= 32;
 }
 
+/** A terminal's colours, by the names xterm.js gives them. */
+export type TerminalColors = {
+  background: string;
+  foreground: string;
+  cursor: string;
+  selectionBackground: string;
+  black: string;
+  red: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+  brightBlack: string;
+  brightRed: string;
+  brightGreen: string;
+  brightYellow: string;
+  brightBlue: string;
+  brightMagenta: string;
+  brightCyan: string;
+  brightWhite: string;
+};
+
+const ansiNames = ["Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White"];
+
+// What VS Code's terminal shows for a colour a theme leaves out: the eight colours, then their bright ones.
+// biome-ignore format: eight colours to a line
+const ansiDefaults = {
+  dark: [
+    "#000000", "#cd3131", "#0dbc79", "#e5e510", "#2472c8", "#bc3fbc", "#11a8cd", "#e5e5e5",
+    "#666666", "#f14c4c", "#23d18b", "#f5f543", "#3b8eea", "#d670d6", "#29b8db", "#e5e5e5",
+  ],
+  light: [
+    "#000000", "#cd3131", "#00bc00", "#949800", "#0451a5", "#bc05bc", "#0598bc", "#555555",
+    "#666666", "#cd3131", "#14ce14", "#b5ba00", "#0451a5", "#bc05bc", "#0598bc", "#a5a5a5",
+  ],
+};
+
+/** A theme's colours for the terminal panel, on its panels unless it gives the terminal a background of its own. */
+export function terminalColors(theme: CodeTheme): TerminalColors {
+  const { colors } = theme;
+  const { surface, fg } = interfaceColors(theme);
+  const terminal = colors["terminal.background"];
+  const background = terminal ? flattened(terminal, surface) : surface;
+  const read = (key: string, otherwise: string): string => {
+    const color = colors[key];
+    return color ? flattened(color, background) : otherwise;
+  };
+  const named = (name: string, bright: boolean, at: number): [string, string] => [
+    bright ? `bright${name}` : name.toLowerCase(),
+    read(`terminal.ansi${bright ? "Bright" : ""}${name}`, ansiDefaults[theme.type][at] as string),
+  ];
+  return {
+    background,
+    foreground: readable(read("terminal.foreground", fg), background, fg, 3),
+    cursor: read("terminalCursor.foreground", fg),
+    selectionBackground: read(
+      "terminal.selectionBackground",
+      read("editor.selectionBackground", mix(background, fg, 0.25)),
+    ),
+    ...Object.fromEntries([
+      ...ansiNames.map((name, at) => named(name, false, at)),
+      ...ansiNames.map((name, at) => named(name, true, at + 8)),
+    ]),
+  } as TerminalColors;
+}
+
 /** The interface's colours of a theme, each a solid `#rrggbb`. */
 export function interfaceColors(theme: CodeTheme): Record<Token, string> {
   const { colors } = theme;

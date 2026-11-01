@@ -20,7 +20,13 @@ function session(): MapSession {
     history: new History(),
     scrollPosition: () => undefined,
   });
-  return new MapSession({ queue, notices: new Notices(), objects, pages });
+  return new MapSession({
+    queue,
+    notices: new Notices(),
+    objects,
+    pages,
+    terminals: { mapChanged() {} },
+  });
 }
 
 test("with no map there is nothing to save", async () => {

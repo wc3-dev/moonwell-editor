@@ -8,17 +8,20 @@
 import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+import { onMount } from "svelte";
 import { type Kind, kinds, type MapInfo, uiScale } from "../api.ts";
 import { type CodeTheme, codeColors, codeThemeOf, codeThemes } from "../codeThemes.ts";
 import { graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
 import TeamColourGrid from "../objects/TeamColourGrid.svelte";
 import { kindNames } from "../objects/tree.ts";
 import { prefs, setPref, uiScales } from "../prefs.svelte.ts";
+import { type Shell, terminalShells } from "../terminal/api.ts";
 import { t } from "../text.ts";
 import { type Theme, themes } from "../themes.ts";
 import Dialog from "../ui/Dialog.svelte";
 import DialogButton from "../ui/DialogButton.svelte";
 import Popover from "../ui/Popover.svelte";
+import Select from "../ui/Select.svelte";
 import type { GameDataState } from "./gameData.ts";
 import {
   type Action,
@@ -98,6 +101,15 @@ function codeSwatch(theme: CodeTheme): string[] {
     ] as const
   ).map((token) => colors[token]);
 }
+
+// The shells a new terminal can run; the first found is the default until one is chosen (Sven, 2026-11-01).
+let shells = $state.raw<Shell[]>([]);
+onMount(() => {
+  terminalShells().then(
+    (found) => (shells = found),
+    () => {},
+  );
+});
 
 // The action whose new key is being pressed.
 let listening = $state<Action | null>(null);
@@ -223,6 +235,21 @@ function resetAll(): void {
         swatch={codeSwatch}
         onpick={(each) => setPref("codeTheme", each.id)}
       />
+
+      {#if shells.length > 0}
+        {@render heading(t("settings.terminalShell"))}
+        <div class="w-72">
+          <Select
+            options={shells.map((shell) => ({ value: shell.id, label: shell.name }))}
+            value={prefs.terminalShell || (shells[0] as Shell).id}
+            label={t("settings.terminalShell")}
+            tone="border-transparent bg-field text-fg hover:border-muted"
+            compact
+            named
+            onpick={(id) => setPref("terminalShell", id)}
+          />
+        </div>
+      {/if}
 
       <!-- The team colour models are shown in at first (Sven, 2026-10-29). -->
       {@render heading(t("settings.teamColour"))}

@@ -104,6 +104,14 @@ export async function call<T>(command: string, args: object = {}): Promise<T> {
 }
 
 /**
+ * Sends a command that is not answered, for what comes too often to count as the app working (keys in a terminal). It
+ * must not be able to fail: a failure has no id to go back to.
+ */
+export function tell(command: string, args: object): void {
+  webview().postMessage(JSON.stringify({ command, args }));
+}
+
+/**
  * Tells `handler` how many commands are waiting for their answer, now and each time that changes (Sven, 2026-10-28:
  * the status bar shows when the app is working). Returns a function that stops telling it.
  */
