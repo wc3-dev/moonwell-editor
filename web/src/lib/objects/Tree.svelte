@@ -183,11 +183,11 @@ function clearOnEscape(event: KeyboardEvent): void {
       <div class="absolute inset-x-0 top-0" style:transform="translateY({first * rowHeight}px)">
         {#each visible as line (line.key)}
           {#if line.type === "group" && line.depth < 0}
-            <!-- Custom and Standard: the same heading, which opens and closes with no arrow of its own, so it stands left
-                 of what it holds (Sven, 2026-11-01). -->
+            <!-- Custom and Standard: the same heading, which opens and closes with no arrow of its own, its text level
+                 with the arrows of what it holds (Sven, 2026-11-01). -->
             <button
               type="button"
-              class="flex w-full items-center pr-2.5 pl-1 text-left font-semibold text-body hover:text-fg"
+              class="flex w-full items-center pr-2.5 pl-3.5 text-left font-semibold text-body hover:text-fg"
               style:height="{rowHeight}px"
               aria-expanded={line.open}
               onclick={() => {
