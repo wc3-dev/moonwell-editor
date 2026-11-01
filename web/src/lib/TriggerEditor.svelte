@@ -5,6 +5,7 @@
  * works out their sentences; this view asks again after each edit. Parameters that name a thing on the map are picked
  * in the map view.
  */
+
 import Braces from "@lucide/svelte/icons/braces";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -20,6 +21,8 @@ import Workflow from "@lucide/svelte/icons/workflow";
 import { onMount, tick, untrack } from "svelte";
 import ContextMenu, { type MenuItem } from "./ContextMenu.svelte";
 import Dialog from "./Dialog.svelte";
+import DialogButton from "./DialogButton.svelte";
+import { errorText } from "./errors.ts";
 import { t } from "./text.ts";
 import {
   addFunction,
@@ -150,10 +153,6 @@ function isOpen(each: TreeItem): boolean {
   return toggled[each.id] ?? each.expanded;
 }
 
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function triggerIn(id: number): TriggerView | null {
   return shown?.cards.find((card) => card.id === id)?.trigger ?? null;
 }
@@ -171,7 +170,7 @@ export async function refresh(): Promise<void> {
     await loadCards();
     problem = "";
   } catch (error) {
-    problem = message(error);
+    problem = errorText(error);
   }
 }
 
@@ -209,7 +208,7 @@ async function select(id: number, fly: boolean): Promise<void> {
     if (gridParent !== before) await loadCards();
     if (fly && gridParent !== id) flyTo = { id, count: ++flights };
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
   }
 }
 
@@ -221,7 +220,7 @@ async function edit(change: () => Promise<unknown>, owner?: number): Promise<boo
     else await reloadCard(owner);
     return true;
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
     await refresh();
     return false;
   }
@@ -590,7 +589,7 @@ async function copy(owner: number, function_: FunctionView): Promise<void> {
     await queued(() => copyFunction(owner, function_.path));
     clipboard = function_.kind;
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
   }
 }
 
@@ -700,7 +699,7 @@ async function place(
   try {
     await queued(change);
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
     await refresh();
   }
 }
@@ -726,7 +725,7 @@ onMount(() => {
       const root = tree?.items.find((each) => each.kind === "root");
       if (root && selected === null) await select(root.id, false);
     } catch (error) {
-      problem = message(error);
+      problem = errorText(error);
     }
     await tick();
   });
@@ -933,9 +932,7 @@ const box =
       }}
     />
     {#snippet actions()}
-      <button type="button" class="rounded-md border border-line bg-raised px-3 py-1.5 text-fg hover:bg-hover" onclick={() => (editingVariable = null)}>
-        {t("triggers.close")}
-      </button>
+      <DialogButton look="outline" onclick={() => (editingVariable = null)}>{t("triggers.close")}</DialogButton>
     {/snippet}
   </Dialog>
 {/if}
@@ -945,12 +942,8 @@ const box =
       ? t("triggers.deleteAskCategory", { name: deleting.name })
       : t("triggers.deleteAsk", { name: deleting.name })}
     {#snippet actions()}
-      <button type="button" class="rounded-md border border-line bg-raised px-3 py-1.5 text-fg hover:bg-hover" onclick={() => (deleting = null)}>
-        {t("triggers.close")}
-      </button>
-      <button type="button" data-primary class="rounded-md border border-accent bg-raised px-3 py-1.5 text-fg hover:bg-hover" onclick={confirmDelete}>
-        {t("triggers.delete")}
-      </button>
+      <DialogButton look="outline" onclick={() => (deleting = null)}>{t("triggers.close")}</DialogButton>
+      <DialogButton look="accent" onclick={confirmDelete}>{t("triggers.delete")}</DialogButton>
     {/snippet}
   </Dialog>
 {/if}

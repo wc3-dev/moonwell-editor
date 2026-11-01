@@ -5,10 +5,12 @@
  * A click opens the object; the fields that name it show as its tooltip. Each section opens and closes, and stays so
  * from object to object.
  */
+
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import PencilLine from "@lucide/svelte/icons/pencil-line";
 import { fileUrl, type ObjectView, type Reference, usedBy } from "./api.ts";
+import { errorText } from "./errors.ts";
 import { type Lookup, uses } from "./fields.ts";
 import { graphics } from "./graphics.svelte.ts";
 import ModelPreview from "./ModelPreview.svelte";
@@ -78,7 +80,7 @@ $effect(() => {
       if (asked === view) users = found;
     },
     (error) => {
-      if (asked === view) problem = error instanceof Error ? error.message : String(error);
+      if (asked === view) problem = errorText(error);
     },
   );
 });

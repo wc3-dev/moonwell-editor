@@ -11,7 +11,9 @@
  * triggers use for it. In pick mode (`pickOnMap`, for the trigger editor) a click on the asked kind answers, Esc
  * cancels.
  */
+
 import { fileUrl, mapScene, terrainUrl } from "./api.ts";
+import { errorText } from "./errors.ts";
 import { framed, numpadView, orbited, panned, ray, type View, zoomed } from "./map/camera.ts";
 import { GlHost } from "./map/gl/host.ts";
 import { allLayers, type Layers, MapRenderer } from "./map/gl/renderer.ts";
@@ -170,7 +172,7 @@ async function open(
     );
     status = "ready";
   } catch (error) {
-    failure = error instanceof Error ? error.message : String(error);
+    failure = errorText(error);
     status = "failed";
   }
 }

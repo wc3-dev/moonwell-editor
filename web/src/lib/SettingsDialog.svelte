@@ -10,6 +10,7 @@ import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 import { type Kind, kinds, type MapInfo, uiScale } from "./api.ts";
 import Dialog from "./Dialog.svelte";
+import DialogButton from "./DialogButton.svelte";
 import type { GameDataState } from "./gameData.ts";
 import { graphics, graphicsModes, setGraphicsMode } from "./graphics.svelte.ts";
 import {
@@ -323,13 +324,6 @@ function resetAll(): void {
   </div>
 
   {#snippet actions()}
-    <button
-      type="button"
-      class="rounded-[5px] bg-accent px-3 py-1 font-bold text-bg hover:bg-accent-hi"
-      data-primary
-      onclick={onclose}
-    >
-      {t("settings.done")}
-    </button>
+    <DialogButton look="primary" onclick={onclose}>{t("settings.done")}</DialogButton>
   {/snippet}
 </Dialog>

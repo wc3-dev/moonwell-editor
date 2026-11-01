@@ -4,10 +4,12 @@
  * icons (as a grid of them) or models (as a list, with the one last under the pointer turning in a preview). A click puts
  * the path into the field as World Editor writes it; any other path (an import) is typed in the box.
  */
+
 import Box from "@lucide/svelte/icons/box";
 import ImageIcon from "@lucide/svelte/icons/image";
 import { type AssetList, fileUrl, iconUrl } from "./api.ts";
 import { inFolders, inList, listOf, modelFolders, ranked } from "./assets.ts";
+import { errorText } from "./errors.ts";
 import { graphics } from "./graphics.svelte.ts";
 import ModelPreview from "./ModelPreview.svelte";
 import Popover from "./Popover.svelte";
@@ -55,7 +57,7 @@ $effect(() => {
   problem = "";
   listOf(kind, graphics.mode).then(
     (found) => (list = found),
-    (error) => (problem = error instanceof Error ? error.message : String(error)),
+    (error) => (problem = errorText(error)),
   );
 });
 

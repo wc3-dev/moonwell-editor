@@ -171,7 +171,6 @@
   "app.windowTitle": "{path} — {app}",
   "ask.beforeClose": "Save them before closing the window?",
   "ask.beforeOpen": "Save them before opening another map?",
-  "ask.beforeReload": "Save them before reloading the map from disk?",
   "ask.reloadDrops": "Reloading the map from disk drops them.",
   "assetPicker.models": "Models",
   "assetPicker.noMatch": "Nothing matches “{query}”.",

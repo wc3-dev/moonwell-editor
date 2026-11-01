@@ -19,6 +19,7 @@ import { type FieldView, iconUrl, type ObjectView, object } from "./api.ts";
 import ColorPicker from "./ColorPicker.svelte";
 import ContextMenu from "./ContextMenu.svelte";
 import Dialog from "./Dialog.svelte";
+import DialogButton from "./DialogButton.svelte";
 import { uiIcons } from "./gameIcons.ts";
 import { graphics } from "./graphics.svelte.ts";
 import Popover from "./Popover.svelte";
@@ -695,21 +696,7 @@ const changedCount = $derived(
         {changedCount === 0 ? t("tooltipEditor.unchanged") : tCount("tooltipEditor.changed", changedCount)}
       </span>
     </div>
-    <button
-      type="button"
-      class="rounded-[5px] border border-line bg-raised px-3 py-1 text-fg hover:border-accent"
-      onclick={onclose}
-    >
-      {t("dialog.cancel")}
-    </button>
-    <button
-      type="button"
-      class="rounded-[5px] bg-accent px-3 py-1 font-bold text-bg hover:bg-accent-hi disabled:opacity-50"
-      data-primary
-      disabled={saving}
-      onclick={save}
-    >
-      {t("tooltipEditor.save")}
-    </button>
+    <DialogButton onclick={onclose}>{t("dialog.cancel")}</DialogButton>
+    <DialogButton look="primary" disabled={saving} onclick={save}>{t("tooltipEditor.save")}</DialogButton>
   {/snippet}
 </Dialog>

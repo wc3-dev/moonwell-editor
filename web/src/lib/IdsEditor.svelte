@@ -3,9 +3,11 @@
  * An object list (or a field that holds one object): its objects as chips with names (a click opens the object, ×
  * takes it out), and + to add one, which opens a picker that searches the objects of the list's kinds.
  */
+
 import Plus from "@lucide/svelte/icons/plus";
 import X from "@lucide/svelte/icons/x";
 import { type FieldView, type Hit, type Kind, search } from "./api.ts";
+import { errorText } from "./errors.ts";
 import { type Lookup, listIds, listKinds, searchPrompt } from "./fields.ts";
 import Popover from "./Popover.svelte";
 import { t } from "./text.ts";
@@ -67,7 +69,7 @@ async function find(): Promise<void> {
   } catch (error) {
     if (mine !== asked) return;
     hits = [];
-    problem = error instanceof Error ? error.message : String(error);
+    problem = errorText(error);
   }
 }
 

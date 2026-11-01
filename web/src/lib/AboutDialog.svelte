@@ -5,6 +5,7 @@
  */
 import type { About } from "./api.ts";
 import Dialog from "./Dialog.svelte";
+import DialogButton from "./DialogButton.svelte";
 import logo from "./logo.svg";
 import { t } from "./text.ts";
 
@@ -83,13 +84,6 @@ const libraries: [string, string][] = [
   <p class="mt-4 mb-0 text-[12.5px] text-faint">{t("about.blizzard")}</p>
 
   {#snippet actions()}
-    <button
-      type="button"
-      class="rounded-[5px] bg-accent px-3 py-1 font-bold text-bg hover:bg-accent-hi"
-      data-primary
-      onclick={onclose}
-    >
-      {t("settings.done")}
-    </button>
+    <DialogButton look="primary" onclick={onclose}>{t("settings.done")}</DialogButton>
   {/snippet}
 </Dialog>

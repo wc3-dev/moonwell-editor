@@ -14,6 +14,7 @@
  * works from the values as they are (Enter twice on `+10%` adds 10% twice; a paste then Ctrl D fills down the pasted
  * value); the selection is kept by objects and columns, so it stays on them when the rows are sorted or fetched again.
  */
+
 import { untrack } from "svelte";
 import {
   type CellEdit,
@@ -28,6 +29,7 @@ import {
   table,
 } from "./api.ts";
 import ColumnPicker from "./ColumnPicker.svelte";
+import { errorText } from "./errors.ts";
 import { type Lookup, listKinds } from "./fields.ts";
 import {
   blockSize,
@@ -142,10 +144,6 @@ const waitLimit = 10000;
 
 const store = (): Store | null => globalThis.localStorage ?? null;
 
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 const kindFields = $derived(fieldLists[kind] ?? null);
 const chips = $derived(tableState.chips[kind] ?? null);
 const columns = $derived(tableState.columns[kind] ?? null);
@@ -219,7 +217,7 @@ async function loadFields(each: Kind): Promise<void> {
     fieldsError = "";
   } catch (error) {
     fieldsAsked.delete(each);
-    if (each === kind) fieldsError = message(error);
+    if (each === kind) fieldsError = errorText(error);
   }
 }
 
@@ -255,7 +253,7 @@ async function fetchRows(each: Kind, rowIdList: string[], cols: Column[]): Promi
     rowsFor = { session: forSession };
     rowsError = "";
   } catch (error) {
-    if (mine === asked) rowsError = message(error);
+    if (mine === asked) rowsError = errorText(error);
   } finally {
     if (mine === asked) loading = false;
   }
@@ -300,7 +298,7 @@ async function add(field: FieldInfo, all: boolean): Promise<void> {
     try {
       levels = await levelsShown(each);
     } catch (error) {
-      pickerError = message(error);
+      pickerError = errorText(error);
       return;
     }
   }

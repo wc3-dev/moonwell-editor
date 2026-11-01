@@ -4,9 +4,12 @@
  * pick on the map. Each choice is sent at once, and undo takes it back. A function's own parameters and an array's
  * index are links here too: they open on top of this one, and Close goes back.
  */
+
 import Crosshair from "@lucide/svelte/icons/crosshair";
 import { type Hit, search } from "../api.ts";
 import Dialog from "../Dialog.svelte";
+import DialogButton from "../DialogButton.svelte";
+import { errorText } from "../errors.ts";
 import { pickOnMap } from "../map/pick.ts";
 import { t } from "../text.ts";
 import type {
@@ -132,7 +135,7 @@ async function set(kind: ParameterKind, value: string): Promise<void> {
   try {
     await onset(parameter.path, kind, value);
   } catch (error) {
-    problem = error instanceof Error ? error.message : String(error);
+    problem = errorText(error);
   }
 }
 
@@ -309,13 +312,6 @@ function findObjects(): void {
     {#if problem}<p class="m-0 text-warn">{problem}</p>{/if}
   </div>
   {#snippet actions()}
-    <button
-      type="button"
-      data-primary
-      class="rounded-md border border-line bg-raised px-3 py-1.5 text-fg hover:bg-hover"
-      onclick={onclose}
-    >
-      {t("triggers.close")}
-    </button>
+    <DialogButton look="outline" takesFocus onclick={onclose}>{t("triggers.close")}</DialogButton>
   {/snippet}
 </Dialog>

@@ -1,6 +1,7 @@
 <script lang="ts">
 /** Picks a function of a kind: by category and typed text, with its sentence and World Editor's hint below the list. */
 import Dialog from "../Dialog.svelte";
+import DialogButton from "../DialogButton.svelte";
 import Select, { type SelectOption } from "../Select.svelte";
 import { t } from "../text.ts";
 import type { Catalog, CatalogFunction, FunctionKind } from "./api.ts";
@@ -91,21 +92,9 @@ $effect(() => {
     </div>
   </div>
   {#snippet actions()}
-    <button
-      type="button"
-      class="rounded-md border border-line bg-raised px-3 py-1.5 text-fg hover:bg-hover"
-      onclick={oncancel}
-    >
-      {t("triggers.close")}
-    </button>
-    <button
-      type="button"
-      data-primary
-      class="rounded-md border border-accent bg-raised px-3 py-1.5 text-fg hover:bg-hover disabled:opacity-50"
-      disabled={chosen === null}
-      onclick={() => chosen && onpick(chosen.name)}
-    >
+    <DialogButton look="outline" onclick={oncancel}>{t("triggers.close")}</DialogButton>
+    <DialogButton look="accent" disabled={chosen === null} onclick={() => chosen && onpick(chosen.name)}>
       {t("triggers.add")}
-    </button>
+    </DialogButton>
   {/snippet}
 </Dialog>

@@ -5,9 +5,11 @@
  * list is kept while the map is open. The language is the one the map's settings in World Editor choose, JASS or Lua,
  * never both.
  */
+
 import FileCode from "@lucide/svelte/icons/file-code";
 import X from "@lucide/svelte/icons/x";
 import { onDestroy } from "svelte";
+import { errorText } from "./errors.ts";
 import type { ScriptsEditor } from "./monaco/scriptsEditor.ts";
 import { t } from "./text.ts";
 import type { Theme } from "./themes.ts";
@@ -56,10 +58,6 @@ onDestroy(() => {
   editor?.then((each) => each.dispose());
 });
 
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 async function textOf(script: OpenScript): Promise<string> {
   if (script.kind === "root") return tree?.headerCode ?? "";
   return (await queued(() => trigger(script.id))).code ?? "";
@@ -83,7 +81,7 @@ export async function refresh(): Promise<void> {
     if (now.active !== null && now.active !== active) await activate(now.active);
     active = now.active;
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
   }
 }
 
@@ -95,7 +93,7 @@ export async function open(script: OpenScript): Promise<void> {
     scripts = opened(scripts, script);
     await activate(script.id);
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
   }
 }
 
@@ -120,7 +118,7 @@ async function send(script: OpenScript, text: string): Promise<void> {
       script.kind === "root" ? setHeader(comment, text) : setCode(script.id, text),
     );
   } catch (error) {
-    onnotice(message(error), true);
+    onnotice(errorText(error), true);
   }
 }
 </script>
