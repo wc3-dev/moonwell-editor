@@ -38,6 +38,7 @@ const libraries: [string, string][] = [
   ["war3-model", "MIT"],
   ["gl-matrix", "MIT"],
   ["dds-parser", "MIT"],
+  ["Google Sans", "OFL-1.1"],
   ["Inter", "OFL-1.1"],
   ["JetBrains Mono", "OFL-1.1"],
 ];

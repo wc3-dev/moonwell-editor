@@ -26,12 +26,6 @@ const editors = $derived<
   { name: string; Icon: HeaderIcon; shows: boolean; offBecause?: string; open: () => void }[]
 >([
   {
-    name: t("header.objectEditor"),
-    Icon: Boxes,
-    shows: pages.inObjectEditor,
-    open: pages.showObjectEditor,
-  },
-  {
     name: t("header.terrainEditor"),
     Icon: MountainSnow,
     shows: pages.page === "map",
@@ -42,6 +36,12 @@ const editors = $derived<
     Icon: Workflow,
     shows: pages.page === "triggers",
     open: () => pages.show("triggers"),
+  },
+  {
+    name: t("header.objectEditor"),
+    Icon: Boxes,
+    shows: pages.inObjectEditor,
+    open: pages.showObjectEditor,
   },
   {
     name: t("header.scriptEditor"),

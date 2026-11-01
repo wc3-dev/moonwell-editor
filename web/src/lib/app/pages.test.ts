@@ -17,6 +17,10 @@ function withEditors() {
   return { pages, calls };
 }
 
+test("the page starts on the map", () => {
+  expect(new Pages().page).toBe("map");
+});
+
 test("the Object Editor's button goes back to the page last shown there", () => {
   const pages = new Pages();
   pages.show("table");
@@ -94,6 +98,7 @@ test("a pick keeps the map while it waits", () => {
 
 test("a pick with no map stays where it is", () => {
   const pages = new Pages();
+  pages.show("details");
   pages.followPick(true, false);
   expect(pages.page).toBe("details");
 });

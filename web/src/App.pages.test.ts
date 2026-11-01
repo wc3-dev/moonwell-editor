@@ -110,6 +110,30 @@ describe("the header", () => {
     }
   });
 
+  test("a map opens on the Terrain Editor", async () => {
+    const app = new FakeApp({ currentMap: { map: arena, session: { dirty: false } } });
+    render(App);
+    await waitFor(() => expect(app.count("currentMap")).toBeGreaterThan(0));
+    await screen.findByRole("main", { name: t("main.map") });
+    expect(pressed(t("header.terrainEditor"))).toBe(true);
+  });
+
+  test("the editors go terrain, triggers, objects, then the others", async () => {
+    await openApp();
+    const editors = within(screen.getByRole("group", { name: t("header.editors") }));
+    expect(
+      editors
+        .getAllByRole("button")
+        .slice(0, 4)
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual([
+      t("header.terrainEditor"),
+      t("header.triggerEditor"),
+      t("header.objectEditor"),
+      t("header.scriptEditor"),
+    ]);
+  });
+
   test("the object editor's kinds and views show only on its pages", async () => {
     await openApp();
     screen.getByRole("group", { name: t("kindBar.label") });

@@ -454,7 +454,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   <!-- The changed fields' places beside the scroll bar, as a code editor marks changed lines; a click goes there. -->
-  <div class="pointer-events-none absolute inset-y-2.5 right-[3px] w-1" aria-hidden="true">
+  <div class="pointer-events-none absolute inset-y-0 right-0 w-2" aria-hidden="true">
     {#each marks as mark, index (index)}
       <button
         type="button"
@@ -469,7 +469,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   <!-- Floats at the bottom of the panel, over the fields, and never moves (Sven, 2026-10-27): icons, named by their
-       tooltips. -->
+       tooltips. A button is rounded only where it meets the bar's own corners (Sven, 2026-11-01). -->
   <div
     class="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-ui bg-raised p-px"
     role="toolbar"
@@ -501,7 +501,7 @@ function clearOnEscape(event: KeyboardEvent): void {
 )}
   <button
     type="button"
-    class="rounded-ui p-1 {pressed
+    class="p-1 first:rounded-l-[2px] last:rounded-r-[2px] {pressed
       ? 'bg-accent-lo text-accent-hi'
       : 'text-muted hover:bg-line hover:text-fg'}"
     title={label}
