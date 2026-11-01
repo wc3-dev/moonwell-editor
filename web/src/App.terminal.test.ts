@@ -2,7 +2,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/svelte";
 import { describe, expect, test, vi } from "vitest";
 import { codeThemes } from "./lib/codeThemes.ts";
-import { setPref } from "./lib/prefs.svelte.ts";
+import { prefs, setPref } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
 import { type TerminalColors, terminalColors } from "./lib/themeColors.ts";
 import { appTests, arena, later, openApp, press, Refusal, showObject } from "./test/fakeApp.ts";
@@ -322,6 +322,30 @@ describe("keys in the terminal", () => {
       screen.getByRole("button", { name: t("details.fieldIds") }).getAttribute("aria-pressed"),
     ).toBe("false");
     element.remove();
+  });
+});
+
+describe("its top edge", () => {
+  async function drag() {
+    Element.prototype.setPointerCapture = () => {};
+    const handle = screen.getByTitle(t("terminal.resize"));
+    await fireEvent.pointerDown(handle, { clientY: 500, pointerId: 1 });
+    await fireEvent.pointerMove(handle, { clientY: 400, pointerId: 1 });
+    await fireEvent.pointerUp(handle, { clientY: 400, pointerId: 1 });
+  }
+
+  test("changes the panel's height and remembers it", async () => {
+    await openWithTerminal();
+    await drag();
+    expect(panel()?.style.height).toBe("340px");
+    expect(prefs.terminalHeight).toBe(340);
+  });
+
+  test("leaves the cursor in the terminal", async () => {
+    await openWithTerminal();
+    const before = fake.views[0]?.focused ?? 0;
+    await drag();
+    await waitFor(() => expect(fake.views[0]?.focused).toBeGreaterThan(before));
   });
 });
 

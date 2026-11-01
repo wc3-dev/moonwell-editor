@@ -33,6 +33,7 @@ function startDrag(event: PointerEvent): void {
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", stop);
     setPref("terminalHeight", height);
+    terminals.focusAsked++;
   };
   handle.addEventListener("pointermove", move);
   handle.addEventListener("pointerup", stop);
