@@ -83,14 +83,21 @@ function apply(preset: FieldPreset): void {
   open = null;
 }
 
-const iconButton =
-  "shrink-0 rounded-ui p-[3px] text-muted hover:bg-hover hover:text-fg aria-pressed:bg-accent-lo aria-pressed:text-accent-hi";
+const iconButton = "shrink-0 rounded-ui p-[3px]";
+const unpressed = "text-muted hover:bg-hover hover:text-fg";
 const dropdownButton =
   "dropdown flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-ui border border-transparent bg-field px-1.5 text-body hover:border-muted";
 </script>
 
 {#snippet toggle(label: string, Icon: Component<{ size?: number }>, pressed: boolean, onclick: () => void)}
-  <button type="button" class={iconButton} title={label} aria-label={label} aria-pressed={pressed} {onclick}>
+  <button
+    type="button"
+    class="{iconButton} {pressed ? 'bg-accent-lo text-accent-hi' : unpressed}"
+    title={label}
+    aria-label={label}
+    aria-pressed={pressed}
+    {onclick}
+  >
     <Icon size={14} />
   </button>
 {/snippet}
@@ -131,7 +138,7 @@ const dropdownButton =
   {#if filtering}
     <button
       type="button"
-      class={iconButton}
+      class="{iconButton} {unpressed}"
       title={t("details.clearFilters")}
       aria-label={t("details.clearFilters")}
       onclick={clear}
