@@ -220,7 +220,8 @@ body {
     );
   }
   .tool-button[aria-pressed="true"],
-  .tool-button[aria-pressed="true"]:hover {
+  .tool-button[aria-pressed="true"]:hover,
+  .tool-button:not(:disabled):active {
     border-color: var(--toolbar-dark);
     background: linear-gradient(
       180deg,
