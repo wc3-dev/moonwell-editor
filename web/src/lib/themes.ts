@@ -143,54 +143,6 @@ export function applyTheme(chosen: Theme, root: HTMLElement = document.documentE
   root.dataset.theme = chosen.id;
 }
 
-/** The colours a script is drawn in, as app.css names them without the `--`. */
-export const codeTokens = [
-  "code-bg",
-  "code-fg",
-  "code-gutter",
-  "code-selection",
-  "code-keyword",
-  "code-type",
-  "code-string",
-  "code-number",
-  "code-comment",
-  "code-function",
-  "code-special",
-  "code-operator",
-] as const;
-
-export type CodeToken = (typeof codeTokens)[number];
-
-/** A theme's colours for a script, each from its own palette. */
-export function codeColors(theme: Theme): Record<CodeToken, string> {
-  const { colors } = theme;
-  return {
-    "code-bg": colors.bg,
-    "code-fg": colors.fg,
-    "code-gutter": colors.faint,
-    "code-selection": colors["accent-lo"],
-    "code-keyword": colors.purple,
-    "code-type": colors.cyan,
-    "code-string": colors["kind-destructable"],
-    "code-number": colors["kind-item"],
-    "code-comment": colors.faint,
-    "code-function": colors.accent,
-    "code-special": colors.changed,
-    "code-operator": colors.muted,
-  };
-}
-
-/** The theme scripts are drawn in: the one chosen for them (Sven, 2026-10-31), or the interface's when none is. */
-export function codeThemeOf(id: string, theme: Theme): Theme {
-  return themes.find((each) => each.id === id) ?? theme;
-}
-
-/** Puts a theme's script colours on the page. */
-export function applyCodeTheme(chosen: Theme, root: HTMLElement = document.documentElement): void {
-  const colors = codeColors(chosen);
-  for (const token of codeTokens) root.style.setProperty(`--${token}`, colors[token]);
-}
-
 /** The theme chosen last; the default one when none was, or the storage cannot be read. */
 export function savedTheme(): Theme {
   try {

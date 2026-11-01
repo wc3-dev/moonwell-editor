@@ -1,37 +1,28 @@
-<script lang="ts">
+<script lang="ts" generics="T extends { id: string; name: string }">
 /** A theme's button in the settings and the list that opens under it, for the interface's theme and the code theme. */
 import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
-import type { Theme } from "../themes.ts";
 import Popover from "../ui/Popover.svelte";
 
 type Props = {
   label: string;
-  options: Theme[];
-  selected: Theme;
-  onpick: (theme: Theme) => void;
+  options: T[];
+  selected: T;
+  /** The colours that stand for a theme in the list. */
+  swatch: (theme: T) => string[];
+  onpick: (theme: T) => void;
 };
 
-let { label, options, selected, onpick }: Props = $props();
+let { label, options, selected, swatch, onpick }: Props = $props();
 
 let open = $state(false);
 let button: HTMLButtonElement | undefined = $state();
-
-const swatch = [
-  "bg",
-  "surface",
-  "accent",
-  "changed",
-  "kind-unit",
-  "kind-item",
-  "kind-ability",
-] as const;
 </script>
 
-{#snippet palette(each: Theme)}
+{#snippet palette(each: T)}
   <span class="flex shrink-0 overflow-hidden rounded-ui border border-black/30">
-    {#each swatch as token (token)}
-      <span class="h-4 w-2.5" style:background={each.colors[token]}></span>
+    {#each swatch(each) as color, index (index)}
+      <span class="h-4 w-2.5" style:background={color}></span>
     {/each}
   </span>
 {/snippet}

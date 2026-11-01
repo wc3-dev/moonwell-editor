@@ -9,6 +9,7 @@ import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 import { type Kind, kinds, type MapInfo, uiScale } from "../api.ts";
+import { type CodeTheme, codeColors, codeThemeOf, codeThemes } from "../codeThemes.ts";
 import { graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
 import TeamColourGrid from "../objects/TeamColourGrid.svelte";
 import { kindNames } from "../objects/tree.ts";
@@ -70,9 +71,33 @@ const switches = [
   { key: "experimental", text: t("settings.experimental") },
 ] as const;
 
-// The code themes: the interface's own (an empty id), then every theme.
-const sameTheme = $derived<Theme>({ ...theme, id: "", name: t("settings.codeThemeSame") });
-const codeThemes = $derived([sameTheme, ...themes]);
+// The code themes: the interface's own (an empty id), then every one VS Code has.
+const sameTheme = $derived<CodeTheme>({
+  ...codeThemeOf("", theme),
+  id: "",
+  name: t("settings.codeThemeSame"),
+});
+const codeThemeChoices = $derived([sameTheme, ...codeThemes]);
+
+const themeSwatch = ({ colors }: Theme): string[] =>
+  (["bg", "surface", "accent", "changed", "kind-unit", "kind-item", "kind-ability"] as const).map(
+    (token) => colors[token],
+  );
+
+function codeSwatch(theme: CodeTheme): string[] {
+  const colors = codeColors(theme);
+  return (
+    [
+      "code-bg",
+      "code-fg",
+      "code-keyword",
+      "code-function",
+      "code-string",
+      "code-number",
+      "code-comment",
+    ] as const
+  ).map((token) => colors[token]);
+}
 
 // The action whose new key is being pressed.
 let listening = $state<Action | null>(null);
@@ -181,14 +206,21 @@ function resetAll(): void {
       </div>
 
       {@render heading(t("settings.theme"))}
-      <ThemePicker label={t("settings.theme")} options={themes} selected={theme} onpick={ontheme} />
+      <ThemePicker
+        label={t("settings.theme")}
+        options={themes}
+        selected={theme}
+        swatch={themeSwatch}
+        onpick={ontheme}
+      />
 
       <!-- Scripts have a theme of their own, the interface's until one is chosen (Sven, 2026-10-31). -->
       {@render heading(t("settings.codeTheme"))}
       <ThemePicker
         label={t("settings.codeTheme")}
-        options={codeThemes}
-        selected={codeThemes.find((each) => each.id === prefs.codeTheme) ?? sameTheme}
+        options={codeThemeChoices}
+        selected={codeThemeChoices.find((each) => each.id === prefs.codeTheme) ?? sameTheme}
+        swatch={codeSwatch}
         onpick={(each) => setPref("codeTheme", each.id)}
       />
 

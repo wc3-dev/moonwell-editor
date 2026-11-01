@@ -1,16 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  applyCodeTheme,
-  applyTheme,
-  codeColors,
-  codeThemeOf,
-  codeTokens,
-  defaultTheme,
-  themeOf,
-  themes,
-  tokens,
-} from "./themes.ts";
+import { applyTheme, defaultTheme, themeOf, themes, tokens } from "./themes.ts";
 
 const css = readFileSync(new URL("../app.css", import.meta.url), "utf8").toLowerCase();
 
@@ -53,52 +43,5 @@ describe("the themes", () => {
     expect(set["--bg"]).toBe(kanagawa.colors.bg);
     expect(set["--kind-upgrade"]).toBe(kanagawa.colors["kind-upgrade"]);
     expect(root.dataset.theme).toBe("kanagawa-wave");
-  });
-});
-
-describe("the code theme", () => {
-  const dracula = themeOf("dracula");
-  const nord = themeOf("nord");
-
-  it("gives every code colour, from any theme", () => {
-    for (const each of themes) {
-      const colors = codeColors(each);
-      for (const token of codeTokens) {
-        expect(colors[token], `${each.id} ${token}`).toMatch(/^#[0-9a-f]{6}$/);
-      }
-    }
-  });
-
-  it("draws a theme's script in that theme's own colours", () => {
-    const colors = codeColors(dracula);
-    expect(colors["code-bg"]).toBe(dracula.colors.bg);
-    expect(colors["code-keyword"]).toBe(dracula.colors.purple);
-    expect(colors["code-keyword"]).not.toBe(codeColors(nord)["code-keyword"]);
-  });
-
-  it("follows the interface's theme when none is chosen", () => {
-    expect(codeThemeOf("", dracula)).toBe(dracula);
-  });
-
-  it("stays its own when one is chosen, whatever the interface's theme", () => {
-    expect(codeThemeOf("nord", dracula)).toBe(nord);
-  });
-
-  it("follows the interface's theme for an id no theme has", () => {
-    expect(codeThemeOf("no-such-theme", dracula)).toBe(dracula);
-  });
-
-  it("puts its colours on the page and leaves the interface's alone", () => {
-    const set: Record<string, string> = {};
-    const root = { style: { setProperty: (name: string, value: string) => (set[name] = value) } };
-    applyCodeTheme(nord, root as unknown as HTMLElement);
-    expect(set["--code-keyword"]).toBe(nord.colors.purple);
-    expect(set["--bg"]).toBeUndefined();
-  });
-
-  it("starts as app.css has it", () => {
-    for (const [token, value] of Object.entries(codeColors(themeOf(defaultTheme)))) {
-      expect(css).toContain(`--${token}: ${value};`);
-    }
   });
 });

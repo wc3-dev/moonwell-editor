@@ -40,7 +40,7 @@ test("scripts follow the theme until one is chosen for them", () => {
   new FakeApp();
   const appearance = new Appearance();
   appearance.use(first);
-  expect(appearance.codeTheme).toEqual(first);
+  expect(appearance.codeTheme.id).toBe(first.id);
   setPref("codeTheme", second.id);
   expect(appearance.codeTheme.id).toBe(second.id);
 });

@@ -2,7 +2,7 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { highlightTree, tagHighlighter, tags } from "@lezer/highlight";
 import { describe, expect, it } from "vitest";
-import { codeTokens } from "../themes.ts";
+import { codeTokens } from "../codeThemes.ts";
 import { languageOf, type ScriptLanguage, scriptColours } from "./scriptLanguages.ts";
 
 const named = tagHighlighter([
