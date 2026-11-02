@@ -25,9 +25,7 @@ public sealed class GameDataFixture : IDisposable
 
         Folder = folder;
         Cache = Path.Combine(Path.GetTempPath(), "MoonwellEditor.GameData.Tests", Guid.NewGuid().ToString("N"));
-        var clock = Stopwatch.StartNew();
         Data = GameData.Load(folder, Cache);
-        FirstLoad = clock.Elapsed;
     }
 
     /// <summary>Why the tests cannot run, or null when <see cref="Data"/> is loaded.</summary>
@@ -41,9 +39,6 @@ public sealed class GameDataFixture : IDisposable
 
     /// <summary>The data of the first load, or null when the tests cannot run.</summary>
     public GameData? Data { get; }
-
-    /// <summary>How long the first load (the build) took.</summary>
-    public TimeSpan FirstLoad { get; }
 
     public void Dispose()
     {
@@ -313,12 +308,11 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
             return;
         }
 
-        var clock = Stopwatch.StartNew();
+        // A build writes the cache's file again, so a load that used the cache leaves the file as it was.
+        var file = Directory.GetFiles(_fixture.Cache, "*.json").Single();
+        var written = File.GetLastWriteTimeUtc(file);
         var cached = GameData.Load(_fixture.Folder, _fixture.Cache);
-        var second = clock.Elapsed;
-        var first = _fixture.FirstLoad;
-        _output.WriteLine($"first load {first.TotalMilliseconds:F0} ms, cached load {second.TotalMilliseconds:F0} ms");
-        Assert.True(second.Ticks * 5 <= _fixture.FirstLoad.Ticks, $"first {_fixture.FirstLoad}, second {second}");
+        Assert.Equal(written, File.GetLastWriteTimeUtc(file));
         Assert.Equal(Snapshot(data), Snapshot(cached));
     }
 
