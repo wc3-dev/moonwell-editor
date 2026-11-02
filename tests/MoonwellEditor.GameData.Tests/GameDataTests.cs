@@ -330,11 +330,20 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
             return;
         }
 
+        // Timed against opening the storage just before and just after it, so other work on the computer slows both
+        // sides; a limit in seconds failed whenever something else was busy.
         var clock = Stopwatch.StartNew();
-        GameData.Load(_fixture.Folder, _fixture.Cache);
-        var elapsed = clock.Elapsed;
-        _output.WriteLine($"cached load {elapsed.TotalMilliseconds:F0} ms");
-        Assert.True(elapsed < TimeSpan.FromSeconds(1.5), $"cached load took {elapsed}");
+        using var files = GameFiles.Open(_fixture.Folder);
+        var open = clock.Elapsed;
+        clock.Restart();
+        GameData.Load(files, _fixture.Cache);
+        var read = clock.Elapsed;
+        clock.Restart();
+        GameFiles.Open(_fixture.Folder).Dispose();
+        var openAgain = clock.Elapsed;
+        var times = $"opening {open.TotalMilliseconds:F0} and {openAgain.TotalMilliseconds:F0} ms, cached read {read.TotalMilliseconds:F0} ms";
+        _output.WriteLine(times);
+        Assert.True(read < open + openAgain, times);
     }
 
     [Fact]
