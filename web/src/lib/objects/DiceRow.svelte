@@ -137,7 +137,7 @@ async function resetAll(): Promise<void> {
   class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
     ? 'opacity-50'
     : totalSelected
-      ? ''
+      ? 'bg-select'
       : 'hover:bg-raised'}"
   role="group"
   aria-label={label}
@@ -164,7 +164,7 @@ async function resetAll(): Promise<void> {
   </button>
   <button
     type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 pl-0.5 text-left focus:outline-none {totalSelected ? 'bg-select text-fg' : ''}"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 pl-0.5 text-left focus:outline-none {totalSelected ? 'text-fg' : ''}"
     aria-expanded={open}
     title={open ? t("dice.hideParts") : t("dice.showParts")}
     onclick={ontoggle}
