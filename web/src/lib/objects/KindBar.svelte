@@ -3,11 +3,11 @@
  * The seven kinds of object as a row of icon buttons in the header, in the Object Editor's tab order. The kind's name
  * is the button's tooltip and its name for screen readers; each kind has its own icon and colour (Sven, 2026-10-27).
  */
-import ChessRook from "@lucide/svelte/icons/chess-rook";
 import FlaskRound from "@lucide/svelte/icons/flask-round";
 import HandFist from "@lucide/svelte/icons/hand-fist";
+import HeartPlus from "@lucide/svelte/icons/heart-plus";
+import Lamp from "@lucide/svelte/icons/lamp";
 import ShieldPlus from "@lucide/svelte/icons/shield-plus";
-import Sparkles from "@lucide/svelte/icons/sparkles";
 import TreePalm from "@lucide/svelte/icons/tree-palm";
 import User from "@lucide/svelte/icons/user";
 import type { Component } from "svelte";
@@ -27,9 +27,9 @@ const icons: Record<Kind, Component<{ size?: number }>> = {
   unit: User,
   item: FlaskRound,
   destructable: TreePalm,
-  doodad: ChessRook,
+  doodad: Lamp,
   ability: HandFist,
-  buff: Sparkles,
+  buff: HeartPlus,
   upgrade: ShieldPlus,
 };
 </script>

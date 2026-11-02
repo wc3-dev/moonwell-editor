@@ -9,7 +9,8 @@ export type MenuItem =
 /**
  * The menu a right click opens (Sven, 2026-10-27), at the pointer and kept inside the window, on Bits UI's dropdown
  * menu (Sven, 2026-10-28). The arrow keys and typed letters move between entries, Enter runs one; a click outside it
- * or Esc closes it.
+ * or Esc closes it. With an `anchor` it is that button's list instead, as one shape with it (`.menu-list` in app.css,
+ * Sven, 2026-11-02).
  */
 import { DropdownMenu } from "bits-ui";
 
@@ -18,9 +19,11 @@ type Props = {
   y: number;
   items: MenuItem[];
   onclose: () => void;
+  /** The button the menu is the list of (the header's); it closes it itself. */
+  anchor?: HTMLElement;
 };
 
-let { x, y, items, onclose }: Props = $props();
+let { x, y, items, onclose, anchor }: Props = $props();
 
 // The point the menu opens at, as the box of nothing there.
 const point = $derived({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) });
@@ -29,13 +32,18 @@ const point = $derived({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) })
 <DropdownMenu.Root open onOpenChange={(open) => !open && onclose()}>
   <DropdownMenu.Portal>
     <DropdownMenu.Content
-      customAnchor={point}
+      customAnchor={anchor ?? point}
       side="bottom"
-      align="start"
+      align={anchor ? "end" : "start"}
       collisionPadding={4}
       onCloseAutoFocus={(event) => event.preventDefault()}
+      onInteractOutside={(event) => {
+        if (event.target instanceof Node && anchor?.contains(event.target)) event.preventDefault();
+      }}
       data-popup
-      class="z-50 min-w-[210px] rounded-ui border border-line bg-surface p-0.5 text-body outline-none"
+      class="z-50 min-w-[210px] rounded-ui border border-line bg-surface p-0.5 text-body outline-none {anchor
+        ? 'menu-list'
+        : ''}"
       oncontextmenu={(event) => event.preventDefault()}
     >
       {#each items as item, index (index)}

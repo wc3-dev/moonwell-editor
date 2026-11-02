@@ -24,10 +24,12 @@ let open = $state(false);
 let button: HTMLButtonElement | undefined = $state();
 let menu: HTMLDivElement | undefined = $state();
 
-// The first entry takes the focus, so the menu works from the keyboard (Esc closes it).
-$effect(() => {
-  if (open) menu?.querySelector("button")?.focus();
-});
+// The menu opens with nothing in it focused (Sven, 2026-11-02): Tab or ↓ goes to its first entry, and Esc closes it.
+function onkeydown(event: KeyboardEvent): void {
+  if (!open || event.shiftKey || (event.key !== "Tab" && event.key !== "ArrowDown")) return;
+  event.preventDefault();
+  menu?.querySelector("button")?.focus();
+}
 
 function pick(entry: OpenEntry): void {
   open = false;
@@ -45,6 +47,7 @@ function pick(entry: OpenEntry): void {
   aria-expanded={open}
   bind:this={button}
   onclick={() => (open = !open)}
+  {onkeydown}
 >
   <FolderOpen size={label ? 16 : 17} />
   {#if label}

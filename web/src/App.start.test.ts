@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
+import { tick } from "svelte";
 import { describe, expect, test } from "vitest";
 import App from "./App.svelte";
 import { setPref } from "./lib/prefs.svelte.ts";
+import { t } from "./lib/text.ts";
 import { appTests, arena, FakeApp, gameReady, openApp, Refusal } from "./test/fakeApp.ts";
 
 appTests();
@@ -98,13 +100,42 @@ describe("starting with a map", () => {
   });
 });
 
+describe("the Open map button", () => {
+  async function openList(): Promise<HTMLElement> {
+    new FakeApp();
+    render(App);
+    await screen.findByText(t("noMap.text"));
+    const button = screen.getByRole("button", { name: t("noMap.open") });
+    await fireEvent.click(button);
+    await screen.findByRole("menuitem", { name: t("openMenu.folder") });
+    return button;
+  }
+
+  test("opens its list with nothing in it focused", async () => {
+    const button = await openList();
+    button.focus();
+    await tick();
+    expect(document.activeElement).toBe(button);
+  });
+
+  test("Tab goes into the list", async () => {
+    const button = await openList();
+    button.focus();
+    await fireEvent.keyDown(button, { key: "Tab" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("menuitem", { name: t("openMenu.folder") }),
+    );
+  });
+});
+
 describe("the window", () => {
   test("the alpha notice opens at the start when the settings say so", async () => {
     setPref("alphaNotice", true);
     new FakeApp();
     render(App);
-    await fireEvent.click(await screen.findByRole("button", { name: "Got it" }));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Got it" })).toBeNull());
+    const dialog = await screen.findByRole("dialog", { name: t("alpha.title") });
+    await fireEvent.click(within(dialog).getByRole("button", { name: t("dialog.close") }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   test("the window's frame takes the theme's colours", async () => {

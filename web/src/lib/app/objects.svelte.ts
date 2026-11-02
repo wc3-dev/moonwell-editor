@@ -17,6 +17,8 @@ import { FieldFilters } from "../objects/fieldFilters.svelte.ts";
 import { type Lookup, listKinds } from "../objects/fields.ts";
 import type { EditResult } from "../objects/TableView.svelte";
 import { newTableState, type TableState } from "../objects/table.ts";
+import { isHidden } from "../objects/tree.ts";
+import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
 import type { CommandQueue } from "./commandQueue.ts";
 import type { History } from "./history.svelte.ts";
@@ -43,9 +45,8 @@ export class Objects {
   tableState = $state<TableState>(newTableState());
   fieldFilter = $state("");
   changedOnly = $state(false);
-  favouritesOnly = $state(false);
-  /** The categories the filter bar shows, by kind, as each kind has its own. */
-  chosenCategories = $state<Partial<Record<Kind, string[]>>>({});
+  /** The categories the filter bar hides, by kind, as each kind has its own. */
+  hiddenCategories = $state<Partial<Record<Kind, string[]>>>({});
   showIds = $state(false);
   readonly fieldFilters = new FieldFilters();
 
@@ -95,6 +96,12 @@ export class Objects {
     }
     return undefined;
   };
+
+  /** A kind's objects as the tree and the table list them: the Hidden folder only when the settings say so. */
+  listed(each: Kind): TreeEntry[] | null {
+    const entries = this.trees[each] ?? null;
+    return prefs.showHidden ? entries : (entries?.filter((entry) => !isHidden(entry)) ?? null);
+  }
 
   entryOf(each: Kind, id: string): TreeEntry | undefined {
     return this.trees[each]?.find((entry) => entry.id === id);

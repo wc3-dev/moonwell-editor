@@ -27,7 +27,7 @@ import {
   typingIn,
 } from "./windowKeys.ts";
 
-type Menu = { x: number; y: number; items: MenuItem[] };
+type Menu = { x: number; y: number; items: MenuItem[]; anchor?: HTMLElement };
 
 /** One line of the command palette: a command and its keys. */
 export type PaletteCommand = { action: Action; name: string; keys: string[] };
@@ -47,7 +47,6 @@ const objectCommands: Action[] = [
   "rename",
   "fieldIds",
   "changedOnly",
-  "favouritesOnly",
   "clearFilters",
   "collapseAll",
   "expandAll",
@@ -106,6 +105,10 @@ export class Editor {
 
   /** The menu at the right of the header: opening a map, reloading it, saving, the settings and About. */
   openMainMenu = (button: HTMLElement): void => {
+    if (this.menu?.anchor === button) {
+      this.menu = null;
+      return;
+    }
     const box = button.getBoundingClientRect();
     const ready = this.startup.view === "ready" && !this.session.opening;
     const { map, saving, state } = this.session;
@@ -115,7 +118,8 @@ export class Editor {
     const terminalKey = this.keymap.terminal[0];
     this.menu = {
       x: box.right,
-      y: box.bottom + 4,
+      y: box.bottom,
+      anchor: button,
       items: [
         ...openEntries.map((entry) => ({
           label: entry.archive ? t("header.openArchive") : t("header.openFolder"),
@@ -297,7 +301,6 @@ export class Editor {
     showDetails: () => this.pages.show("details"),
     showTable: () => this.pages.show("table"),
     changedOnly: () => (this.objects.changedOnly = !this.objects.changedOnly),
-    favouritesOnly: () => (this.objects.favouritesOnly = !this.objects.favouritesOnly),
     clearFilters: () => this.pages.details?.clearFilters(),
     collapseAll: () => this.pages.details?.collapseAll(true),
     expandAll: () => this.pages.details?.collapseAll(false),

@@ -7,7 +7,6 @@
 import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
-import DialogButton from "../ui/DialogButton.svelte";
 
 let { onclose }: { onclose: () => void } = $props();
 </script>
@@ -17,7 +16,4 @@ let { onclose }: { onclose: () => void } = $props();
     <p class="m-0">{t("alpha.backup")}</p>
     <p class="m-0">{t("alpha.closeFirst")}</p>
   </div>
-  {#snippet actions()}
-    <DialogButton look="primary" onclick={onclose}>{t("alpha.understood")}</DialogButton>
-  {/snippet}
 </Dialog>

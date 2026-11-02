@@ -1,11 +1,11 @@
 <script lang="ts">
 /**
  * Per-level fields as a grid: one row per field, its levels (a doodad's variations) across. When the object can be
- * edited, each cell is the level's editor, with ↺ when the level is changed.
+ * edited, each cell is the level's editor, with ↺ when the level is changed. A favourite is edited under Favourites and
+ * shows disabled where it usually is (Sven, 2026-11-02).
  */
 import type { ChoiceList, FieldView, Kind } from "../api.ts";
 import { t } from "../text.ts";
-import FavouriteStar from "./FavouriteStar.svelte";
 import FieldEditor from "./FieldEditor.svelte";
 import { isChanged, type Lookup, namesOf, type Row, shownValue } from "./fields.ts";
 
@@ -22,12 +22,10 @@ type Props = {
   /** The selected field and level, as `field:level`; null for none. */
   selected: string | null;
   onselect: (field: FieldView) => void;
-  /** A right click on a level's cell, for its context menu. */
+  /** A right click on a level's cell or a field's name, for its context menu. */
   onmenu: (field: FieldView, x: number, y: number) => void;
-  /** Whether a field is a favourite. */
-  isFavourite: (field: FieldView) => boolean;
-  /** Stars a field, or takes its star off. */
-  onfavourite: (field: FieldView) => void;
+  /** True for a favourite where it usually is: it is only shown there. */
+  disabled: (row: Row) => boolean;
 };
 
 let {
@@ -42,8 +40,7 @@ let {
   selected,
   onselect,
   onmenu,
-  isFavourite,
-  onfavourite,
+  disabled,
 }: Props = $props();
 
 function menuOf(field: FieldView, event: MouseEvent): void {
@@ -95,19 +92,27 @@ async function reset(field: FieldView): Promise<void> {
       </thead>
       <tbody>
         {#each rows as row (row.id)}
-          <tr class="group" data-changed={isChanged(row) || undefined}>
-            <th class="relative border border-hairline py-0.5 pr-6 pl-2 text-left font-normal whitespace-nowrap">
+          {@const off = disabled(row)}
+          <tr
+            class="group {off ? 'opacity-50' : ''}"
+            data-changed={(isChanged(row) && !off) || undefined}
+            title={off ? t("details.inFavourites") : undefined}
+          >
+            <th
+              class="border border-hairline px-2 py-0.5 text-left font-normal whitespace-nowrap"
+              scope="row"
+              oncontextmenu={(event) => menuOf(row.field, event)}
+            >
               <span class="inline-flex items-center gap-1.5">
                 <span class="h-3.5 w-1 rounded-ui {isChanged(row) ? 'bg-changed' : ''}"></span>
                 {row.label}
                 {#if showIds}<span class="font-mono text-mono text-faint">{row.id}</span>{/if}
               </span>
-              <FavouriteStar label={row.label} on={isFavourite(row.field)} onclick={() => onfavourite(row.field)} />
             </th>
             {#each row.levels ?? [] as field (field.level)}
               {@const shown = shownValue(field, choices, nameOf)}
               {@const key = `${field.id}:${field.level}`}
-              {#if editable}
+              {#if editable && !off}
                 <td
                   class="group border p-0 align-middle {field.warning || errors[key]
                     ? 'border-warn'

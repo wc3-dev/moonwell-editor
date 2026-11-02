@@ -15,16 +15,15 @@ import type { Snippet } from "svelte";
 
 type Props = {
   look?: keyof typeof looks;
-  /** `Dialog` focuses this button when it opens; the primary looks do without being told. */
-  takesFocus?: boolean;
   disabled?: boolean;
   onclick: () => void;
   children: Snippet;
 };
 
-let { look = "plain", takesFocus, disabled = false, onclick, children }: Props = $props();
+let { look = "plain", disabled = false, onclick, children }: Props = $props();
 
-const focused = $derived(takesFocus ?? (look === "primary" || look === "accent"));
+// `Dialog` focuses a button of a primary look when it opens.
+const focused = $derived(look === "primary" || look === "accent");
 </script>
 
 <button type="button" class={looks[look]} data-primary={focused ? "" : undefined} {disabled} {onclick}>

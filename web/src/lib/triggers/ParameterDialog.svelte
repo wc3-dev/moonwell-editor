@@ -11,7 +11,6 @@ import { errorText } from "../errors.ts";
 import { pickOnMap } from "../map/pick.svelte.ts";
 import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
-import DialogButton from "../ui/DialogButton.svelte";
 import type {
   Catalog,
   MapReference,
@@ -311,7 +310,4 @@ function findObjects(): void {
     {/if}
     {#if problem}<p class="m-0 text-warn">{problem}</p>{/if}
   </div>
-  {#snippet actions()}
-    <DialogButton look="outline" takesFocus onclick={onclose}>{t("triggers.close")}</DialogButton>
-  {/snippet}
 </Dialog>

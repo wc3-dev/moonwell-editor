@@ -5,14 +5,14 @@
  * number of dice and sides per die under it as fields of their own. Typing a range sets the three (one edit, keeping
  * the number of dice where it can); editing one of the three changes the range. The arrow that shows and
  * hides the three sits in the gutter left of the names, so the total's name lines up with the other fields' (Sven,
- * 2026-10-28); it takes the changed colour when one of the three is changed.
+ * 2026-10-28); it takes the changed colour when one of the three is changed. A favourite is edited under Favourites
+ * and shows disabled where it usually is (Sven, 2026-11-02).
  */
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import type { ChoiceList, FieldView, Kind } from "../api.ts";
 import { t } from "../text.ts";
 import { type DiceFields, parseRange, rangeEdits, rangeOf, rangeText } from "./dice.ts";
-import FavouriteStar from "./FavouriteStar.svelte";
 import FieldRow from "./FieldRow.svelte";
 import type { Lookup } from "./fields.ts";
 
@@ -39,10 +39,8 @@ type Props = {
   /** Whether the three fields show under the total. */
   open: boolean;
   ontoggle: () => void;
-  /** Whether a field is a favourite; the total's star is its base's, which keeps the total in the favourites. */
-  isFavourite: (field: FieldView) => boolean;
-  /** Stars a field, or takes its star off. */
-  onfavourite: (field: FieldView) => void;
+  /** True for a favourite where it usually is: it is only shown there. */
+  disabled?: boolean;
 };
 
 let {
@@ -63,10 +61,10 @@ let {
   ontotalmenu,
   open,
   ontoggle,
-  isFavourite,
-  onfavourite,
+  disabled = false,
 }: Props = $props();
 
+const totalSelected = $derived(!disabled && selected === `${fields.base.id}:total`);
 const parts = $derived([fields.base, fields.dice, fields.sides]);
 const changed = $derived(parts.some((field) => field.changed));
 const range = $derived(rangeOf(fields));
@@ -135,13 +133,15 @@ async function resetAll(): Promise<void> {
 </script>
 
 <div
-  data-changed={changed || undefined}
-  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected ===
-  `${fields.base.id}:total`
-    ? ''
-    : 'hover:bg-raised'}"
+  data-changed={(changed && !disabled) || undefined}
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
+    ? 'opacity-50'
+    : totalSelected
+      ? ''
+      : 'hover:bg-raised'}"
   role="group"
   aria-label={label}
+  title={disabled ? t("details.inFavourites") : undefined}
   onfocusin={() => onselecttotal(fields)}
   onpointerdown={() => onselecttotal(fields)}
   oncontextmenu={(event) => {
@@ -162,25 +162,22 @@ async function resetAll(): Promise<void> {
   >
     {#if open}<ChevronDown size={10} />{:else}<ChevronRight size={10} />{/if}
   </button>
-  <span class="relative grid self-stretch">
-    <button
-      type="button"
-      class="flex cursor-default items-center border-r border-hairline pr-5 pl-0.5 text-left focus:outline-none {selected === `${fields.base.id}:total` ? 'bg-select text-fg' : ''}"
-      aria-expanded={open}
-      title={open ? t("dice.hideParts") : t("dice.showParts")}
-      onclick={ontoggle}
-    >
-      {label}
-    </button>
-    <FavouriteStar {label} on={isFavourite(fields.base)} onclick={() => onfavourite(fields.base)} />
-  </span>
+  <button
+    type="button"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 pl-0.5 text-left focus:outline-none {totalSelected ? 'bg-select text-fg' : ''}"
+    aria-expanded={open}
+    title={open ? t("dice.hideParts") : t("dice.showParts")}
+    onclick={ontoggle}
+  >
+    {label}
+  </button>
   <span class="flex min-w-0 items-center gap-1 px-1">
-    {#if editable}
+    {#if editable && !disabled}
       <!-- Shows only its value, as the other boxes do; a field while the total is selected (Sven, 2026-10-29). -->
       <input
         class="field-sizing-content min-w-[8ch] max-w-full rounded-ui border px-1.5 py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field {error
           ? 'border-warn bg-warn-lo'
-          : selected === `${fields.base.id}:total`
+          : totalSelected
             ? 'border-transparent bg-field'
             : 'border-transparent bg-transparent hover:border-dashed hover:border-muted'} {changed ? 'text-changed' : 'text-fg'}"
         value={draft ?? rangeText(range)}
@@ -232,8 +229,7 @@ async function resetAll(): Promise<void> {
       {onselect}
       {onmenu}
       nested
-      favourite={isFavourite(part)}
-      {onfavourite}
+      {disabled}
     />
   {/each}
 {/if}

@@ -40,6 +40,11 @@ export function isCustom(entry: TreeEntry): boolean {
   return entry.path[0] === t("app.folder.custom");
 }
 
+/** True for an object World Editor does not show, which stands in the Hidden folder (never a custom one). */
+export function isHidden(entry: TreeEntry): boolean {
+  return entry.path[0] === t("app.folder.hidden");
+}
+
 /** The key of the Custom group of a kind. */
 export function customKey(kind: Kind): string {
   return `${kind}:Custom`;

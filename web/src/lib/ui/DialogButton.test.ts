@@ -25,10 +25,8 @@ test("the primary looks take the focus when the dialog opens", () => {
   expect(button({ look: "accent" }).hasAttribute("data-primary")).toBe(true);
 });
 
-test("the others do not, unless told to", () => {
+test("the others do not", () => {
   expect(button({ look: "plain" }).hasAttribute("data-primary")).toBe(false);
-  cleanup();
-  expect(button({ look: "outline", takesFocus: true }).hasAttribute("data-primary")).toBe(true);
 });
 
 test("it can be off", () => {

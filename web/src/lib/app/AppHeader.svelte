@@ -4,11 +4,11 @@ import BookOpen from "@lucide/svelte/icons/book-open";
 import Bot from "@lucide/svelte/icons/bot";
 import Boxes from "@lucide/svelte/icons/boxes";
 import CodeXml from "@lucide/svelte/icons/code-xml";
-import Columns3 from "@lucide/svelte/icons/columns-3";
 import GitCompareArrows from "@lucide/svelte/icons/git-compare-arrows";
 import Menu from "@lucide/svelte/icons/menu";
 import MountainSnow from "@lucide/svelte/icons/mountain-snow";
 import Package from "@lucide/svelte/icons/package";
+import Rows3 from "@lucide/svelte/icons/rows-3";
 import Table2 from "@lucide/svelte/icons/table-2";
 import Workflow from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
@@ -96,7 +96,7 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
     <KindBar kind={objects.kind} disabled={!session.map} onkind={objects.switchKind} />
     <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.views")}>
-      {@render pageButton(t("header.details"), t("header.details"), Columns3, pages.page === "details", !session.map, () => pages.show("details"))}
+      {@render pageButton(t("header.details"), t("header.details"), Rows3, pages.page === "details", !session.map, () => pages.show("details"))}
       {@render pageButton(
         t("header.table"),
         prefs.experimental ? t("header.table") : t("header.tableExperimental"),
@@ -110,10 +110,11 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   {/if}
   <button
     type="button"
-    class="tool-button ml-auto shrink-0 text-muted hover:text-fg"
+    class="dropdown tool-button ml-auto shrink-0 text-muted hover:text-fg"
     title={t("header.menu")}
     aria-label={t("header.menu")}
     aria-haspopup="menu"
+    aria-expanded={editor.menu?.anchor !== undefined}
     onclick={(event) => editor.openMainMenu(event.currentTarget)}
   >
     <Menu size={16} />

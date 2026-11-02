@@ -48,7 +48,6 @@ export type Action =
   | "showTable"
   | keyof typeof kindActions
   | "changedOnly"
-  | "favouritesOnly"
   | "clearFilters"
   | "collapseAll"
   | "expandAll";
@@ -70,7 +69,8 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "forward", name: t("hotkey.forward"), keys: ["Alt+ArrowRight"] },
   { action: "settings", name: t("hotkey.settings"), keys: ["F10"] },
   { action: "commandPalette", name: t("hotkey.commandPalette"), keys: ["Ctrl+Shift+P"] },
-  { action: "terminal", name: t("hotkey.terminal"), keys: ["Ctrl+J"] },
+  // VS Code's key (Sven, 2026-11-02), which is the Ö key on a Swedish keyboard.
+  { action: "terminal", name: t("hotkey.terminal"), keys: ["Ctrl+`", "Ctrl+Ö"] },
   { action: "openFolder", name: t("hotkey.openFolder"), keys: [] },
   { action: "openArchive", name: t("hotkey.openArchive"), keys: [] },
   { action: "reload", name: t("hotkey.reload"), keys: [] },
@@ -89,7 +89,6 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "kindBuff", name: t("hotkey.kindBuff"), keys: [] },
   { action: "kindUpgrade", name: t("hotkey.kindUpgrade"), keys: [] },
   { action: "changedOnly", name: t("hotkey.changedOnly"), keys: [] },
-  { action: "favouritesOnly", name: t("hotkey.favouritesOnly"), keys: [] },
   { action: "clearFilters", name: t("hotkey.clearFilters"), keys: [] },
   { action: "collapseAll", name: t("hotkey.collapseAll"), keys: [] },
   { action: "expandAll", name: t("hotkey.expandAll"), keys: [] },

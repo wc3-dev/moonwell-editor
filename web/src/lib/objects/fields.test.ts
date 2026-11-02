@@ -6,6 +6,8 @@ import {
   assetText,
   buttonPair,
   type Category,
+  favouritesCategory,
+  favouritesKey,
   groupFields,
   isTypedId,
   type Lookup,
@@ -74,11 +76,6 @@ describe("the filter", () => {
     expect(shape(groupFields(fields, "UMVS", false))).toEqual([["move", ["umvs"]]]);
   });
 
-  it("keeps only the rows `keep` takes, and leaves out a category with none", () => {
-    const keep = (row: Row) => row.id === "umvs";
-    expect(shape(groupFields(fields, "", false, undefined, keep))).toEqual([["move", ["umvs"]]]);
-  });
-
   it("matches the value", () => {
     expect(shape(groupFields(fields, "foot", false))).toEqual([["text", ["unam"]]]);
     expect(shape(groupFields(fields, "650", false))).toEqual([["stats", ["uhpm"]]]);
@@ -94,6 +91,20 @@ describe("the filter", () => {
     expect(shape(groupFields([attack, life], "(shown)", false, shown))).toEqual([
       ["stats", ["ua1t"]],
     ]);
+  });
+});
+
+describe("the favourites", () => {
+  const categories = groupFields([life, regen, speed, name], "", false);
+
+  it("are one category, in the order the fields stand", () => {
+    const wanted = new Set(["unam", "uhpr"]);
+    const favourites = favouritesCategory(categories, (row) => wanted.has(row.id));
+    expect(favourites && shape([favourites])).toEqual([[favouritesKey, ["uhpr", "unam"]]]);
+  });
+
+  it("are no category with none", () => {
+    expect(favouritesCategory(categories, () => false)).toBeNull();
   });
 });
 

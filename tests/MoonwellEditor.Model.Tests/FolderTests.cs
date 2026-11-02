@@ -33,7 +33,7 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.Equal(
             ["Neutral - Naga", "Campaign", "Units"],
             Folders.Of(ObjectKind.Unit, Standard("nmyr", "naga", campaign: true, hostile: true)));
-        Assert.Equal(["Hidden in World Editor"], Folders.Of(ObjectKind.Unit, Standard("zshv", "other", hidden: true)));
+        Assert.Equal(["Hidden"], Folders.Of(ObjectKind.Unit, Standard("zshv", "other", hidden: true)));
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.Equal(["Special", "Items"], Folders.Of(ObjectKind.Ability, Standard("AIat", "other", category: "item")));
         Assert.Equal(["Special", "Units"], Folders.Of(ObjectKind.Ability, Standard("Aawa", "other", category: "")));
         Assert.Equal(
-            ["Hidden in World Editor"],
+            ["Hidden"],
             Folders.Of(ObjectKind.Ability, Standard("Aloc", "undead", category: "unit", hidden: true)));
     }
 
@@ -197,10 +197,10 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.Equal(
             [
                 "Human", "Orc", "Undead", "Night Elf", "Neutral - Naga", "Neutral Hostile", "Neutral Passive",
-                "Hidden in World Editor",
+                "Hidden",
             ],
             Groups(units, []));
-        Assert.Equal(926, units.Count(entry => entry.Path[0] is not ("Custom" or "Hidden in World Editor")));
+        Assert.Equal(926, units.Count(entry => entry.Path[0] is not ("Custom" or "Hidden")));
         Assert.Equal(280, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Hostile", "Melee"])));
         Assert.Equal(19, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Hostile", "Campaign"])));
         Assert.Equal(143, units.Count(entry => entry.Path.Take(2).SequenceEqual(["Neutral Passive", "Melee"])));
@@ -224,13 +224,13 @@ public sealed class FolderTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.Equal(
             [
                 "Human", "Orc", "Undead", "Night Elf", "Neutral Hostile", "Neutral Passive", "Special",
-                "Hidden in World Editor",
+                "Hidden",
             ],
             Groups(abilities, []));
         Assert.Equal(11, abilities.Count(entry => entry.Path[0] == "Neutral Passive"));
         Assert.Equal(243, abilities.Count(entry => entry.Path[0] == "Neutral Hostile"));
-        Assert.Equal(23, abilities.Count(entry => entry.Path[0] == "Hidden in World Editor"));
-        Assert.Equal(["Hidden in World Editor"], abilities.Single(entry => entry.Id == "Aloc").Path);
+        Assert.Equal(23, abilities.Count(entry => entry.Path[0] == "Hidden"));
+        Assert.Equal(["Hidden"], abilities.Single(entry => entry.Id == "Aloc").Path);
         Assert.Equal(["Units", "Heroes", "Items"], Groups(abilities, ["Special"]));
 
         var buffs = session.Tree(ObjectKind.Buff);

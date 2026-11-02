@@ -93,7 +93,6 @@ $effect(() => {
     </div>
   </div>
   {#snippet actions()}
-    <DialogButton look="outline" onclick={oncancel}>{t("triggers.close")}</DialogButton>
     <DialogButton look="accent" disabled={chosen === null} onclick={() => chosen && onpick(chosen.name)}>
       {t("triggers.add")}
     </DialogButton>

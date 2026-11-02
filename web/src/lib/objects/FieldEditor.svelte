@@ -318,7 +318,7 @@ function oninput(event: Event): void {
         <button
           type="button"
           tabindex="-1"
-          class="flex flex-1 cursor-pointer items-center justify-center text-faint hover:text-fg"
+          class="flex min-h-0 flex-1 cursor-pointer items-center justify-center text-faint hover:text-fg"
           aria-label={arrow.name}
           onmousedown={(event) => event.preventDefault()}
           onclick={() => step(arrow.by)}
