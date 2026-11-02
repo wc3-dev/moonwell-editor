@@ -19,7 +19,6 @@ import { type Shell, terminalShells } from "../terminal/api.ts";
 import { t } from "../text.ts";
 import { type Theme, themes } from "../themes.ts";
 import Dialog from "../ui/Dialog.svelte";
-import DialogButton from "../ui/DialogButton.svelte";
 import Popover from "../ui/Popover.svelte";
 import Select from "../ui/Select.svelte";
 import type { GameDataState } from "./gameData.ts";
@@ -72,6 +71,7 @@ const switches = [
   { key: "confirm", text: t("settings.confirm") },
   { key: "alphaNotice", text: t("settings.alphaNotice") },
   { key: "experimental", text: t("settings.experimental") },
+  { key: "showHidden", text: t("settings.showHidden") },
 ] as const;
 
 // The code themes: the interface's own (an empty id), then every one VS Code has.
@@ -383,8 +383,4 @@ function resetAll(): void {
       </button>
     {/if}
   </div>
-
-  {#snippet actions()}
-    <DialogButton look="primary" onclick={onclose}>{t("settings.done")}</DialogButton>
-  {/snippet}
 </Dialog>

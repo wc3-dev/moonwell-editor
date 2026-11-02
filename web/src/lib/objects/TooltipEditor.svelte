@@ -9,19 +9,21 @@
  * that is not whole goes in with one decimal (`,.`) unless the user picks ×100 (`,%`), since the game rounds a plain
  * one down; a buff's tooltip gets no values and a warning for a comma, which the game cuts its extended tooltip at
  * (game facts, probes of 2026-10-29). The icon, hotkey and costs show as the game shows them but are edited in their
- * fields. An object with levels is edited a level at a time; Save sends every changed text as one edit.
+ * fields. An object with levels is edited a level at a time. A text is saved a moment after it is typed, and closing
+ * sends what is still waiting (Sven, 2026-11-02).
  */
 import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
+import { onDestroy } from "svelte";
 import { type FieldView, iconUrl, type ObjectView, object } from "../api.ts";
 import { uiIcons } from "../gameIcons.ts";
 import { graphics } from "../graphics.svelte.ts";
-import { t, tCount } from "../text.ts";
+import { t } from "../text.ts";
+import { typing } from "../typing.ts";
 import ContextMenu from "../ui/ContextMenu.svelte";
 import Dialog from "../ui/Dialog.svelte";
-import DialogButton from "../ui/DialogButton.svelte";
 import Popover from "../ui/Popover.svelte";
 import ColorPicker from "./ColorPicker.svelte";
 import RichText from "./RichText.svelte";
@@ -146,8 +148,9 @@ const shownBoxes = $derived(
     .filter((box) => box.parts.length > 0),
 );
 
-// The texts as edited, by `field:level`, until they are saved.
+// The texts as edited, by `field:level`, and what was last sent of each, so nothing goes twice.
 let drafts = $state<Record<string, string>>({});
+const sent: Record<string, string> = {};
 let editors = $state<Record<string, RichText | undefined>>({});
 let active = $state<string | null>(null);
 // The text the mouse is over, and the one with the cursor: the first is named at the bottom, else the second.
@@ -162,7 +165,6 @@ const named = $derived.by(() => {
   return null;
 });
 let error = $state("");
-let saving = $state(false);
 
 const keyOf = (field: FieldView) => `${field.id}:${field.level}`;
 
@@ -180,14 +182,13 @@ const presets = [
   { css: "#87ceeb", name: t("tooltipEditor.colour.consumable") },
 ];
 
-// The user's own colours, after the divider: + picks a new one (until there are `maxOwn`), and a click on one colours
-// the selection and opens the picker to change it (Sven, 2026-10-29). The picker is the editor's own: WebView2's could
-// not pick a colour. They are remembered in the window's storage.
+// The user's own colours, after the divider: + picks a new one (until there are `maxOwn`), a click on one colours the
+// selection, and its context menu changes it in the picker or removes it (Sven, 2026-11-02). The picker is the editor's
+// own: WebView2's could not pick a colour. They are remembered in the window's storage.
 const maxOwn = 8;
 const ownKey = "moonwell-editor.tooltip-colours";
 let own = $state<string[]>(savedOwn());
-// The context menu of one of the user's colours, which removes it (Sven, 2026-10-29).
-let colourMenu = $state<{ x: number; y: number; index: number } | null>(null);
+let colourMenu = $state<{ x: number; y: number; index: number; anchor: HTMLElement } | null>(null);
 // The picker, open under + (index null, a new colour) or under one of the user's colours.
 let picking = $state<{ index: number | null; anchor: HTMLElement } | null>(null);
 
@@ -254,8 +255,9 @@ function insertedAt(key: { key: string; whole?: boolean }): {
 // The abilities a unit's or an item's lists name, whose values its tooltip can show too; fetched when the editor
 // opens, and null until they are here.
 let listed = $state.raw<SlashSource[] | null>(null);
+const listedIds = $derived(listedAbilities(view).slice(0, 24).join());
 $effect(() => {
-  const ids = listedAbilities(view).slice(0, 24);
+  const ids = listedIds === "" ? [] : listedIds.split(",");
   let stale = false;
   Promise.all(ids.map((id) => object("ability", id).catch(() => null))).then((found) => {
     if (stale) return;
@@ -354,6 +356,7 @@ function swapCommas(): void {
     drafts[key] = (drafts[key] ?? field.value).replaceAll(",", "‚");
   }
   swaps++;
+  saveSoon();
 }
 
 function colorSelection(css: string | null): void {
@@ -361,29 +364,46 @@ function colorSelection(css: string | null): void {
   editor?.color(css);
 }
 
-async function save(): Promise<void> {
+const saveDelay = 400;
+let waiting: ReturnType<typeof setTimeout> | undefined;
+// While a text waits, a save of the map (or closing the window) sends it first.
+let stopTyping: (() => void) | null = null;
+
+function saveSoon(): void {
+  clearTimeout(waiting);
+  waiting = setTimeout(save, saveDelay);
+  stopTyping ??= typing(save);
+}
+
+/** Sends every text not sent yet, as one edit; answers with why it was refused, or null. */
+async function save(): Promise<string | null> {
+  clearTimeout(waiting);
+  stopTyping?.();
+  stopTyping = null;
   const edits = Object.entries(drafts).flatMap(([key, value]) => {
     const [id, at] = key.split(":");
     const field = view.fields.find((each) => each.id === id && String(each.level) === at);
-    return field && field.value !== value ? [{ field, value }] : [];
+    return field && (sent[key] ?? field.value) !== value ? [{ field, value }] : [];
   });
-  if (edits.length === 0) {
-    onclose();
-    return;
-  }
-  saving = true;
+  if (edits.length === 0) return null;
+  for (const { field, value } of edits) sent[keyOf(field)] = value;
   const problem = await onfields(edits);
-  saving = false;
-  if (problem === null) onclose();
-  else error = problem;
+  if (problem !== null) for (const { field } of edits) delete sent[keyOf(field)];
+  error = problem ?? "";
+  return problem;
 }
 
-const changedCount = $derived(
-  Object.entries(drafts).filter(([key, value]) => {
-    const [id, at] = key.split(":");
-    return view.fields.find((each) => each.id === id && String(each.level) === at)?.value !== value;
-  }).length,
-);
+// A text refused stays to be put right; closing again gives it up.
+async function close(): Promise<void> {
+  const shown = error;
+  const problem = await save();
+  if (problem === null || problem === shown) onclose();
+}
+
+onDestroy(() => {
+  clearTimeout(waiting);
+  stopTyping?.();
+});
 </script>
 
 {#snippet text(part: Part & { field: FieldView }, look: string)}
@@ -409,13 +429,16 @@ const changedCount = $derived(
         suggest={sources.length > 0 ? suggest : undefined}
         class={look}
         onfocus={() => (active = key)}
-        onchange={(markup) => (drafts[key] = markup)}
+        onchange={(markup) => {
+          drafts[key] = markup;
+          saveSoon();
+        }}
       />
     {/key}
   </div>
 {/snippet}
 
-<Dialog title={t("tooltipEditor.title", { name: view.name })} note={view.id} oncancel={onclose} large>
+<Dialog title={t("tooltipEditor.title", { name: view.name })} note={view.id} oncancel={close} large>
   <!-- The toolbar: colours for the selected text, and an ability's values to put in. -->
   <div class="mb-2 flex flex-wrap items-center gap-1.5" role="toolbar" aria-label={t("tooltipEditor.toolbar")}>
     {#each presets as preset (preset.css)}
@@ -448,16 +471,12 @@ const changedCount = $derived(
         style:background-color={colour}
         title={t("tooltipEditor.ownTitle", { colour })}
         aria-label={t("tooltipEditor.ownTitle", { colour })}
-        aria-haspopup="dialog"
         onpointerdown={(event) => event.preventDefault()}
-        onclick={(event) => {
-          colorSelection(colour);
-          picking = { index, anchor: event.currentTarget };
-        }}
+        onclick={() => colorSelection(colour)}
         oncontextmenu={(event) => {
           event.preventDefault();
           picking = null;
-          colourMenu = { x: event.clientX, y: event.clientY, index };
+          colourMenu = { x: event.clientX, y: event.clientY, index, anchor: event.currentTarget };
         }}
       ></button>
     {/each}
@@ -517,7 +536,7 @@ const changedCount = $derived(
     {/if}
   </div>
 
-  <!-- Opened anew for each colour clicked. -->
+  <!-- Opened anew for each colour. -->
   {#key picking}
     {#if picking}
       {@const at = picking.index}
@@ -527,7 +546,7 @@ const changedCount = $derived(
         action={at === null ? t("colourPicker.add") : t("colourPicker.change")}
         onpick={(css) => {
           setOwn(at === null ? [...own, css] : own.map((each, index) => (index === at ? css : each)));
-          colorSelection(css);
+          if (at === null) colorSelection(css);
           picking = null;
         }}
       />
@@ -537,10 +556,12 @@ const changedCount = $derived(
 
   {#if colourMenu}
     {@const at = colourMenu.index}
+    {@const anchor = colourMenu.anchor}
     <ContextMenu
       x={colourMenu.x}
       y={colourMenu.y}
       items={[
+        { label: t("tooltipEditor.changeColour"), run: () => (picking = { index: at, anchor }) },
         {
           label: t("tooltipEditor.removeColour"),
           danger: true,
@@ -677,26 +698,18 @@ const changedCount = $derived(
   {/if}
 
   {#snippet actions()}
-    <!-- The text hovered or edited is named here, over the count of changed texts, so the colours sit right above the
-         tooltip (Sven, 2026-10-29). -->
-    <div class="mr-auto flex min-w-0 flex-col self-center text-muted">
-      <span class="h-[1.45em] truncate">
-        {#if named}
-          {named.field.label} · <span class="font-mono text-mono">{named.field.id}</span>{#if named.field.level > 0}
-            · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
-          {#if named.field.maxLength}
-            {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
-            · <span class="font-mono text-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
-              >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
-            >
-          {/if}
+    <!-- The text hovered or edited is named here, so the colours sit right above the tooltip (Sven, 2026-10-29). -->
+    <span class="mr-auto h-[1.45em] min-w-0 truncate text-muted">
+      {#if named}
+        {named.field.label} · <span class="font-mono text-mono">{named.field.id}</span>{#if named.field.level > 0}
+          · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
+        {#if named.field.maxLength}
+          {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
+          · <span class="font-mono text-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
+            >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
+          >
         {/if}
-      </span>
-      <span class="text-faint">
-        {changedCount === 0 ? t("tooltipEditor.unchanged") : tCount("tooltipEditor.changed", changedCount)}
-      </span>
-    </div>
-    <DialogButton onclick={onclose}>{t("dialog.cancel")}</DialogButton>
-    <DialogButton look="primary" disabled={saving} onclick={save}>{t("tooltipEditor.save")}</DialogButton>
+      {/if}
+    </span>
   {/snippet}
 </Dialog>

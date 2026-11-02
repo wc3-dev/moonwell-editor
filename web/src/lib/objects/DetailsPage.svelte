@@ -25,7 +25,7 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
   >
     <Tree
       kind={objects.kind}
-      entries={objects.trees[objects.kind] ?? null}
+      entries={objects.listed(objects.kind)}
       error={objects.treeErrors[objects.kind] ?? ""}
       selected={objects.picked[objects.kind] ?? null}
       onselect={(id) => objects.show(objects.kind, id)}
@@ -55,10 +55,9 @@ const { notices, objectActions, objects, pages, session, startup } = editor;
         lookup={objects.lookup}
         bind:filter={objects.fieldFilter}
         bind:changedOnly={objects.changedOnly}
-        bind:favouritesOnly={objects.favouritesOnly}
-        bind:chosenCategories={
-          () => objects.chosenCategories[objects.kind] ?? [],
-          (chosen) => (objects.chosenCategories[objects.kind] = chosen)
+        bind:hiddenCategories={
+          () => objects.hiddenCategories[objects.kind] ?? [],
+          (hidden) => (objects.hiddenCategories[objects.kind] = hidden)
         }
         filters={objects.fieldFilters}
         bind:showIds={objects.showIds}

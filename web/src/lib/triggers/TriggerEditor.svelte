@@ -138,9 +138,6 @@ onMount(() => {
         if (await state.edit(() => setVariable(variable.id, input))) state.editingVariable = null;
       }}
     />
-    {#snippet actions()}
-      <DialogButton look="outline" onclick={() => (state.editingVariable = null)}>{t("triggers.close")}</DialogButton>
-    {/snippet}
   </Dialog>
 {/if}
 {#if state.deleting}
@@ -149,7 +146,7 @@ onMount(() => {
       ? t("triggers.deleteAskCategory", { name: state.deleting.name })
       : t("triggers.deleteAsk", { name: state.deleting.name })}
     {#snippet actions()}
-      <DialogButton look="outline" onclick={() => (state.deleting = null)}>{t("triggers.close")}</DialogButton>
+      <DialogButton look="outline" onclick={() => (state.deleting = null)}>{t("dialog.cancel")}</DialogButton>
       <DialogButton look="accent" onclick={state.confirmDelete}>{t("triggers.delete")}</DialogButton>
     {/snippet}
   </Dialog>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor, within } from "@testing-library/svelte";
 import { describe, expect, test, vi } from "vitest";
+import type { TreeEntry } from "./lib/api.ts";
 import { t, tCount } from "./lib/text.ts";
 import {
   appTests,
@@ -28,6 +29,43 @@ async function rowMenu(name: RegExp, item: string | RegExp): Promise<void> {
   await screen.findByRole("textbox", { name: t("details.filterLabel") });
   await fireEvent.click(await screen.findByRole("menuitem", { name: item }));
 }
+
+describe("the Hidden folder", () => {
+  const hidden: TreeEntry = {
+    id: "zshv",
+    baseId: null,
+    name: "Shadow",
+    suffix: "",
+    path: [t("app.folder.hidden")],
+    changed: false,
+  };
+  const folder = () => screen.queryByRole("button", { name: /^Hidden/ });
+  const openTree = () =>
+    openApp({
+      tree: ({ kind }: { kind: string }) => (kind === "unit" ? [footmanEntry, hidden] : []),
+    });
+
+  test("does not show at first", async () => {
+    await openTree();
+    await screen.findByRole("treeitem", { name: /Footman/ });
+    expect(folder()).toBeNull();
+  });
+
+  test("a tree filter does not find what is in it", async () => {
+    await openTree();
+    await fireEvent.input(screen.getByRole("textbox", { name: t("tree.filterLabel") }), {
+      target: { value: "Shadow" },
+    });
+    await screen.findByText(t("tree.noMatch", { filter: "Shadow" }));
+  });
+
+  test("the settings' switch shows it", async () => {
+    await openTree();
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("checkbox", { name: t("settings.showHidden") }));
+    await waitFor(() => expect(folder()).not.toBeNull());
+  });
+});
 
 describe("a new object", () => {
   async function asked(answers = {}) {

@@ -192,6 +192,31 @@ describe("the header", () => {
     );
     await screen.findByRole("dialog", { name: t("about.title") });
   });
+
+  test("the menu opens on its button as one shape, and a second click closes it", async () => {
+    await openApp();
+    const button = screen.getByRole("button", { name: t("header.menu") });
+    await fireEvent.click(button);
+    await screen.findByRole("menuitem", { name: t("header.openFolder") });
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu").classList.contains("menu-list")).toBe(true);
+    await fireEvent.click(button);
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test.each([
+    [t("header.about"), t("about.title")],
+    [t("header.settings"), t("settings.title")],
+  ])("%s closes from its title bar, with no button for it at the bottom", async (entry, title) => {
+    await openApp();
+    await clickHeader(t("header.menu"));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: new RegExp(entry) }));
+    const dialog = within(await screen.findByRole("dialog", { name: title }));
+    expect(dialog.queryByRole("button", { name: "Done" })).toBeNull();
+    await fireEvent.click(dialog.getByRole("button", { name: t("dialog.close") }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
 });
 
 describe("the details page", () => {

@@ -3,7 +3,8 @@
  * reloading, deleting or dropping unsaved changes (Sven, 2026-10-29: off asks nothing at all), the UI scale (the window scales the page; Ctrl and the wheel do not), whether the alpha notice opens at start
  * (Sven, 2026-10-28: only Settings turns it off), whether the experimental features are on (Sven, 2026-10-29: the
  * table view; off at first), and the team colour models are shown in at first (Sven, 2026-10-29: the side panel's and
- * the model picker's; player 1, Red, at first).
+ * the model picker's; player 1, Red, at first), and whether the objects World Editor does not show are listed (Sven,
+ * 2026-11-02: off at first).
  */
 
 import { playerIndex } from "./teamColors.ts";
@@ -15,6 +16,7 @@ type Prefs = {
   uiScale: number;
   alphaNotice: boolean;
   experimental: boolean;
+  showHidden: boolean;
   teamColor: number;
   /** The theme scripts are drawn in, by id; "" for the interface's (Sven, 2026-10-31). */
   codeTheme: string;
@@ -39,6 +41,7 @@ function saved(): Prefs {
       uiScale: uiScales.includes(stored.uiScale ?? 100) ? (stored.uiScale ?? 100) : 100,
       alphaNotice: stored.alphaNotice ?? localStorage.getItem(oldAlphaKey) !== "yes",
       experimental: stored.experimental === true,
+      showHidden: stored.showHidden === true,
       teamColor: playerIndex(stored.teamColor ?? 0),
       codeTheme: stored.codeTheme ?? "",
       terminalShell: stored.terminalShell ?? "",
@@ -50,6 +53,7 @@ function saved(): Prefs {
       uiScale: 100,
       alphaNotice: true,
       experimental: false,
+      showHidden: false,
       teamColor: 0,
       codeTheme: "",
       terminalShell: "",

@@ -1,7 +1,8 @@
 <script lang="ts">
 /**
  * One row of the details panel for a field with no levels: the changed bar, the label, the value (its editor, when
- * the object can be edited) and ↺ to put a changed field back to its standard value.
+ * the object can be edited) and ↺ to put a changed field back to its standard value. A favourite is edited under
+ * Favourites and shows disabled where it usually is (Sven, 2026-11-02).
  */
 
 import { type ChoiceList, type FieldView, iconUrl, type Kind } from "../api.ts";
@@ -9,7 +10,6 @@ import { graphics } from "../graphics.svelte.ts";
 import { t } from "../text.ts";
 import AssetPicker from "./AssetPicker.svelte";
 import CommandCard from "./CommandCard.svelte";
-import FavouriteStar from "./FavouriteStar.svelte";
 import FieldEditor from "./FieldEditor.svelte";
 import { type ButtonPair, type Lookup, listIds, namesOf, shownValue } from "./fields.ts";
 import { isExtendedTooltip } from "./values.ts";
@@ -39,10 +39,8 @@ type Props = {
   onpair?: (pair: ButtonPair, x: number, y: number) => Promise<string | null>;
   /** Indents the row under a group's row (a damage's base, dice and sides). */
   nested?: boolean;
-  /** Whether the field is a favourite. */
-  favourite: boolean;
-  /** Stars the field, or takes its star off. */
-  onfavourite: (field: FieldView) => void;
+  /** True for a favourite where it usually is: it is only shown there. */
+  disabled?: boolean;
 };
 
 let {
@@ -50,11 +48,11 @@ let {
   showIds,
   choices,
   lookup,
-  editable,
+  editable: canEdit,
   onset,
   onreset,
   onopen,
-  selected,
+  selected: isSelected,
   onselect,
   onmenu,
   pair = null,
@@ -62,10 +60,11 @@ let {
   objectKind = "",
   kindIcons = [],
   nested = false,
-  favourite,
-  onfavourite,
+  disabled = false,
 }: Props = $props();
 
+const editable = $derived(canEdit && !disabled);
+const selected = $derived(isSelected && !disabled);
 let error = $state("");
 
 const nameOf = namesOf((listOf, id) => lookup(listOf, id));
@@ -108,12 +107,15 @@ async function flip(event: MouseEvent): Promise<void> {
 </script>
 
 <div
-  data-changed={field.changed || undefined}
-  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {selected
-    ? ''
-    : 'hover:bg-raised'}"
+  data-changed={(field.changed && !disabled) || undefined}
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
+    ? 'opacity-50'
+    : selected
+      ? ''
+      : 'hover:bg-raised'}"
   role="group"
   aria-label={field.label}
+  title={disabled ? t("details.inFavourites") : undefined}
   onfocusin={() => onselect(field)}
   onpointerdown={() => onselect(field)}
   ondblclick={flip}
@@ -124,18 +126,15 @@ async function flip(event: MouseEvent): Promise<void> {
   }}
 >
   <span class="h-full w-[3px] justify-self-center {field.changed ? 'bg-changed' : ''}"></span>
-  <span class="relative grid self-stretch">
-    <button
-      type="button"
-      class="flex cursor-default items-center border-r border-hairline pr-5 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
-      title={editable && field.modes ? title : undefined}
-      onclick={() => onselect(field)}
-    >
-      {field.label}
-      {#if showIds}<span class="ml-1.5 font-mono text-mono text-faint">{field.id}</span>{/if}
-    </button>
-    <FavouriteStar label={field.label} on={favourite} onclick={() => onfavourite(field)} />
-  </span>
+  <button
+    type="button"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
+    title={editable && field.modes ? title : undefined}
+    onclick={() => onselect(field)}
+  >
+    {field.label}
+    {#if showIds}<span class="ml-1.5 font-mono text-mono text-faint">{field.id}</span>{/if}
+  </button>
   <!-- The value starts right after the names, as World Editor lays them out (Sven, 2026-10-27). -->
   <span class="flex min-w-0 items-center gap-1 px-1">
     {#if field.asset === "icon" && field.value.trim()}

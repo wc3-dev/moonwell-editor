@@ -52,7 +52,7 @@ const notice = (text: string, warn?: boolean) => notices.say(text, { warn });
     <TableView
       bind:this={pages.tableView}
       kind={objects.kind}
-      entries={objects.trees[objects.kind] ?? null}
+      entries={objects.listed(objects.kind)}
       treeError={objects.treeErrors[objects.kind] ?? ""}
       selected={objects.picked[objects.kind] ?? null}
       bind:filter={objects.filter}

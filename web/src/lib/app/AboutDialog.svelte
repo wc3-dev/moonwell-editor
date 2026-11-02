@@ -7,7 +7,6 @@ import type { About } from "../api.ts";
 import logo from "../logo.svg";
 import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
-import DialogButton from "../ui/DialogButton.svelte";
 
 type Props = {
   about: About | null;
@@ -86,8 +85,4 @@ const libraries: [string, string][] = [
   </ul>
 
   <p class="mt-4 mb-0 text-faint">{t("about.blizzard")}</p>
-
-  {#snippet actions()}
-    <DialogButton look="primary" onclick={onclose}>{t("settings.done")}</DialogButton>
-  {/snippet}
 </Dialog>

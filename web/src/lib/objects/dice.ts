@@ -17,6 +17,11 @@ export const diceGroups: { base: string; dice: string; sides: string }[] = [
   { base: "ulba", dice: "ulbd", sides: "ulbs" },
 ];
 
+/** The id a field is a favourite by: a total's three fields are one favourite, its base's. */
+export function favouriteId(id: string): string {
+  return diceGroups.find((group) => [group.base, group.dice, group.sides].includes(id))?.base ?? id;
+}
+
 /** A range of values, lowest and highest. */
 export type Range = { min: number; max: number };
 

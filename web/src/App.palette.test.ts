@@ -75,6 +75,18 @@ describe("opening and closing", () => {
     expect(document.activeElement).toBe(treeFilter());
   });
 
+  test("a button that had the focus does not get it back, where its ring would show", async () => {
+    await openApp();
+    const header = screen.getByRole("button", { name: t("header.terrainEditor") });
+    header.focus();
+    await choose(t("hotkey.showTerrain"));
+    expect(document.activeElement).not.toBe(header);
+    header.focus();
+    const box = await openPalette();
+    await fireEvent.keyDown(box, { key: "Escape" });
+    expect(document.activeElement).not.toBe(header);
+  });
+
   test("its key closes it again", async () => {
     await openApp();
     await openPalette();

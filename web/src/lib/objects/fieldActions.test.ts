@@ -127,6 +127,23 @@ test("a field's Reset is for changed fields of an editable object", () => {
   expect(entry(menus[2], t("details.menu.reset"))?.disabled).toBe(true);
 });
 
+test("a total's menu adds it to the favourites by its base", () => {
+  const favourite = vi.fn();
+  const withFavourites = new FieldActions({
+    view: () => unit(footmanEntry),
+    notice: () => {},
+    set,
+    reset,
+    fields: edits,
+    menu: (_x, _y, items) => menus.push(items),
+    isFavourite: () => false,
+    favourite,
+  });
+  withFavourites.totalMenu("Attack 1 - Damage", dice, 0, 0);
+  entry(menus[0], t("details.menu.favourite"))?.run();
+  expect(favourite).toHaveBeenCalledWith(dice.base);
+});
+
 test("a total's Reset resets the changed parts", async () => {
   const changed: DiceFields = { ...dice, sides: { ...dice.sides, changed: true } };
   actions().totalMenu("Attack 1 - Damage", changed, 0, 0);

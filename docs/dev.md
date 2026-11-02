@@ -189,7 +189,7 @@ All the `@codingame/monaco-vscode-*` packages must be the one version that `mona
 
 ## The terminal
 
-The terminal panel (Ctrl J) runs real shells. `Shells.cs` finds them, `ConsoleProcess.cs` runs one in a Windows pseudo
+The terminal panel (Ctrl `, or Ctrl Ö on a Swedish keyboard) runs real shells. `Shells.cs` finds them, `ConsoleProcess.cs` runs one in a Windows pseudo
 console (ConPTY, called directly, so there is no NuGet package), and `Terminals.cs` keeps the running ones by id. The page
 draws each in xterm.js (`web/src/lib/terminal/`), which it loads when a terminal first opens. A new terminal opens in the
 map's folder, or the folder an archive sits in, or the home folder with no map.
@@ -231,10 +231,11 @@ is an entry in `actionList`, its place in `answerKey` and its case in `Editor`: 
 of the box, and `#canRun` when it can only run in some places.
 
 The filter bar over an object's fields is `objects/FilterBar.svelte`. What it narrows by now is in `Objects`, with the
-categories picked kept per kind, as each kind has its own; `groupFields` applies them. The stars and the presets are in
-`objects/fieldFilters.svelte.ts`, per kind and in the window's storage, so they are this PC's and the same in every map.
-A field is starred by its id, so a star on a field only some abilities have shows wherever that field exists. A total of
-dice is starred by its base, and any starred part keeps the total in the favourites.
+categories hidden kept per kind, as each kind has its own; `Details` applies them to what `groupFields` gives. The
+favourites are in `objects/fieldFilters.svelte.ts`, per kind and in the window's storage, so they are this PC's and the
+same in every map. A field is a favourite by its id, so one only some abilities have counts wherever that field exists.
+A total of dice is one favourite, by its base. `Details` puts the favourites in a category of their own at the top, and
+shows each disabled where it usually is; hiding that category puts them back.
 
 An `$effect` here is for following something outside the state classes: the theme onto the page, the title onto the window,
 a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.

@@ -14,32 +14,47 @@ const fields = [
   field({ id: "unam", label: "Name", category: "text", value: "Footman" }),
 ];
 
-const shown = (label: string) => screen.queryByRole("group", { name: label }) !== null;
+const dice = [
+  field({ id: "ua1b", label: "Attack 1 - Damage Base", category: "combat", value: "5" }),
+  field({ id: "ua1d", label: "Attack 1 - Damage Number of Dice", category: "combat", value: "1" }),
+  field({ id: "ua1s", label: "Attack 1 - Damage Sides per Die", category: "combat", value: "2" }),
+];
+
+const rows = (label: string) => screen.queryAllByRole("group", { name: label });
+const shown = (label: string) => rows(label).length > 0;
 const visible = () => fields.map((each) => each.label).filter(shown);
 const button = (name: string) => screen.getByRole("button", { name });
 const pressed = (name: string) => button(name).getAttribute("aria-pressed") === "true";
 const box = () => screen.getByRole<HTMLInputElement>("textbox", { name: t("details.filterLabel") });
-const star = (label: string) => t("details.favourite", { field: label });
-const unstar = (label: string) => t("details.unfavourite", { field: label });
 const typeFilter = (text: string) => fireEvent.input(box(), { target: { value: text } });
+const favourites = t("category.favourites");
+const headings = () =>
+  screen
+    .getAllByRole("button", { expanded: true })
+    .map((each) => each.textContent ?? "")
+    .filter((text) => /\d+ fields?/.test(text));
 
 async function open(): Promise<void> {
   await openApp({ object: unit(footmanEntry, { fields }) });
   await showObject(/Footman/);
 }
 
-async function pickCategory(key: string): Promise<void> {
+async function eye(name: string): Promise<void> {
   await fireEvent.click(button(t("details.categories")));
-  await fireEvent.click(await screen.findByRole("checkbox", { name: categoryName(key) }));
+  await fireEvent.click(await screen.findByRole("button", { name }));
   await fireEvent.click(button(t("details.categories")));
 }
 
-async function savePreset(name: string): Promise<void> {
-  await fireEvent.click(button(t("details.presets")));
-  const input = await screen.findByRole("textbox", { name: t("details.presetName") });
-  await fireEvent.input(input, { target: { value: name } });
-  await fireEvent.click(button(t("details.savePreset")));
+const hideCategory = (key: string) => eye(categoryName(key));
+
+/** Adds a row to the favourites, or takes it off, from its context menu. */
+async function menu(row: Element, item: string): Promise<void> {
+  await fireEvent.contextMenu(row);
+  await fireEvent.click(await screen.findByRole("menuitem", { name: item }));
 }
+
+const favourite = (label: string) =>
+  menu(screen.getByRole("group", { name: label }), t("details.menu.favourite"));
 
 describe("the filter bar", () => {
   test("narrows by name", async () => {
@@ -60,46 +75,65 @@ describe("the filter bar", () => {
     expect(within(bar).queryByRole("button", { name: t("details.changedOnly") })).toBeNull();
   });
 
-  test("narrows by category", async () => {
+  test("shows every category at first", async () => {
     await open();
-    await pickCategory("move");
-    expect(visible()).toEqual(["Speed"]);
+    expect(visible()).toHaveLength(4);
+    expect(button(t("details.categories")).textContent).toContain(t("details.allCategories"));
   });
 
-  test("takes several categories", async () => {
+  test("a click on a category's eye hides it", async () => {
     await open();
-    await pickCategory("move");
-    await pickCategory("text");
+    await hideCategory("stats");
     expect(visible()).toEqual(["Speed", "Name"]);
   });
 
-  test("takes a category off again", async () => {
+  test("hides several categories", async () => {
     await open();
-    await pickCategory("move");
-    await pickCategory("move");
+    await hideCategory("stats");
+    await hideCategory("text");
+    expect(visible()).toEqual(["Speed"]);
+  });
+
+  test("a second click brings it back", async () => {
+    await open();
+    await hideCategory("move");
+    await hideCategory("move");
     expect(visible()).toHaveLength(4);
   });
 
-  test("its button says how many categories are picked", async () => {
+  test("a hidden category stays in the list, faded", async () => {
     await open();
-    await pickCategory("move");
-    await pickCategory("text");
+    await hideCategory("move");
+    await fireEvent.click(button(t("details.categories")));
+    const row = await screen.findByRole("button", { name: categoryName("move") });
+    expect(row.getAttribute("aria-pressed")).toBe("false");
+    expect(row.classList.contains("opacity-50")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: categoryName("stats") }).classList.contains("opacity-50"),
+    ).toBe(false);
+  });
+
+  test("its button says how many categories are hidden", async () => {
+    await open();
+    await hideCategory("move");
+    await hideCategory("text");
     expect(button(t("details.categories")).textContent).toContain(
-      t("details.categoryCount.other", { count: 2 }),
+      t("details.categoriesHidden.other", { count: 2 }),
     );
   });
 
   test("the filters narrow together", async () => {
     await open();
-    await pickCategory("stats");
-    await typeFilter("lumber");
-    expect(visible()).toEqual(["Lumber Cost"]);
+    await hideCategory("move");
+    await typeFilter("o");
+    await hideCategory("text");
+    expect(visible()).toEqual(["Gold Cost", "Lumber Cost"]);
   });
 
   test("clearing takes every filter off", async () => {
     await open();
-    await pickCategory("stats");
-    await typeFilter("gold");
+    await hideCategory("stats");
+    await typeFilter("speed");
     await fireEvent.click(button(t("details.changedOnly")));
     await fireEvent.click(button(t("details.clearFilters")));
     expect(visible()).toHaveLength(4);
@@ -120,7 +154,7 @@ describe("the filter bar", () => {
 
   test("F2 shows a name field the filters hide", async () => {
     await open();
-    await pickCategory("move");
+    await hideCategory("text");
     await fireEvent.click(await screen.findByRole("treeitem", { name: /Footman/ }));
     box().focus();
     await press("F2");
@@ -130,160 +164,114 @@ describe("the filter bar", () => {
 });
 
 describe("favourites", () => {
-  test("a star marks a field, and shows only favourites narrows to them", async () => {
+  test("have no category until there is one", async () => {
     await open();
-    await fireEvent.click(button(star("Speed")));
-    expect(button(unstar("Speed")).getAttribute("aria-pressed")).toBe("true");
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    expect(visible()).toEqual(["Speed"]);
+    expect(headings().join()).not.toContain(favourites);
   });
 
-  test("a second click takes the star off", async () => {
+  test("the field's menu adds it, under Favourites at the very top", async () => {
     await open();
-    await fireEvent.click(button(star("Speed")));
-    await fireEvent.click(button(unstar("Speed")));
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    expect(visible()).toEqual([]);
+    await favourite("Speed");
+    expect(headings()[0]).toContain(favourites);
   });
 
-  test("with none, it says how to add one", async () => {
+  test("the field is edited there, and left disabled where it usually is", async () => {
     await open();
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    await screen.findByText(t("details.noFavourites"));
+    await favourite("Speed");
+    const [there, usual] = rows("Speed") as [HTMLElement, HTMLElement];
+    expect(within(there).getByRole("textbox", { name: "Speed" })).toBeTruthy();
+    expect(within(usual).queryByRole("textbox")).toBeNull();
+    expect(usual.classList.contains("opacity-50")).toBe(true);
   });
 
-  test("the field's menu stars it too", async () => {
+  test("either place's menu takes it off again", async () => {
     await open();
-    await fireEvent.contextMenu(screen.getByRole("group", { name: "Speed" }));
-    await fireEvent.click(
-      await screen.findByRole("menuitem", { name: t("details.menu.favourite") }),
-    );
-    expect(button(unstar("Speed"))).toBeTruthy();
-    await fireEvent.contextMenu(screen.getByRole("group", { name: "Speed" }));
-    await screen.findByRole("menuitem", { name: t("details.menu.unfavourite") });
+    await favourite("Speed");
+    await menu(rows("Speed")[1] as Element, t("details.menu.unfavourite"));
+    expect(rows("Speed")).toHaveLength(1);
+    expect(within(rows("Speed")[0] as HTMLElement).getByRole("textbox")).toBeTruthy();
+    expect(headings().join()).not.toContain(favourites);
+  });
+
+  test("there are no stars", async () => {
+    await open();
+    expect(screen.queryByRole("button", { name: /to favourites/ })).toBeNull();
+  });
+
+  test("hiding Favourites puts the field back where it usually is", async () => {
+    await open();
+    await favourite("Speed");
+    await eye(favourites);
+    expect(rows("Speed")).toHaveLength(1);
+    expect(within(rows("Speed")[0] as HTMLElement).getByRole("textbox")).toBeTruthy();
+  });
+
+  test("a category hidden leaves its favourite under Favourites", async () => {
+    await open();
+    await favourite("Speed");
+    await hideCategory("move");
+    expect(rows("Speed")).toHaveLength(1);
+    expect(within(rows("Speed")[0] as HTMLElement).getByRole("textbox")).toBeTruthy();
   });
 
   test("survive a restart", async () => {
     await open();
-    await fireEvent.click(button(star("Speed")));
+    await favourite("Speed");
     cleanup();
     await open();
-    expect(button(unstar("Speed"))).toBeTruthy();
+    expect(rows("Speed")).toHaveLength(2);
   });
 
-  test("a read-only object can be starred too", async () => {
+  test("a read-only object can have them too", async () => {
     await openApp({ object: unit(footmanEntry, { fields, readOnly: "the file is damaged" }) });
     await showObject(/Footman/);
-    await fireEvent.click(button(star("Speed")));
-    expect(button(unstar("Speed"))).toBeTruthy();
+    await favourite("Speed");
+    expect(rows("Speed")).toHaveLength(2);
   });
 
-  test("a per-level field gets a star", async () => {
+  test("a per-level field goes there from its name's menu, and its old row is shown only", async () => {
     const levels = [
       field({ id: "Hbz1", label: "Damage", category: "stats", level: 1, value: "10" }),
       field({ id: "Hbz1", label: "Damage", category: "stats", level: 2, value: "20" }),
     ];
     await openApp({ object: unit(footmanEntry, { fields: [...levels, ...fields] }) });
     await showObject(/Footman/);
-    await fireEvent.click(button(star("Damage")));
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    expect(visible()).toEqual([]);
-    await screen.findByText("Damage");
+    await menu(screen.getByRole("rowheader", { name: "Damage" }), t("details.menu.favourite"));
+    expect(headings()[0]).toContain(favourites);
+    const [there, usual] = screen.getAllByRole("rowheader", { name: "Damage" }) as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(within(there.closest("tr") as HTMLElement).getAllByRole("textbox")).toHaveLength(2);
+    expect(within(usual.closest("tr") as HTMLElement).queryByRole("textbox")).toBeNull();
   });
 
-  test("a total's star keeps the total shown", async () => {
-    const dice = [
-      field({ id: "ua1b", label: "Attack 1 - Damage Base", category: "combat", value: "5" }),
-      field({
-        id: "ua1d",
-        label: "Attack 1 - Damage Number of Dice",
-        category: "combat",
-        value: "1",
-      }),
-      field({
-        id: "ua1s",
-        label: "Attack 1 - Damage Sides per Die",
-        category: "combat",
-        value: "2",
-      }),
-    ];
+  test("a total's menu moves the whole total", async () => {
     await openApp({ object: unit(footmanEntry, { fields: [...dice, ...fields] }) });
     await showObject(/Footman/);
-    await fireEvent.click(button(star("Attack 1 - Damage")));
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    expect(shown("Attack 1 - Damage")).toBe(true);
-    expect(visible()).toEqual([]);
+    await favourite("Attack 1 - Damage");
+    expect(headings()[0]).toContain(favourites);
+    const [there, usual] = rows("Attack 1 - Damage") as [HTMLElement, HTMLElement];
+    expect(within(there).getByRole("textbox", { name: "Attack 1 - Damage" })).toBeTruthy();
+    expect(within(usual).queryByRole("textbox")).toBeNull();
+  });
+
+  test("a part of a total moves the whole total too", async () => {
+    await openApp({ object: unit(footmanEntry, { fields: [...dice, ...fields] }) });
+    await showObject(/Footman/);
+    await fireEvent.click(
+      screen.getAllByRole("button", { name: t("dice.showParts") })[0] as Element,
+    );
+    await favourite("Attack 1 - Damage Sides per Die");
+    expect(rows("Attack 1 - Damage")).toHaveLength(2);
   });
 });
 
-describe("presets", () => {
-  test("hold every filter, and applying one brings them back", async () => {
+describe("gone", () => {
+  test("the presets and Favourites only", async () => {
     await open();
-    await pickCategory("stats");
-    await typeFilter("gold");
-    await fireEvent.click(button(t("details.changedOnly")));
-    await savePreset("Costs");
-    await fireEvent.click(button(t("details.clearFilters")));
-    expect(visible()).toHaveLength(4);
-
-    await fireEvent.click(button("Costs"));
-    expect(box().value).toBe("gold");
-    expect(pressed(t("details.changedOnly"))).toBe(true);
-    expect(visible()).toEqual(["Gold Cost"]);
-  });
-
-  test("hold Favourites only", async () => {
-    await open();
-    await fireEvent.click(button(star("Speed")));
-    await fireEvent.click(button(t("details.favouritesOnly")));
-    await savePreset("Mine");
-    await fireEvent.click(button(t("details.clearFilters")));
-    await fireEvent.click(button("Mine"));
-    expect(visible()).toEqual(["Speed"]);
-  });
-
-  test("applying one closes the list", async () => {
-    await open();
-    await savePreset("All");
-    await fireEvent.click(button("All"));
-    await waitFor(() =>
-      expect(screen.queryByRole("textbox", { name: t("details.presetName") })).toBeNull(),
-    );
-  });
-
-  test("a saved one is listed, and a deleted one is not", async () => {
-    await open();
-    await savePreset("Costs");
-    expect(button("Costs")).toBeTruthy();
-    await fireEvent.click(button(t("details.deletePreset", { name: "Costs" })));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "Costs" })).toBeNull());
-  });
-
-  test("a preset needs a name", async () => {
-    await open();
-    await fireEvent.click(button(t("details.presets")));
-    await screen.findByRole("textbox", { name: t("details.presetName") });
-    expect(button(t("details.savePreset")).hasAttribute("disabled")).toBe(true);
-  });
-
-  test("Enter in the name saves it", async () => {
-    await open();
-    await fireEvent.click(button(t("details.presets")));
-    const input = await screen.findByRole("textbox", { name: t("details.presetName") });
-    await fireEvent.input(input, { target: { value: "Quick" } });
-    await fireEvent.keyDown(input, { key: "Enter" });
-    expect(button("Quick")).toBeTruthy();
-  });
-
-  test("survive a restart", async () => {
-    await open();
-    await typeFilter("gold");
-    await savePreset("Costs");
-    cleanup();
-    await open();
-    await fireEvent.click(button(t("details.presets")));
-    await fireEvent.click(await screen.findByRole("button", { name: "Costs" }));
-    expect(box().value).toBe("gold");
+    expect(screen.queryByRole("button", { name: "Presets" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Favourites only" })).toBeNull();
   });
 });
 
@@ -297,12 +285,6 @@ describe("the command palette", () => {
     await fireEvent.click(await screen.findByRole("option", { name: new RegExp(name) }));
   };
 
-  test("turns favourites on", async () => {
-    await open();
-    await choose(t("hotkey.favouritesOnly"));
-    expect(pressed(t("details.favouritesOnly"))).toBe(true);
-  });
-
   test("clears the filters", async () => {
     await open();
     await typeFilter("gold");
@@ -310,12 +292,9 @@ describe("the command palette", () => {
     expect(box().value).toBe("");
   });
 
-  test("lists neither with no object shown", async () => {
+  test("does not list that with no object shown", async () => {
     await openApp();
     await openPalette();
-    expect(
-      screen.queryByRole("option", { name: new RegExp(t("hotkey.favouritesOnly")) }),
-    ).toBeNull();
     expect(screen.queryByRole("option", { name: new RegExp(t("hotkey.clearFilters")) })).toBeNull();
   });
 });

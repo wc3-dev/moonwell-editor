@@ -47,7 +47,11 @@ export const categoryOrder = [
   "data",
 ];
 
+/** The category the favourite fields stand in, above all the others; the game's data has none of this name. */
+export const favouritesKey = "favourites";
+
 const categoryNames: Record<string, string> = {
+  [favouritesKey]: t("category.favourites"),
   stats: t("category.stats"),
   combat: t("category.combat"),
   abil: t("category.abil"),
@@ -72,7 +76,6 @@ export function categoryName(key: string): string {
  * - `filter` keeps a row whose label, id or value (any level's) holds it, ignoring case; "" keeps every row.
  * - `changedOnly` keeps a row the map changes (at any level, for a per-level field, which then shows every level).
  * - `shown` gives the text shown for a value (such as a choice's label), which the filter matches too.
- * - `keep` keeps a row by any other test (the favourites, the categories picked); none keeps every row.
  * Categories come in `categoryOrder`, then any other by name; rows by their sort key (a field without one last).
  * A category with no rows left is left out.
  */
@@ -81,7 +84,6 @@ export function groupFields(
   filter: string,
   changedOnly: boolean,
   shown?: (field: FieldView) => string,
-  keep?: (row: Row) => boolean,
 ): Category[] {
   const needle = filter.trim().toLowerCase();
   const byCategory = new Map<string, Row[]>();
@@ -109,8 +111,7 @@ export function groupFields(
   const categories: Category[] = [];
   for (const [key, rows] of byCategory) {
     const kept = rows.filter(
-      (row) =>
-        (!changedOnly || isChanged(row)) && matches(row, needle, shown) && (keep?.(row) ?? true),
+      (row) => (!changedOnly || isChanged(row)) && matches(row, needle, shown),
     );
     if (kept.length === 0) continue;
     for (const row of kept) {
@@ -122,6 +123,15 @@ export function groupFields(
     categories.push({ key, name: categoryName(key), rows: kept });
   }
   return categories.sort((a, b) => categoryRank(a.key, b.key));
+}
+
+/** The favourite rows of these categories, in the order they stand, as one category; null when there are none. */
+export function favouritesCategory(
+  categories: Category[],
+  isFavourite: (row: Row) => boolean,
+): Category | null {
+  const rows = categories.flatMap((category) => category.rows.filter(isFavourite));
+  return rows.length > 0 ? { key: favouritesKey, name: categoryName(favouritesKey), rows } : null;
 }
 
 /** True when the map changes the row's field (at any level). */

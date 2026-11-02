@@ -64,7 +64,7 @@ function terminalAnswers(): Record<string, unknown> {
 const panel = () => screen.queryByRole("region", { name: t("terminal.label") });
 const shown = () => panel()?.classList.contains("hidden") === false;
 const tabs = () => screen.queryAllByRole("tab").filter((tab) => panel()?.contains(tab));
-const toggle = () => press("j", { ctrlKey: true });
+const toggle = () => press("`", { ctrlKey: true });
 
 async function openWithTerminal(answers: Record<string, unknown> = {}) {
   fake.views.length = 0;
@@ -76,14 +76,14 @@ async function openWithTerminal(answers: Record<string, unknown> = {}) {
 }
 
 describe("showing and hiding", () => {
-  test("Ctrl J opens it in a shell the size of the panel, with the cursor in it", async () => {
+  test("Ctrl ` opens it in a shell the size of the panel, with the cursor in it", async () => {
     const app = await openWithTerminal();
     expect(shown()).toBe(true);
     expect(app.args("terminalStart")).toEqual({ shell: "", columns: 100, rows: 24 });
     await waitFor(() => expect(fake.views[0]?.focused).toBeGreaterThan(0));
   });
 
-  test("Ctrl J hides it, and the shell keeps running", async () => {
+  test("Ctrl ` hides it, and the shell keeps running", async () => {
     const app = await openWithTerminal();
     await toggle();
     expect(shown()).toBe(false);
@@ -109,7 +109,7 @@ describe("showing and hiding", () => {
     const app = await openApp(terminalAnswers());
     await fireEvent.click(screen.getByRole("button", { name: t("header.menu") }));
     const entry = await screen.findByRole("menuitem", { name: /^Terminal/ });
-    expect(entry.textContent).toContain("Ctrl J");
+    expect(entry.textContent).toContain("Ctrl `");
     await fireEvent.click(entry);
     await waitFor(() => expect(app.count("terminalStart")).toBe(1));
   });
@@ -118,7 +118,7 @@ describe("showing and hiding", () => {
     await openApp(terminalAnswers());
     await press("p", { ctrlKey: true, shiftKey: true });
     await screen.findByRole("option", {
-      name: (name) => name.includes(t("hotkey.terminal")) && name.includes("Ctrl J"),
+      name: (name) => name.includes(t("hotkey.terminal")) && name.includes("Ctrl `"),
     });
   });
 });
@@ -279,10 +279,10 @@ describe("keys in the terminal", () => {
     return box;
   }
 
-  test("Ctrl J hides it", async () => {
+  test("Ctrl ` hides it", async () => {
     await openWithTerminal();
     const box = terminalBox();
-    await press("j", { ctrlKey: true });
+    await toggle();
     expect(shown()).toBe(false);
     box.parentElement?.remove();
   });

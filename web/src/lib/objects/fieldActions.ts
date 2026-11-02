@@ -14,7 +14,7 @@ type Needs = {
   menu: (x: number, y: number, items: MenuItem[]) => void;
   /** Whether a field is a favourite. */
   isFavourite: (field: FieldView) => boolean;
-  /** Stars a field, or takes its star off. */
+  /** Adds a field to the favourites, or takes it off. */
   favourite: (field: FieldView) => void;
 };
 
@@ -98,6 +98,15 @@ export class FieldActions {
     );
   }
 
+  #favouriteItem(field: FieldView): MenuItem {
+    return {
+      label: this.#needs.isFavourite(field)
+        ? t("details.menu.unfavourite")
+        : t("details.menu.favourite"),
+      run: () => this.#needs.favourite(field),
+    };
+  }
+
   /** The context menu of a field (one level of a per-level field). */
   fieldMenu = (field: FieldView, x: number, y: number): void => {
     const clip = copiedField();
@@ -118,16 +127,11 @@ export class FieldActions {
         run: () => this.#needs.reset(field),
       },
       { separator: true },
-      {
-        label: this.#needs.isFavourite(field)
-          ? t("details.menu.unfavourite")
-          : t("details.menu.favourite"),
-        run: () => this.#needs.favourite(field),
-      },
+      this.#favouriteItem(field),
     ]);
   };
 
-  /** The context menu of a total: copy and paste its range, and reset its three fields. */
+  /** The context menu of a total: copy and paste its range, reset its three fields, and its place in the favourites. */
   totalMenu(label: string, dice: DiceFields, x: number, y: number): void {
     const clip = copiedField();
     const editable = this.#editable;
@@ -148,6 +152,8 @@ export class FieldActions {
           for (const part of parts) if (part.changed) await this.#needs.reset(part);
         },
       },
+      { separator: true },
+      this.#favouriteItem(dice.base),
     ]);
   }
 }

@@ -3,7 +3,8 @@
  * One box to run any command by name (Sven, 2026-11-01), on Bits UI's command list: typing narrows the list by the
  * letters of a name, the arrow keys move and Enter runs. It lists what can run where the user is, as it was when it
  * opened. Esc, a click beside it or its own key closes it, and the focus goes back where it was before a command runs,
- * so a command that moves the focus keeps it.
+ * so a command that moves the focus keeps it. A button does not get it back: after a key its focus ring would show, on
+ * the header's button of the editor just left (Sven, 2026-11-02).
  */
 import { Command } from "bits-ui";
 import { t } from "../text.ts";
@@ -19,7 +20,7 @@ $effect(() => input?.focus());
 
 function close(): void {
   editor.paletteOpen = false;
-  if (before instanceof HTMLElement) before.focus();
+  if (before instanceof HTMLElement && !(before instanceof HTMLButtonElement)) before.focus();
 }
 
 function choose(action: Action): void {

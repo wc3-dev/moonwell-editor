@@ -238,6 +238,13 @@ body {
   border-bottom-left-radius: 0;
   background: var(--surface);
 }
+/* In the header it reaches the bottom edge, where its list starts, and keeps its icon where it was. */
+.toolbar .dropdown[aria-expanded="true"] {
+  align-self: stretch;
+  margin-block: 2.5px -1px;
+  border-bottom-width: 0;
+  padding-bottom: 7.5px;
+}
 .dropdown-list {
   min-width: var(--bits-floating-anchor-width);
   border-top-width: 0;
@@ -259,6 +266,25 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
   border-bottom-color: var(--border);
   border-bottom-right-radius: var(--radius-ui);
   border-bottom-left-radius: var(--radius-ui);
+}
+/*
+ * The header's menu and its button are one shape too (Sven, 2026-11-02). The list starts at the header's bottom edge,
+ * wider than the button and lined up with its right edge (a whole width, so the two edges meet), so it keeps its top
+ * edge but for the button's width, which a line of its own colour covers.
+ */
+.menu-list {
+  position: relative;
+  width: 248px;
+  border-top-right-radius: 0;
+}
+.menu-list::before {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  width: calc(var(--bits-floating-anchor-width) - 2px);
+  height: 1px;
+  background: var(--surface);
+  content: "";
 }
 .dropdown-list [data-select-viewport] {
   /* biome-ignore lint/complexity/noImportantStyles: Bits UI hides this scroll bar with !important. */

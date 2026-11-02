@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TreeEntry } from "../api.ts";
 import { t } from "../text.ts";
-import { groupKeys, groupName, type Line, nextObject, treeLines } from "./tree.ts";
+import { groupKeys, groupName, isHidden, type Line, nextObject, treeLines } from "./tree.ts";
 
 function entry(id: string, path: string[], name = id): TreeEntry {
   return {
@@ -22,6 +22,13 @@ const entries = [
   entry("ogru", ["orc", "Melee", "Units"], "Grunt"),
   entry("h001", ["Custom", "orc", "Melee", "Units"], "Champion"),
 ];
+
+describe("the Hidden folder", () => {
+  it("holds what World Editor does not show", () => {
+    expect(isHidden(entry("zshv", [t("app.folder.hidden")]))).toBe(true);
+    expect(isHidden(entry("hfoo", ["human", "Melee", "Units"]))).toBe(false);
+  });
+});
 
 /** Each row as a short text: `[+]`/`[-]` for an open/closed group, the id for an object. */
 function shape(lines: Line[]): string[] {

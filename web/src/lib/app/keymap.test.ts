@@ -38,8 +38,10 @@ describe("the keymap", () => {
     );
   });
 
-  it("shows the terminal with Ctrl J out of the box", () => {
-    expect(actionOf(press("j", { ctrl: true }), defaultKeymap())).toBe("terminal");
+  it("shows the terminal with VS Code's key out of the box, which is Ö on a Swedish keyboard", () => {
+    expect(actionOf(press("`", { ctrl: true }), defaultKeymap())).toBe("terminal");
+    expect(actionOf(press("ö", { ctrl: true }), defaultKeymap())).toBe("terminal");
+    expect(actionOf(press("j", { ctrl: true }), defaultKeymap())).toBeUndefined();
   });
 
   it("finds a command that has no key until one is set", () => {
