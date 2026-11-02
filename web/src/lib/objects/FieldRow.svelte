@@ -111,7 +111,7 @@ async function flip(event: MouseEvent): Promise<void> {
   class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
     ? 'opacity-50'
     : selected
-      ? ''
+      ? 'bg-select'
       : 'hover:bg-raised'}"
   role="group"
   aria-label={field.label}
@@ -128,7 +128,7 @@ async function flip(event: MouseEvent): Promise<void> {
   <span class="h-full w-[3px] justify-self-center {field.changed ? 'bg-changed' : ''}"></span>
   <button
     type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 text-left focus:outline-none {selected ? 'bg-select text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
+    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 text-left focus:outline-none {selected ? 'text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
     title={editable && field.modes ? title : undefined}
     onclick={() => onselect(field)}
   >
