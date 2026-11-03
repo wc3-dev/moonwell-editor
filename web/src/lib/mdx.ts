@@ -1,138 +1,7 @@
 /**
- * Helpers for reading the game's MDX models before war3-model parses them. The game's models are all MDX version
- * 1800, newer than war3-model knows; its parser fails on their camera (CAMS) and light (LITE) chunks, and parses the
- * rest once those two are taken out. A preview needs neither.
+ * Helpers for the game's MDX models once war3-model has parsed them: skins and tangents for the HD shader, poses, extents
+ * and textures. The models are all version 1800; wc3-dev's fork of war3-model reads its cameras, lights and skins.
  */
-
-import { t } from "./text.ts";
-
-/** The chunks a preview drops before parsing: cameras and lights. */
-export const unreadChunks = ["CAMS", "LITE"];
-
-/**
- * A copy of an MDX file without the top-level chunks whose tags are given. An MDX file is the tag `MDLX`, then chunks:
- * a 4-letter tag, the size of its data as a little-endian 32-bit number, then the data. Throws when the bytes are not
- * an MDX file or a chunk runs past the end.
- */
-export function stripChunks(buffer: ArrayBuffer, tags: readonly string[]): ArrayBuffer {
-  const bytes = new Uint8Array(buffer);
-  const view = new DataView(buffer);
-  if (bytes.length < 4 || tagAt(bytes, 0) !== "MDLX") throw new Error(t("model.notMdx"));
-  const kept: Uint8Array[] = [bytes.subarray(0, 4)];
-  let at = 4;
-  while (at < bytes.length) {
-    if (at + 8 > bytes.length) throw new Error(t("model.cutShort"));
-    const end = at + 8 + view.getUint32(at + 4, true);
-    if (end > bytes.length) throw new Error(t("model.cutShort"));
-    if (!tags.includes(tagAt(bytes, at))) kept.push(bytes.subarray(at, end));
-    at = end;
-  }
-  const out = new Uint8Array(kept.reduce((sum, part) => sum + part.length, 0));
-  let to = 0;
-  for (const part of kept) {
-    out.set(part, to);
-    to += part.length;
-  }
-  return out.buffer;
-}
-
-function tagAt(bytes: Uint8Array, at: number): string {
-  return String.fromCharCode(
-    bytes[at] ?? 0,
-    bytes[at + 1] ?? 0,
-    bytes[at + 2] ?? 0,
-    bytes[at + 3] ?? 0,
-  );
-}
-
-/**
- * Each geoset's skin in an MDX file, as war3-model's renderer takes it: per vertex four bone numbers, then four weights
- * out of 255, a byte each; undefined for a geoset without one (every Classic geoset). The Reforged (HD) and Definitive
- * Edition geosets have a skin chunk (SKIN) instead of vertex groups. In the game's version 1800 files each of its
- * numbers is two bytes, where war3-model reads one: it reads half the chunk, as bone and weight bytes out of step,
- * and the vertices fly off to the wrong bones. Bytes it cannot follow give no skins.
- */
-export function readSkins(buffer: ArrayBuffer): (Uint8Array | undefined)[] {
-  const bytes = new Uint8Array(buffer);
-  const view = new DataView(buffer);
-  const skins: (Uint8Array | undefined)[] = [];
-  if (bytes.length < 4 || tagAt(bytes, 0) !== "MDLX") return skins;
-  let version = 800;
-  let geosets: [number, number] | undefined;
-  for (let at = 4; at + 8 <= bytes.length; ) {
-    const end = at + 8 + view.getUint32(at + 4, true);
-    if (end > bytes.length) return skins;
-    const tag = tagAt(bytes, at);
-    if (tag === "VERS" && end - at >= 12) version = view.getUint32(at + 8, true);
-    if (tag === "GEOS") geosets = [at + 8, end];
-    at = end;
-  }
-  if (!geosets) return skins;
-  for (let at = geosets[0]; at + 4 <= geosets[1]; ) {
-    const end = at + view.getUint32(at, true);
-    if (end <= at || end > geosets[1]) break;
-    skins.push(geosetSkin(bytes, view, at + 4, end, version));
-    at = end;
-  }
-  return skins;
-}
-
-/** The skin of the geoset whose data runs from `at` to `end`, after its size; see `readSkins`. */
-function geosetSkin(
-  bytes: Uint8Array,
-  view: DataView,
-  start: number,
-  end: number,
-  version: number,
-): Uint8Array | undefined {
-  let at = start;
-  /** Steps over a chunk with this tag of `count` items `width` bytes wide; false when the bytes say otherwise. */
-  const skip = (tag: string, width: number): boolean => {
-    if (at + 8 > end || tagAt(bytes, at) !== tag) return false;
-    at += 8 + view.getUint32(at + 4, true) * width;
-    return at <= end;
-  };
-  const parts: [string, number][] = [
-    ["VRTX", 12],
-    ["NRMS", 12],
-    ["PTYP", 4],
-    ["PCNT", 4],
-    ["PVTX", 2],
-    ["GNDX", 1],
-    ["MTGC", 4],
-    ["MATS", 4],
-  ];
-  const vertices = at + 8 <= end ? view.getUint32(at + 4, true) : 0;
-  for (const [tag, width] of parts) if (!skip(tag, width)) return undefined;
-  // The material, selection group and flags; from version 900 the level of detail and an 80-byte name; the extent.
-  at += 12 + (version >= 900 ? 84 : 0) + 28;
-  if (at + 4 > end) return undefined;
-  at += 4 + view.getUint32(at, true) * 28;
-  while (at + 8 <= end) {
-    const tag = tagAt(bytes, at);
-    if (tag === "TANG") {
-      if (!skip("TANG", 16)) return undefined;
-      continue;
-    }
-    if (tag !== "SKIN") return undefined;
-    const count = view.getUint32(at + 4, true);
-    if (count !== vertices * 8) return undefined;
-    const data = at + 8;
-    const next = (width: number) => {
-      const after = data + count * width;
-      return after === end || (after + 4 <= end && ["UVAS", "TANG"].includes(tagAt(bytes, after)));
-    };
-    const width = next(2) ? 2 : next(1) ? 1 : 0;
-    if (width === 0) return undefined;
-    const skin = new Uint8Array(count);
-    for (let i = 0; i < count; i++) {
-      const value = width === 2 ? view.getUint16(data + i * 2, true) : (bytes[data + i] ?? 0);
-      skin[i] = Math.min(255, value);
-    }
-    return skin;
-  }
-  return undefined;
-}
 
 /** The parts of a parsed geoset (war3-model's) that `skinGeosets` reads and sets. */
 export type Skinnable = {
@@ -145,17 +14,14 @@ export type Skinnable = {
 };
 
 /**
- * Gives the geosets the skins `readSkins` read from their file, in place of war3-model's, with each bone number turned
- * from the geoset's own list of bones (its matrix groups) into the model's. When any geoset has a skin, war3-model
- * draws every geoset of the model as HD, so a geoset without one (a Classic part in an HD model) gets one made from its
- * vertex groups, and tangents when it has none. Returns whether the model has skins.
+ * Turns each bone number of the geosets' skins from the geoset's own list of bones (its matrix groups) into the model's.
+ * When any geoset has a skin, war3-model draws every geoset of the model as HD, so a geoset without one (a Classic part
+ * in an HD model) gets one made from its vertex groups, and tangents when it has none. Returns whether the model has
+ * skins.
  */
-export function skinGeosets(
-  geosets: Skinnable[],
-  skins: readonly (Uint8Array | undefined)[],
-): boolean {
-  geosets.forEach((geoset, index) => {
-    const skin = skins[index];
+export function skinGeosets(geosets: Skinnable[]): boolean {
+  geosets.forEach((geoset) => {
+    const skin = geoset.SkinWeights;
     if (!skin || skin.length !== (geoset.Vertices.length / 3) * 8) return;
     const turned = new Uint8Array(skin);
     for (let i = 0; i < turned.length; i += 8) {

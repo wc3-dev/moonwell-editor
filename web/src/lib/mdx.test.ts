@@ -1,18 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { parseMDX } from "war3-model";
 import {
   frame,
   hdTextureUse,
   posed,
-  readSkins,
   type Shape,
   type Skinnable,
   skinGeosets,
   skinned,
   solidExtent,
   standSequence,
-  stripChunks,
 } from "./mdx.ts";
-import { t } from "./text.ts";
 
 /** An MDX file from the chunks given, each as its tag and its data bytes. */
 function mdx(...chunks: [string, number[]][]): ArrayBuffer {
@@ -25,46 +23,6 @@ function mdx(...chunks: [string, number[]][]): ArrayBuffer {
   }
   return new Uint8Array(parts).buffer;
 }
-
-describe("stripChunks", () => {
-  it("drops the chunks with the tags given and keeps the rest in order", () => {
-    const file = mdx(
-      ["VERS", [0x08, 0x07, 0, 0]],
-      ["CAMS", [1, 2, 3]],
-      ["GEOS", [4, 5]],
-      ["LITE", []],
-    );
-    const out = stripChunks(file, ["CAMS", "LITE"]);
-    expect(new Uint8Array(out)).toEqual(
-      new Uint8Array(mdx(["VERS", [0x08, 0x07, 0, 0]], ["GEOS", [4, 5]])),
-    );
-  });
-
-  it("gives an equal copy when no chunk has a tag given", () => {
-    const file = mdx(["VERS", [0x08, 0x07, 0, 0]], ["MODL", [9]]);
-    const out = stripChunks(file, ["CAMS"]);
-    expect(out).not.toBe(file);
-    expect(new Uint8Array(out)).toEqual(new Uint8Array(file));
-  });
-
-  it("reads a chunk's size as little-endian, past 255 bytes", () => {
-    const big = Array.from({ length: 300 }, (_, i) => i & 0xff);
-    const out = stripChunks(mdx(["CAMS", big], ["TEXS", [7]]), ["CAMS"]);
-    expect(new Uint8Array(out)).toEqual(new Uint8Array(mdx(["TEXS", [7]])));
-  });
-
-  it("refuses bytes that are not an MDX file", () => {
-    expect(() => stripChunks(new TextEncoder().encode("Version 800").buffer, [])).toThrow(
-      t("model.notMdx"),
-    );
-  });
-
-  it("refuses a file whose last chunk runs past the end", () => {
-    const cut = mdx(["VERS", [1, 2, 3, 4]]).slice(0, 14);
-    expect(() => stripChunks(cut, [])).toThrow(t("model.cutShort"));
-    expect(() => stripChunks(mdx(["VERS", []]).slice(0, 10), [])).toThrow(t("model.cutShort"));
-  });
-});
 
 /** Little-endian bytes: 32-bit numbers, then 4-letter tags as they come. */
 function le(...values: (number | string)[]): number[] {
@@ -104,24 +62,44 @@ function geoset(skin: number[] | undefined, width: 1 | 2, tangents = true): numb
   return [...le(data.length + 4), ...data];
 }
 
-describe("readSkins", () => {
+// The game's models are version 1800; war3-model is wc3-dev's fork, which reads them.
+describe("war3-model", () => {
   const skin = [3, 1, 0, 0, 200, 55, 0, 0, 2, 0, 0, 0, 255, 0, 0, 0];
+  const skins = (file: ArrayBuffer) => parseMDX(file).Geosets.map((each) => each.SkinWeights);
 
   it("reads a skin of two-byte numbers, as the game's version 1800 files write it", () => {
     const file = mdx(["VERS", le(1800)], ["GEOS", geoset(skin, 2)]);
-    expect(readSkins(file)).toEqual([new Uint8Array(skin)]);
+    expect(skins(file)).toEqual([new Uint8Array(skin)]);
   });
 
   it("reads a skin of one-byte numbers, with or without tangents, geoset by geoset", () => {
     const file = mdx(["VERS", le(1000)], ["GEOS", [...geoset(skin, 1), ...geoset(skin, 2, false)]]);
-    expect(readSkins(file)).toEqual([new Uint8Array(skin), new Uint8Array(skin)]);
+    expect(skins(file)).toEqual([new Uint8Array(skin), new Uint8Array(skin)]);
   });
 
-  it("gives no skin for a Classic geoset, and none at all for bytes it cannot follow", () => {
+  it("gives no skin for a Classic geoset", () => {
     const file = mdx(["VERS", le(1000)], ["GEOS", [...geoset(undefined, 1), ...geoset(skin, 2)]]);
-    expect(readSkins(file)).toEqual([undefined, new Uint8Array(skin)]);
-    expect(readSkins(mdx(["VERS", le(1000)], ["MODL", [1]]))).toEqual([]);
-    expect(readSkins(new TextEncoder().encode("Version 800").buffer)).toEqual([]);
+    expect(skins(file)).toEqual([undefined, new Uint8Array(skin)]);
+  });
+
+  it("reads a version 1800 camera, whose size has 3 in its fourth byte", () => {
+    const camera = [...le("Portrait"), ...new Array(72).fill(0), ...new Array(36).fill(0)];
+    const file = mdx(
+      ["VERS", le(1800)],
+      ["CAMS", [...le((4 + camera.length) | 0x3000000), ...camera]],
+    );
+    expect(parseMDX(file).Cameras.map((each) => each.Name)).toEqual(["Portrait"]);
+  });
+
+  it("reads a version 1800 light, with its seven numbers more", () => {
+    const node = [...le(96, "Sun"), ...new Array(77).fill(0), ...le(0, -1, 0x200)];
+    // The type, the number more, the attenuation, colour, intensity, ambient colour and intensity, the six more.
+    const numbers = new Float32Array([80, 200, 1, 1, 1, 1, 1, 1, 1, 0.5, 0, 0, 0, 0, 0, 0]);
+    const light = [...node, ...le(1, 0), ...new Uint8Array(numbers.buffer)];
+    const file = mdx(["VERS", le(1800)], ["LITE", [...le(4 + light.length), ...light]]);
+    const [sun] = parseMDX(file).Lights;
+    expect(sun?.AttenuationEnd).toBe(200);
+    expect(sun?.AmbIntensity).toBe(0.5);
   });
 });
 
@@ -130,11 +108,17 @@ describe("skinGeosets", () => {
   const normals = [0, 0, 1, 1, 0, 0];
 
   it("turns a skin's bone numbers from the geoset's list into the model's", () => {
-    const geosets: Skinnable[] = [
-      { Vertices: vertices, Normals: normals, VertexGroup: [], Groups: [[7], [4]] },
-    ];
     const skin = new Uint8Array([1, 0, 0, 0, 255, 0, 0, 0, 0, 1, 0, 0, 128, 127, 0, 0]);
-    expect(skinGeosets(geosets, [skin])).toBe(true);
+    const geosets: Skinnable[] = [
+      {
+        Vertices: vertices,
+        Normals: normals,
+        VertexGroup: [],
+        Groups: [[7], [4]],
+        SkinWeights: skin,
+      },
+    ];
+    expect(skinGeosets(geosets)).toBe(true);
     expect(Array.from(geosets[0]?.SkinWeights ?? [])).toEqual([
       4, 7, 7, 7, 255, 0, 0, 0, 7, 4, 7, 7, 128, 127, 0, 0,
     ]);
@@ -143,10 +127,16 @@ describe("skinGeosets", () => {
 
   it("gives a Classic geoset of an HD model a skin from its vertex groups", () => {
     const geosets: Skinnable[] = [
-      { Vertices: vertices, Normals: normals, VertexGroup: [], Groups: [[0]] },
+      {
+        Vertices: vertices,
+        Normals: normals,
+        VertexGroup: [],
+        Groups: [[0]],
+        SkinWeights: new Uint8Array(16),
+      },
       { Vertices: vertices, Normals: normals, VertexGroup: [0, 1], Groups: [[5], [2, 3]] },
     ];
-    skinGeosets(geosets, [new Uint8Array(16)]);
+    skinGeosets(geosets);
     expect(Array.from(geosets[1]?.SkinWeights ?? [])).toEqual([
       5, 0, 0, 0, 255, 0, 0, 0, 2, 3, 0, 0, 128, 127, 0, 0,
     ]);
@@ -157,7 +147,7 @@ describe("skinGeosets", () => {
     const geosets: Skinnable[] = [
       { Vertices: vertices, Normals: normals, VertexGroup: [0, 0], Groups: [[0]] },
     ];
-    expect(skinGeosets(geosets, [undefined])).toBe(false);
+    expect(skinGeosets(geosets)).toBe(false);
     expect(geosets[0]?.SkinWeights).toBeUndefined();
   });
 });

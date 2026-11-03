@@ -168,6 +168,10 @@ layout is in `TerrainBytes.cs`). It draws with its own WebGL2 code in `web/src/l
 models, and picks by drawing each thing's number into a hidden picture. The page logs `[timing] map scene`, `map
 ground` and `map models` lines.
 
+war3-model is wc3-dev's fork (`wc3-dev/war3-model`, branch `moonwell-package`), which reads the game's version 1800
+cameras, lights and skins. `web/package.json` takes it by its git tag; npm 12 refuses git dependencies unless a project
+opts in, which `web/.npmrc` does for the project's own (`allow-git=root`).
+
 It lights the map as World Editor's Lighting: Noon does: `DayLights.cs` reads the tileset's day and night light
 models (version 1800 lights, read by hand) at the middle of their day, and HD and Definitive Edition add the
 environment map's colours as the sky (`gl/lighting.ts` has the shading and its scales, set by eye against World
