@@ -3,12 +3,12 @@
  * The seven kinds of object as a row of icon buttons in the header, in the Object Editor's tab order. The kind's name
  * is the button's tooltip and its name for screen readers; each kind has its own icon and colour (Sven, 2026-10-27).
  */
-import FlaskRound from "@lucide/svelte/icons/flask-round";
+import Flame from "@lucide/svelte/icons/flame";
 import HandFist from "@lucide/svelte/icons/hand-fist";
-import HeartPlus from "@lucide/svelte/icons/heart-plus";
 import Lamp from "@lucide/svelte/icons/lamp";
-import ShieldPlus from "@lucide/svelte/icons/shield-plus";
-import TreePalm from "@lucide/svelte/icons/tree-palm";
+import LayersPlus from "@lucide/svelte/icons/layers-plus";
+import Sword from "@lucide/svelte/icons/sword";
+import Trees from "@lucide/svelte/icons/trees";
 import User from "@lucide/svelte/icons/user";
 import type { Component } from "svelte";
 import { type Kind, kinds } from "../api.ts";
@@ -25,12 +25,12 @@ let { kind, disabled, onkind }: Props = $props();
 
 const icons: Record<Kind, Component<{ size?: number }>> = {
   unit: User,
-  item: FlaskRound,
-  destructable: TreePalm,
+  item: Sword,
+  destructable: Trees,
   doodad: Lamp,
   ability: HandFist,
-  buff: HeartPlus,
-  upgrade: ShieldPlus,
+  buff: Flame,
+  upgrade: LayersPlus,
 };
 </script>
 
