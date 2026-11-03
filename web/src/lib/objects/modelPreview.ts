@@ -1,7 +1,8 @@
-import { decodeDds, parseHeaders } from "dds-parser";
+import { parseHeaders } from "dds-parser";
 import { mat4, quat, vec3 } from "gl-matrix";
-import { decodeBLP, getBLPImageData, ModelRenderer, parseMDL, parseMDX } from "war3-model";
+import { ModelRenderer, parseMDL, parseMDX } from "war3-model";
 import { errorText } from "../errors.ts";
+import { decodedImage } from "../map/gl/textures.ts";
 import {
   type Extent,
   frame,
@@ -226,28 +227,15 @@ export function showModel(
           }[info.format];
         if (format) {
           renderer.setTextureCompressedImage(image, format, data, info);
-        } else {
-          // Without the GPU's DXT support, the largest image is decoded here.
-          const top = info.images[0];
-          if (!top) return false;
-          const { width, height } = top.shape;
-          const pixels = decodeDds(
-            new Uint8Array(data, top.offset, top.length),
-            info.format,
-            width,
-            height,
-          );
-          setImage(image, new ImageData(new Uint8ClampedArray(pixels), width, height));
+          return true;
         }
-        return true;
       }
-      if (head.startsWith("BLP")) {
-        const blp = decodeBLP(data);
-        const top = getBLPImageData(blp, 0);
-        setImage(image, new ImageData(new Uint8ClampedArray(top.data), top.width, top.height));
-        return true;
-      }
-      return false;
+      // An ATI2 normal map, a BLP, and any DDS without the card's DXT support, are decoded here.
+      const decoded = decodedImage(data);
+      if (!decoded) return false;
+      const pixels = new Uint8ClampedArray(decoded.data);
+      setImage(image, new ImageData(pixels, decoded.width, decoded.height));
+      return true;
     } catch {
       return false;
     }
