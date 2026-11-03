@@ -9,7 +9,7 @@
 import FileCode from "@lucide/svelte/icons/file-code";
 import X from "@lucide/svelte/icons/x";
 import { onDestroy } from "svelte";
-import type { CodeTheme } from "../codeThemes.ts";
+import type { CodeThemeInfo } from "../codeThemes.ts";
 import { errorText } from "../errors.ts";
 import { t } from "../text.ts";
 import { setCode, setHeader, type TriggerTree, trigger, triggerTree } from "../triggers/api.ts";
@@ -18,7 +18,7 @@ import { closed, matched, type OpenScript, opened } from "./openScripts.ts";
 
 type Props = {
   /** The theme scripts are drawn in. */
-  codeTheme: CodeTheme;
+  codeTheme: CodeThemeInfo;
   /** Puts a command on the app's queue, so it runs after what is being sent. */
   queued: <T>(run: () => Promise<T>) => Promise<T>;
   onnotice: (text: string, warn?: boolean) => void;

@@ -2,16 +2,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   applyCodeTheme,
-  type CodeTheme,
+  type CodeThemeInfo,
   codeColors,
   codeThemeOf,
   codeThemes,
   codeTokens,
+  loadCodeTheme,
+  loadCodeThemes,
 } from "./codeThemes.ts";
 
 const css = readFileSync(new URL("../app.css", import.meta.url), "utf8").toLowerCase();
 
-const named = (id: string) => codeThemes.find((each) => each.id === id) as CodeTheme;
+const named = (id: string) => codeThemes.find((each) => each.id === id) as CodeThemeInfo;
 
 describe("the code themes", () => {
   it("are VS Code's own, dark and light", () => {
@@ -30,8 +32,8 @@ describe("the code themes", () => {
     expect(types.lastIndexOf("dark")).toBeLessThan(types.indexOf("light"));
   });
 
-  it("each give every code colour", () => {
-    for (const each of codeThemes) {
+  it("each give every code colour", async () => {
+    for (const each of await loadCodeThemes()) {
       const colors = codeColors(each);
       for (const token of codeTokens) {
         expect(colors[token], `${each.id} ${token}`).toMatch(/^#([0-9a-f]{3,4}){1,2}$/i);
@@ -39,8 +41,8 @@ describe("the code themes", () => {
     }
   });
 
-  it("colour a script box as VS Code colours the file", () => {
-    const colors = codeColors(named("dracula"));
+  it("colour a script box as VS Code colours the file", async () => {
+    const colors = codeColors(await loadCodeTheme(named("dracula")));
     expect(colors["code-bg"].toLowerCase()).toBe("#282a36");
     expect(colors["code-keyword"].toLowerCase()).toBe("#ff79c6");
     expect(colors["code-function"].toLowerCase()).toBe("#50fa7b");
@@ -49,11 +51,24 @@ describe("the code themes", () => {
     expect(colors["code-comment"].toLowerCase()).toBe("#6272a4");
   });
 
-  it("start as app.css has them", () => {
-    const colors = codeColors(codeThemeOf("", "dark"));
+  it("start as app.css has them", async () => {
+    const colors = codeColors(await loadCodeTheme(codeThemeOf("", "dark")));
     for (const [token, value] of Object.entries(colors)) {
       expect(css).toContain(`--${token}: ${value.toLowerCase()};`);
     }
+  });
+});
+
+describe("loading the code themes", () => {
+  it("lists them without their files, which load when asked", async () => {
+    expect(named("dracula")).not.toHaveProperty("colors");
+    const dracula = await loadCodeTheme(named("dracula"));
+    expect(dracula.colors["editor.background"]?.toLowerCase()).toBe("#282a36");
+  });
+
+  it("names each as its file does", async () => {
+    const files = await loadCodeThemes();
+    expect(files.map(({ id, name, type }) => ({ id, name, type }))).toEqual(codeThemes);
   });
 });
 
@@ -76,10 +91,10 @@ describe("the theme scripts are drawn in", () => {
     expect(codeThemeOf("no-such-theme", "dark").id).toBe("dark-plus");
   });
 
-  it("puts its colours on the page and leaves the interface's alone", () => {
+  it("puts its colours on the page and leaves the interface's alone", async () => {
     const set: Record<string, string> = {};
     const root = { style: { setProperty: (name: string, value: string) => (set[name] = value) } };
-    const theme = codeThemeOf("nord", "dark");
+    const theme = await loadCodeTheme(codeThemeOf("nord", "dark"));
     applyCodeTheme(theme, root as unknown as HTMLElement);
     expect(set["--code-keyword"]).toBe(codeColors(theme)["code-keyword"]);
     expect(Object.keys(set).every((name) => name.startsWith("--code-"))).toBe(true);

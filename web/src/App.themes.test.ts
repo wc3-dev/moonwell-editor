@@ -140,9 +140,12 @@ describe("the theme in Settings", () => {
   test("code themes are the 64 of VS Code, whatever the editor's themes are", async () => {
     loadUserThemes([{ file: "themes/mine.json", text: themeFileText("Mine") }]);
     const { dialog } = await openSettings(noNotice("{}"));
-    await fireEvent.keyDown(dialog.getByRole("combobox", { name: t("settings.codeTheme") }), {
-      key: "Enter",
-    });
+    await fireEvent.keyDown(
+      await dialog.findByRole("combobox", { name: t("settings.codeTheme") }, { timeout: 5000 }),
+      {
+        key: "Enter",
+      },
+    );
     expect(await screen.findAllByRole("option")).toHaveLength(64);
   });
 });

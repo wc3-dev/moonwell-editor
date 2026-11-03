@@ -17,7 +17,7 @@ import { windowTitle } from "./lib/app/title.ts";
 import UnsavedDialog from "./lib/app/UnsavedDialog.svelte";
 import WelcomeScreen from "./lib/app/WelcomeScreen.svelte";
 import { typingIn } from "./lib/app/windowKeys.ts";
-import { applyCodeTheme } from "./lib/codeThemes.ts";
+import { applyCodeTheme, loadCodeTheme } from "./lib/codeThemes.ts";
 import { picking } from "./lib/map/pick.svelte.ts";
 import DeleteObjectDialog from "./lib/objects/DeleteObjectDialog.svelte";
 import NewObjectDialog from "./lib/objects/NewObjectDialog.svelte";
@@ -32,7 +32,10 @@ setEditor(editor);
 const { appearance, history, notices, objects, pages, startup, terminals } = editor;
 const { objectActions, session } = editor;
 
-$effect(() => applyCodeTheme(appearance.codeTheme));
+$effect(() => {
+  const chosen = appearance.codeTheme;
+  loadCodeTheme(chosen).then((theme) => appearance.codeTheme === chosen && applyCodeTheme(theme));
+});
 $effect(() => appearance.show());
 // The window scales the page: it is told when the scale in the settings changes, from Settings or from the file.
 let windowScale = 100;

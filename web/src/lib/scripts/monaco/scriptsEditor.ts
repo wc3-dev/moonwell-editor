@@ -6,13 +6,13 @@
  */
 import { createModelReference } from "@codingame/monaco-vscode-api/monaco";
 import * as monaco from "@codingame/monaco-vscode-editor-api";
-import type { CodeTheme } from "../../codeThemes.ts";
+import type { CodeThemeInfo } from "../../codeThemes.ts";
 import { typedText } from "../../triggers/typedBox.ts";
 import { setEditorTheme, startMonaco } from "./setup.ts";
 
 export type ScriptsEditorOptions = {
   readOnly: boolean;
-  theme: CodeTheme;
+  theme: CodeThemeInfo;
   onsend: (id: number, text: string) => void;
 };
 
@@ -53,7 +53,7 @@ export class ScriptsEditor {
   }
 
   /** Colours the editor in a code theme. */
-  setTheme(theme: CodeTheme): Promise<void> {
+  setTheme(theme: CodeThemeInfo): Promise<void> {
     return setEditorTheme(theme);
   }
 
