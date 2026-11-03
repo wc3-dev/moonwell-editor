@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codeThemes } from "../src/lib/codeThemes.ts";
+import { loadCodeThemes } from "../src/lib/codeThemes.ts";
 import type { TokenRule } from "../src/lib/scopeColor.ts";
 import { contrast } from "../src/lib/themes/color.ts";
 import { colorKeys } from "../src/lib/themes/format.ts";
@@ -204,7 +204,9 @@ describe("a VS Code theme's editor colours", () => {
 });
 
 describe.each(
-  codeThemes.map((each) => [each.id, JSON.parse(each.file) as VsCodeThemeFile] as const),
+  (await loadCodeThemes()).map(
+    (each) => [each.id, JSON.parse(each.file) as VsCodeThemeFile] as const,
+  ),
 )("%s", (_, theme) => {
   const colors = interfaceColors(theme);
 

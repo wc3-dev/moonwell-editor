@@ -1,36 +1,56 @@
 /**
  * The code themes: VS Code's own theme files as their authors publish them, from Shiki's collection (tm-themes), so a
  * script looks as it does in VS Code (Sven, 2026-11-01). Monaco reads the files as they are. A script box on a card has
- * one colour per kind of word, read from the same file. Aurora X is left out, for its GPL.
+ * one colour per kind of word, read from the same file. Aurora X is left out, for its GPL. The files, 2 MB in all, load
+ * when a theme is first wanted; tm-themes' own index names them.
  */
+import { themes } from "tm-themes";
 import { scopeColor, type TokenRule } from "./scopeColor.ts";
 import type { ThemeType } from "./themes/format.ts";
 
 const files = import.meta.glob<string>(
   ["/node_modules/tm-themes/themes/*.json", "!/node_modules/tm-themes/themes/aurora-x.json"],
-  { query: "?raw", import: "default", eager: true },
+  { query: "?raw", import: "default" },
 );
 
-export type CodeTheme = {
-  id: string;
-  name: string;
-  type: "dark" | "light";
+const fileOf = (id: string) => `/node_modules/tm-themes/themes/${id}.json`;
+
+/** A code theme's name and kind; `loadCodeTheme` gives its colours. */
+export type CodeThemeInfo = { id: string; name: string; type: "dark" | "light" };
+
+export type CodeTheme = CodeThemeInfo & {
   colors: Record<string, string>;
   tokenColors: TokenRule[];
   /** The theme's file, for Monaco. */
   file: string;
 };
 
-function read(path: string, file: string): CodeTheme {
-  const { displayName, type, colors, tokenColors } = JSON.parse(file);
-  const id = path.slice(path.lastIndexOf("/") + 1, -".json".length);
-  return { id, name: displayName, type, colors, tokenColors, file };
+/** Every code theme, the dark ones first, as the interface is dark. */
+export const codeThemes: CodeThemeInfo[] = themes
+  .filter((each) => fileOf(each.name) in files)
+  .map((each) => ({ id: each.name, name: each.displayName, type: each.type }))
+  .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+
+const loaded = new Map<string, Promise<CodeTheme>>();
+
+/** A code theme with its colours and its file, loaded once. */
+export function loadCodeTheme(info: CodeThemeInfo): Promise<CodeTheme> {
+  let theme = loaded.get(info.id);
+  if (!theme) {
+    const load = files[fileOf(info.id)] as () => Promise<string>;
+    theme = load().then((file) => {
+      const { colors, tokenColors } = JSON.parse(file);
+      return { ...info, colors, tokenColors, file };
+    });
+    loaded.set(info.id, theme);
+  }
+  return theme;
 }
 
-/** Every code theme, the dark ones first, as the interface is dark. */
-export const codeThemes: CodeTheme[] = Object.entries(files)
-  .map(([path, file]) => read(path, file))
-  .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+/** Every code theme with its colours, in the order of `codeThemes`. */
+export function loadCodeThemes(): Promise<CodeTheme[]> {
+  return Promise.all(codeThemes.map(loadCodeTheme));
+}
 
 /** The ids of the palettes from before the interface used VS Code's themes, whose twins took over. */
 const earlierIds: Record<string, string> = {
@@ -39,7 +59,7 @@ const earlierIds: Record<string, string> = {
 };
 
 /** The code theme with this id, or the id of a palette from before. */
-export function codeThemeWith(id: string): CodeTheme | undefined {
+export function codeThemeWith(id: string): CodeThemeInfo | undefined {
   return codeThemes.find((each) => each.id === (earlierIds[id] ?? id));
 }
 
@@ -47,9 +67,10 @@ export function codeThemeWith(id: string): CodeTheme | undefined {
  * The theme scripts are drawn in: the one chosen for them (Sven, 2026-10-31), else Dark Plus, or Light Plus under a
  * light editor theme (Sven, 2026-11-02).
  */
-export function codeThemeOf(id: string, type: ThemeType): CodeTheme {
+export function codeThemeOf(id: string, type: ThemeType): CodeThemeInfo {
   return (
-    codeThemeWith(id) ?? (codeThemeWith(type === "light" ? "light-plus" : "dark-plus") as CodeTheme)
+    codeThemeWith(id) ??
+    (codeThemeWith(type === "light" ? "light-plus" : "dark-plus") as CodeThemeInfo)
   );
 }
 

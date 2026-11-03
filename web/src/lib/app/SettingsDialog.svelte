@@ -11,7 +11,7 @@ import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 import { RadioGroup, Tabs } from "bits-ui";
 import { onMount } from "svelte";
 import { type Kind, kinds, type MapInfo } from "../api.ts";
-import { type CodeTheme, codeColors, codeThemeOf, codeThemes } from "../codeThemes.ts";
+import { type CodeTheme, codeColors, codeThemeOf, loadCodeThemes } from "../codeThemes.ts";
 import { type GraphicsMode, graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
 import { openHome } from "../home/home.ts";
 import type { Problem } from "../home/jsonc.ts";
@@ -166,6 +166,15 @@ const themeSwatch = ({ colors }: Theme): string[] =>
       "kind.ability",
     ] as const
   ).map((key) => colors[key]);
+
+// The code themes with their colours, for the swatches; they load when Settings opens.
+let loadedCodeThemes = $state<CodeTheme[]>([]);
+onMount(() => {
+  loadCodeThemes().then((all) => (loadedCodeThemes = all));
+});
+const shownCodeTheme = $derived(
+  loadedCodeThemes.find((each) => each.id === codeThemeOf(prefs.codeTheme, theme.type).id),
+);
 
 function codeSwatch(theme: CodeTheme): string[] {
   const colors = codeColors(theme);
@@ -366,13 +375,15 @@ function resetAll(): void {
       <!-- Scripts have a theme of their own (Sven, 2026-10-31): Dark Plus, or Light Plus under a light theme, until one
            is chosen (Sven, 2026-11-02). -->
       {@render heading(t("settings.codeTheme"))}
-      <ThemePicker
-        label={t("settings.codeTheme")}
-        options={codeThemes}
-        selected={codeThemeOf(prefs.codeTheme, theme.type)}
-        swatch={codeSwatch}
-        onpick={(each) => setPref("codeTheme", each.id)}
-      />
+      {#if shownCodeTheme}
+        <ThemePicker
+          label={t("settings.codeTheme")}
+          options={loadedCodeThemes}
+          selected={shownCodeTheme}
+          swatch={codeSwatch}
+          onpick={(each) => setPref("codeTheme", each.id)}
+        />
+      {/if}
 
       {#if shells.length > 0}
         {@render heading(t("settings.terminalShell"))}
