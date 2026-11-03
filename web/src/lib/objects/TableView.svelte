@@ -28,6 +28,7 @@ import {
   type TreeEntry,
   table,
 } from "../api.ts";
+import { CommandQueue } from "../app/commandQueue.ts";
 import { errorText } from "../errors.ts";
 import { stateStore } from "../home/state.svelte.ts";
 import { t, tCount } from "../text.ts";
@@ -57,7 +58,6 @@ import {
   levelFields,
   mostLevels,
   nextSort,
-  oneAtATime,
   readColumns,
   removeColumn,
   rowIds,
@@ -477,10 +477,10 @@ async function paste(s: Selection, text: string): Promise<void> {
 
 // The bulk changes (the grid's and the bar's), one at a time in the order asked: each works from the rows as the one
 // before left them.
-const bulkQueue = oneAtATime();
+const bulkQueue = new CommandQueue();
 
 function bulk(action: BulkAction): Promise<void> {
-  return bulkQueue(() => bulkNow(action));
+  return bulkQueue.run(() => bulkNow(action));
 }
 
 async function bulkNow(action: BulkAction): Promise<void> {
@@ -532,7 +532,7 @@ async function bulkNow(action: BulkAction): Promise<void> {
 /** The bar's Apply: the selected cells set to the value or expression typed, after the bulk changes asked before. */
 function apply(): Promise<void> {
   const text = bulkText;
-  return bulkQueue(() => applyNow(text));
+  return bulkQueue.run(() => applyNow(text));
 }
 
 async function applyNow(text: string): Promise<void> {

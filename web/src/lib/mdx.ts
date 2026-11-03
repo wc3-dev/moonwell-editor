@@ -201,10 +201,7 @@ function tangents(normals: ArrayLike<number>, count: number): Float32Array {
   return out;
 }
 
-/**
- * A skinned geoset's vertices moved by its bones, as the HD shader moves them: each vertex by the weighted sum of its
- * bones' matrices (`matrix` gives a bone's, 16 numbers in columns; a bone without one counts as not moved).
- */
+/** A skinned geoset's vertices moved by its bones, as the HD shader moves them (`skinned`). */
 export function posed(
   geoset: Pick<Skinnable, "Vertices" | "SkinWeights">,
   matrix: (bone: number) => ArrayLike<number> | undefined,
@@ -213,34 +210,46 @@ export function posed(
   const skin = geoset.SkinWeights;
   const out = Float32Array.from(v);
   if (!skin) return out;
-  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   for (let i = 0; i * 3 + 2 < v.length; i++) {
-    const x = v[i * 3] ?? 0;
-    const y = v[i * 3 + 1] ?? 0;
-    const z = v[i * 3 + 2] ?? 0;
-    let total = 0;
-    const sum = [0, 0, 0];
-    for (let j = 0; j < 4; j++) {
-      const weight = (skin[i * 8 + 4 + j] ?? 0) / 255;
-      if (weight === 0) continue;
-      const m = matrix(skin[i * 8 + j] ?? 0) ?? identity;
-      total += weight;
-      for (let axis = 0; axis < 3; axis++) {
-        const moved =
-          (m[axis] ?? 0) * x +
-          (m[4 + axis] ?? 0) * y +
-          (m[8 + axis] ?? 0) * z +
-          (m[12 + axis] ?? 0);
-        sum[axis] = (sum[axis] ?? 0) + weight * moved;
-      }
-    }
-    if (total > 0)
-      out.set(
-        sum.map((value) => value / total),
-        i * 3,
-      );
+    const moved = skinned(skin, i, matrix, [
+      v[i * 3] ?? 0,
+      v[i * 3 + 1] ?? 0,
+      v[i * 3 + 2] ?? 0,
+      1,
+    ]);
+    if (moved) out.set(moved, i * 3);
   }
   return out;
+}
+
+const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+/**
+ * A point (w 1) or direction (w 0) of a vertex moved by the weighted sum of its bones' matrices, as the HD shader moves
+ * it: `skin` has 8 numbers a vertex, its four bones then their weights out of 255, and `matrix` gives a bone's (16
+ * numbers in columns; a bone without one counts as not moved). Null for a vertex without weights, which stays put.
+ */
+export function skinned(
+  skin: ArrayLike<number>,
+  vertex: number,
+  matrix: (bone: number) => ArrayLike<number> | undefined,
+  [x, y, z, w]: readonly [number, number, number, number],
+): [number, number, number] | null {
+  let total = 0;
+  let sx = 0;
+  let sy = 0;
+  let sz = 0;
+  for (let j = 0; j < 4; j++) {
+    const weight = (skin[vertex * 8 + 4 + j] ?? 0) / 255;
+    if (weight === 0) continue;
+    const m = matrix(skin[vertex * 8 + j] ?? 0) ?? identity;
+    const at = (i: number) => m[i] ?? 0;
+    total += weight;
+    sx += weight * (at(0) * x + at(4) * y + at(8) * z + at(12) * w);
+    sy += weight * (at(1) * x + at(5) * y + at(9) * z + at(13) * w);
+    sz += weight * (at(2) * x + at(6) * y + at(10) * z + at(14) * w);
+  }
+  return total > 0 ? [sx / total, sy / total, sz / total] : null;
 }
 
 /** The parts of a parsed model (war3-model's) that `hdTextureUse` reads. */
