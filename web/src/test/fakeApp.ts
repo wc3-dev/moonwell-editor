@@ -9,6 +9,7 @@ import { homeNotice } from "../lib/home/notice.svelte.ts";
 import { loadState } from "../lib/home/state.svelte.ts";
 import { loadSettings, prefs } from "../lib/prefs.svelte.ts";
 import { t } from "../lib/text.ts";
+import { fakeMediaQueries } from "./fakeLayout.ts";
 
 type Args = Record<string, unknown>;
 type Listener = (event: { data: unknown }) => void;
@@ -221,6 +222,8 @@ class NoResizeObserver {
 /** Prepares the tests of a file for mounting `App`, in what the test browser lacks and a clean set of switches. */
 export function appTests(): void {
   beforeEach(() => {
+    // Svelte Flow's store asks for media queries when the Trigger Editor opens.
+    fakeMediaQueries();
     globalThis.ResizeObserver = NoResizeObserver;
     Element.prototype.scrollIntoView = () => {};
     Object.defineProperty(HTMLElement.prototype, "clientHeight", {
