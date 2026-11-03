@@ -27,18 +27,6 @@ public sealed class OfferedListTests(GameDataFixture fixture, ITestOutputHelper 
         """;
 
     [Fact]
-    public void Strings_are_read_as_keys_and_texts_without_quotes()
-    {
-        var strings = OfferedLists.Strings(Encoding.UTF8.GetBytes(
-            "[WorldEditStrings]\r\nWESTRING_UBERSPLAT_HTOW=Town Hall\r\n// a note\r\nWESTRING_QUOTED=\"Quoted\"\r\n"
-            + "WESTRING_UBERSPLAT_HTOW=Second\r\n"));
-
-        Assert.Equal("Town Hall", strings["WESTRING_UBERSPLAT_HTOW"]);
-        Assert.Equal("Quoted", strings["westring_quoted"]);
-        Assert.Equal(2, strings.Count);
-    }
-
-    [Fact]
     public void Splats_are_listed_by_World_Editor_names_after_None()
     {
         var strings = new Dictionary<string, string> { ["WESTRING_UBERSPLAT_HSMA"] = "Human Small Building" };

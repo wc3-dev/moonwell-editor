@@ -1,4 +1,5 @@
 using System.Text;
+using MoonwellEditor.Files;
 using War3Net.Build.Environment;
 
 namespace MoonwellEditor.Map;
@@ -100,24 +101,8 @@ public sealed class TerrainTextures(IReadOnlyList<TerrainTexture> all, int bligh
             return "";
         }
 
-        var letter = ((char)terrain.Tileset).ToString();
-        var inSection = false;
-        foreach (var raw in Encoding.UTF8.GetString(bytes).Split('\n'))
-        {
-            var line = raw.Trim();
-            if (line.StartsWith('['))
-            {
-                inSection = line == "[TileSets]";
-                continue;
-            }
-
-            if (inSection && line.StartsWith(letter + "=", StringComparison.Ordinal))
-            {
-                var values = line[(letter.Length + 1)..].Split(',');
-                return values.Length > 1 ? values[1].Trim() + ".blp" : "";
-            }
-        }
-
-        return "";
+        var tileset = GameText.Entry(Encoding.UTF8.GetString(bytes), "TileSets", ((char)terrain.Tileset).ToString());
+        var values = tileset?.Split(',') ?? [];
+        return values.Length > 1 ? values[1].Trim() + ".blp" : "";
     }
 }

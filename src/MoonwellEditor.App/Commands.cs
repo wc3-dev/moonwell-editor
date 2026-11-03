@@ -567,7 +567,7 @@ public sealed partial class Commands
         {
             var splats = OfferedLists.Splats(
                 assets.File(@"Splats\UberSplatData.slk", "sd"),
-                OfferedLists.Strings(assets.File(@"UI\WorldEditStrings.txt", "sd")));
+                GameText.Strings(assets.File(@"UI\WorldEditStrings.txt", "sd")));
             if (splats != null)
             {
                 lists["uberSplat"] = splats;

@@ -1,4 +1,3 @@
-using System.Text;
 using MoonwellEditor.Files;
 using MoonwellEditor.GameData;
 using War3Net.IO.Slk;
@@ -110,38 +109,6 @@ public static class OfferedLists
         }
 
         return new ChoiceList(false, "string", entries);
-    }
-
-    /// <summary>
-    /// World Editor's strings from a <c>WorldEditStrings.txt</c>: each <c>KEY=Text</c> line, its text without
-    /// surrounding quotes; the first of a key that repeats counts.
-    /// </summary>
-    public static Dictionary<string, string> Strings(byte[]? text)
-    {
-        var strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (text == null)
-        {
-            return strings;
-        }
-
-        foreach (var line in Encoding.UTF8.GetString(text).Split('\n'))
-        {
-            var equals = line.IndexOf('=');
-            if (equals <= 0 || line.StartsWith("//", StringComparison.Ordinal) || line.StartsWith('['))
-            {
-                continue;
-            }
-
-            var value = line[(equals + 1)..].Trim();
-            if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
-            {
-                value = value[1..^1];
-            }
-
-            strings.TryAdd(line[..equals].Trim(), value);
-        }
-
-        return strings;
     }
 
     private static ChoiceEntry None => new("", "None", []);

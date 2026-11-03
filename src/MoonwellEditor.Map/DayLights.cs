@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text;
+using MoonwellEditor.Files;
 
 namespace MoonwellEditor.Map;
 
@@ -35,9 +36,11 @@ public static class DayLights
     {
         var data = files.File("UI/WorldEditData.txt", mode);
         var text = data == null ? "" : Encoding.UTF8.GetString(data);
+        string? Entry(string section, string key) => GameText.Entry(text, section, key)?.Trim('"');
+
         SceneLight Light(string section)
         {
-            var path = Entry(text, section, tileset);
+            var path = Entry(section, tileset);
             var model = path == null ? null : files.File(path, mode);
             return (model == null ? null : Noon(model)) ?? Default;
         }
@@ -45,34 +48,12 @@ public static class DayLights
         float[] sky = [];
         if (mode != "sd")
         {
-            var path = Entry(text, "DayEnvironmentMap", tileset) ?? Entry(text, "DayEnvironmentMap", "L");
+            var path = Entry("DayEnvironmentMap", tileset) ?? Entry("DayEnvironmentMap", "L");
             var map = path == null ? null : files.File(Path.ChangeExtension(path, ".dds"), mode);
             sky = map == null ? [] : SkyColours(map) ?? [];
         }
 
         return new SceneLights(Light("TerrainLights"), Light("UnitLights"), sky);
-    }
-
-    // A tileset's entry in a section of World Editor's data, skipping the ones put out with //.
-    private static string? Entry(string text, string section, string tileset)
-    {
-        var inSection = false;
-        foreach (var raw in text.Split('\n'))
-        {
-            var line = raw.Trim();
-            if (line.StartsWith('['))
-            {
-                inSection = line == "[" + section + "]";
-                continue;
-            }
-
-            if (inSection && line.StartsWith(tileset + "=", StringComparison.Ordinal))
-            {
-                return line[(tileset.Length + 1)..].Trim().Trim('"');
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
