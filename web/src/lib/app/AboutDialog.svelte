@@ -56,7 +56,7 @@ const libraries: [string, string][] = [
     <img src={logo} alt="" class="size-10 shrink-0" />
     <div>
       <p class="m-0 text-title font-semibold text-normal">
-        {t("noMap.title", { version: about?.version ?? "" }).trim()}
+        {t("about.name", { version: about?.version ?? "" }).trim()}
       </p>
       <p class="m-0 text-muted">{t("about.text")}</p>
     </div>

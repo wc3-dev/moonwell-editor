@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
-import { tick } from "svelte";
 import { describe, expect, test } from "vitest";
 import App from "./App.svelte";
 import { loadSettings, prefs, setPref } from "./lib/prefs.svelte.ts";
@@ -18,9 +17,9 @@ describe("the game data", () => {
       chooseGameData: gameReady,
     });
     render(App);
-    await screen.findByTestId("first-start");
+    await screen.findByTestId("game-missing");
     await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
-    await screen.findByTestId("no-map");
+    await waitFor(() => expect(screen.queryByTestId("game-missing")).toBeNull());
     expect(app.count("chooseGameData")).toBe(1);
   });
 
@@ -38,7 +37,7 @@ describe("the game data", () => {
       chooseGameData: new Refusal("failed", "The folder is gone"),
     });
     render(App);
-    await screen.findByTestId("first-start");
+    await screen.findByTestId("game-missing");
     await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
     await screen.findByText("The folder is gone");
   });
@@ -48,19 +47,17 @@ describe("the game data", () => {
       gameData: { source: "D:/War3", loaded: false, error: null, version: 2 },
     });
     render(App);
-    await screen.findAllByText(/Loading/);
+    await screen.findByText(t("welcome.loading"));
     await app.emit("gameData", { ...gameReady, version: 3 });
-    await screen.findByText("Open a Warcraft III: Reforged map as a folder or archive.");
+    await waitFor(() => expect(screen.queryByText(t("welcome.loading"))).toBeNull());
     await app.emit("gameData", { source: "D:/War3", loaded: false, error: null, version: 2 });
-    expect(
-      screen.queryByText("Open a Warcraft III: Reforged map as a folder or archive."),
-    ).toBeTruthy();
+    expect(screen.queryByText(t("welcome.loading"))).toBeNull();
   });
 
   test("the choice lists and asset names are asked for once it is ready", async () => {
     const app = new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await waitFor(() => expect(app.count("assetNames")).toBe(1));
     expect(app.count("choices")).toBe(1);
   });
@@ -97,36 +94,8 @@ describe("starting with a map", () => {
   test("the window's title is the app's name with no map", async () => {
     new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await waitFor(() => expect(document.title).toBe("Moonwell Editor"));
-  });
-});
-
-describe("the Open map button", () => {
-  async function openList(): Promise<HTMLElement> {
-    new FakeApp();
-    render(App);
-    await screen.findByText(t("noMap.text"));
-    const button = screen.getByRole("button", { name: t("noMap.open") });
-    await fireEvent.click(button);
-    await screen.findByRole("menuitem", { name: t("openMenu.folder") });
-    return button;
-  }
-
-  test("opens its list with nothing in it focused", async () => {
-    const button = await openList();
-    button.focus();
-    await tick();
-    expect(document.activeElement).toBe(button);
-  });
-
-  test("Tab goes into the list", async () => {
-    const button = await openList();
-    button.focus();
-    await fireEvent.keyDown(button, { key: "Tab" });
-    expect(document.activeElement).toBe(
-      screen.getByRole("menuitem", { name: t("openMenu.folder") }),
-    );
   });
 });
 
@@ -149,7 +118,7 @@ describe("the window", () => {
   test("the UI scale is told to the window only when it is not the default", async () => {
     const scaled = new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     expect(scaled.count("uiScale")).toBe(0);
   });
 
@@ -167,14 +136,14 @@ describe("settings.json", () => {
     new FakeApp();
     render(App);
     expect(document.documentElement.dataset.theme).toBe("nord");
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     expect(document.documentElement.dataset.theme).toBe("nord");
   });
 
   test("a save of the file with another theme switches the page and the window's frame", async () => {
     const app = new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await app.emit("homeChanged", {
       file: "settings.json",
       text: '{"appearance.theme": "dracula"}',
@@ -192,7 +161,7 @@ describe("settings.json", () => {
   test("a save of the file with another UI scale reaches the window", async () => {
     const app = new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await app.emit("homeChanged", { file: "settings.json", text: '{"appearance.uiScale": 80}' });
     await waitFor(() => expect(app.args("uiScale")).toEqual({ percent: 80 }));
     await app.emit("homeChanged", { file: "settings.json", text: "{}" });
@@ -205,7 +174,7 @@ describe("settings.json", () => {
       chooseGameData: { source: "D:/War3", loaded: false, error: null, version: 2 },
     });
     render(App);
-    await screen.findByTestId("first-start");
+    await screen.findByTestId("game-missing");
     await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
     await waitFor(() => expect(app.count("chooseGameData")).toBe(1));
     await app.idle();
@@ -231,7 +200,7 @@ describe("settings.json", () => {
       chooseGameData: { source: "D:/Nope", loaded: false, error: null, version: 2 },
     });
     render(App);
-    await screen.findByTestId("first-start");
+    await screen.findByTestId("game-missing");
     await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
     await waitFor(() => expect(app.count("chooseGameData")).toBe(1));
     await app.emit("gameData", {
@@ -263,7 +232,7 @@ describe("settings.json", () => {
     loadSettings('{\n  "editor.alphaNotice": false,\n  "appearance.uiScale": 90\n}');
     const app = new FakeApp({ writeHome: new Refusal("failed", "Disk full") });
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await press("F10");
     const dialog = within(
       await screen.findByRole("dialog", { name: t("settings.title") }, { timeout: 5000 }),
@@ -286,7 +255,7 @@ describe("settings.json", () => {
     loadSettings("{ oops");
     new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     await press("F10");
     const dialog = within(
       await screen.findByRole("dialog", { name: t("settings.title") }, { timeout: 5000 }),

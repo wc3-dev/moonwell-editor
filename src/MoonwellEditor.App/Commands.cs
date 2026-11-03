@@ -28,10 +28,16 @@ public sealed record SessionState(bool Dirty, int ChangedObjects);
 
 /// <summary>What the app was started with, for the page to act on once it is ready.</summary>
 /// <param name="Map">
-/// The map (a folder or an archive file) given as the app's first command-line argument, which the page opens once the
-/// game data is ready; null when there was none, or once the page has asked.
+/// The map (a folder or an archive file) the page opens once the game data is ready: the app's first command-line
+/// argument, else the last map opened when <see cref="Home.ReopenLastMap"/> is on and the map is still there; null when
+/// there is none, or once the page has asked.
 /// </param>
 public sealed record Startup(string? Map);
+
+/// <summary>One of the maps opened lately, for the welcome screen.</summary>
+/// <param name="Path">The map folder's or archive file's path, as it was opened.</param>
+/// <param name="Found">Whether a folder or a file is there now.</param>
+public sealed record RecentMap(string Path, bool Found);
 
 /// <summary>What the About page shows: the versions of the editor and of what it runs on.</summary>
 /// <param name="Version">The editor's version (<c>0.1.0</c>), set in Directory.Build.props.</param>
@@ -121,6 +127,7 @@ public sealed partial class Commands
 
     // The map from the command line, until the page asks for it.
     private string? _startupMap;
+    private bool _startupTaken;
 
     private string? _source;
     private Data? _data;
@@ -374,17 +381,34 @@ public sealed partial class Commands
             "writeHome" => WriteHome(Text(args, "file"), Text(args, "text")),
             "setState" => SetState(Text(args, "key"), ValueOf(args)),
             "openHome" => OpenHome(OptionalText(args, "file")),
+            "recentMaps" => RecentMaps(),
+            "forgetMap" => ForgetMap(Text(args, "path")),
             _ when command.StartsWith("trigger", StringComparison.Ordinal) => RunTrigger(command, args),
             _ when RunsAlongside(command) => RunTerminal(command, args),
             _ => throw new UnknownCommandException(command),
         };
 
-    // The map from the command line the first time, so a page that is loaded again does not open it again.
+    // The map to open the first time, so a page that is loaded again does not open it again.
     private Startup TakeStartup()
     {
         var map = _startupMap;
         _startupMap = null;
+        if (!_startupTaken && map == null && _home.ReopenLastMap && RecentMaps() is [{ Found: true } last, ..])
+        {
+            map = last.Path;
+        }
+
+        _startupTaken = true;
         return new Startup(map);
+    }
+
+    private List<RecentMap> RecentMaps() =>
+        [.. _home.RecentMaps.Select(map => new RecentMap(map, Directory.Exists(map) || File.Exists(map)))];
+
+    private List<RecentMap> ForgetMap(string map)
+    {
+        _home.ForgetMap(map);
+        return RecentMaps();
     }
 
     private static About AboutApp()

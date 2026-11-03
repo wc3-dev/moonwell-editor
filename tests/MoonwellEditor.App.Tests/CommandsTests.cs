@@ -172,6 +172,101 @@ public sealed class CommandsTests : IDisposable
     }
 
     [Fact]
+    public async Task With_reopening_on_the_last_map_is_the_startup_map_once()
+    {
+        var map = Directory.CreateDirectory(Path.Combine(_folder, "maps", "Arena")).FullName;
+        var home = HomeWith();
+        home.RememberMap(map);
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), """{ "editor.reopenLastMap": true }""");
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException("must not load"));
+
+        var first = await Ask(commands, "startup");
+        var second = await Ask(commands, "startup");
+
+        Assert.Equal(map, first.GetProperty("result").GetProperty("map").GetString());
+        Assert.Equal(JsonValueKind.Null, second.GetProperty("result").GetProperty("map").ValueKind);
+    }
+
+    [Fact]
+    public async Task Without_reopening_the_last_map_waits_on_the_welcome_screen()
+    {
+        var home = HomeWith();
+        home.RememberMap(Directory.CreateDirectory(Path.Combine(_folder, "maps", "Arena")).FullName);
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException("must not load"));
+
+        var reply = await Ask(commands, "startup");
+
+        Assert.Equal(JsonValueKind.Null, reply.GetProperty("result").GetProperty("map").ValueKind);
+    }
+
+    [Fact]
+    public async Task A_last_map_that_is_gone_is_not_reopened()
+    {
+        var home = HomeWith();
+        home.RememberMap(Path.Combine(_folder, "maps", "Gone"));
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), """{ "editor.reopenLastMap": true }""");
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException("must not load"));
+
+        var reply = await Ask(commands, "startup");
+
+        Assert.Equal(JsonValueKind.Null, reply.GetProperty("result").GetProperty("map").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_map_the_app_was_started_with_comes_before_the_last_map()
+    {
+        var home = HomeWith();
+        home.RememberMap(Directory.CreateDirectory(Path.Combine(_folder, "maps", "Arena")).FullName);
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), """{ "editor.reopenLastMap": true }""");
+        var commands = new Commands(
+            home,
+            _ => null,
+            _ => throw new InvalidOperationException("must not load"),
+            @"C:\Maps\Other");
+
+        var reply = await Ask(commands, "startup");
+
+        Assert.Equal(@"C:\Maps\Other", reply.GetProperty("result").GetProperty("map").GetString());
+    }
+
+    [Fact]
+    public async Task recentMaps_lists_the_kept_maps_and_whether_each_is_there()
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(_folder, "maps", "Arena")).FullName;
+        var archive = Path.Combine(_folder, "maps", "Troll Valley.w3x");
+        File.WriteAllText(archive, "");
+        var gone = Path.Combine(_folder, "maps", "Gone");
+        var home = HomeWith();
+        home.RememberMap(gone);
+        home.RememberMap(archive);
+        home.RememberMap(folder);
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException("must not load"));
+
+        var maps = (await Ask(commands, "recentMaps")).GetProperty("result").EnumerateArray().ToList();
+
+        Assert.Equal([folder, archive, gone], maps.Select(map => map.GetProperty("path").GetString()));
+        Assert.Equal([true, true, false], maps.Select(map => map.GetProperty("found").GetBoolean()));
+    }
+
+    [Fact]
+    public async Task forgetMap_takes_a_map_off_the_list_and_gives_the_rest()
+    {
+        var home = HomeWith();
+        home.RememberMap(@"C:\Maps\a");
+        home.RememberMap(@"C:\Maps\b");
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException("must not load"));
+
+        var reply = await Ask(commands, "forgetMap", new { path = @"C:\Maps\b" });
+        var noPath = await Ask(commands, "forgetMap", new { });
+
+        Assert.Equal(
+            [@"C:\Maps\a"],
+            reply.GetProperty("result").EnumerateArray().Select(map => map.GetProperty("path").GetString()));
+        Assert.Equal([@"C:\Maps\a"], new Home(_folder).RecentMaps);
+        Assert.Equal("badRequest", noPath.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task About_gives_the_editor_s_version_as_three_numbers()
     {
         var commands = Make(_ => throw new InvalidOperationException("must not load"));

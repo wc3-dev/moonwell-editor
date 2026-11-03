@@ -220,16 +220,36 @@ public sealed class Home : IDisposable
                 maps.RemoveRange(RecentMapsKept, maps.Count - RecentMapsKept);
             }
 
-            var array = new JsonArray();
-            foreach (var known in maps)
-            {
-                array.Add(known);
-            }
-
-            state["recentMaps"] = array;
-            SaveState(state);
+            SaveMaps(state, maps);
         }
     }
+
+    /// <summary>
+    /// Takes a map out of <see cref="RecentMaps"/>, spelled in any letter case, and saves <c>state.json</c>.
+    /// </summary>
+    /// <param name="map">The map folder's or archive file's path.</param>
+    /// <exception cref="IOException"><c>state.json</c> is there but cannot be read, so it is not written over.</exception>
+    public void ForgetMap(string map)
+    {
+        lock (_lock)
+        {
+            var state = StateToChange();
+            var maps = Maps(state);
+            maps.RemoveAll(known => string.Equals(known, map, StringComparison.OrdinalIgnoreCase));
+            SaveMaps(state, maps);
+        }
+    }
+
+    /// <summary>
+    /// Whether the app opens the last map at start (<c>editor.reopenLastMap</c> in <c>settings.json</c>), read from the
+    /// file as it is now. False when the key is missing or not true, or the file has a mistake.
+    /// </summary>
+    public bool ReopenLastMap =>
+        ObjectIn(ReadOrNull(At("settings.json"))) is { } root
+        && root.TryGetPropertyValue("editor.reopenLastMap", out var node)
+        && node is JsonValue value
+        && value.TryGetValue<bool>(out var reopen)
+        && reopen;
 
     /// <summary>
     /// Sets one top-level key of <c>state.json</c>, keeping the others, and saves the file. The file is read again first,
@@ -578,6 +598,18 @@ public sealed class Home : IDisposable
         }
 
         return maps;
+    }
+
+    private void SaveMaps(JsonObject state, List<string> maps)
+    {
+        var array = new JsonArray();
+        foreach (var known in maps)
+        {
+            array.Add(known);
+        }
+
+        state["recentMaps"] = array;
+        SaveState(state);
     }
 
     private void SaveState(JsonObject state) => WriteThroughSideFile(At("state.json"), state.ToJsonString(Indented));

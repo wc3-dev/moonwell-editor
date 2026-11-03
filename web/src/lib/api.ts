@@ -240,6 +240,19 @@ export function startup(): Promise<Startup> {
   return call<Startup>("startup");
 }
 
+/** One of the maps opened lately: its folder's or archive file's path, and whether it is still there. */
+export type RecentMap = { path: string; found: boolean };
+
+/** The maps opened lately, newest first. */
+export function recentMaps(): Promise<RecentMap[]> {
+  return call<RecentMap[]>("recentMaps");
+}
+
+/** Takes a map off the recent maps, and gives the ones left. */
+export function forgetMap(path: string): Promise<RecentMap[]> {
+  return call<RecentMap[]>("forgetMap", { path });
+}
+
 /** The versions the About page shows: the editor's, the Moonwell packages', .NET's and WebView2's (null if unknown). */
 export type About = { version: string; moonwell: string; dotNet: string; webView2: string | null };
 
