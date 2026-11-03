@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
+import {
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { FakeApp, Refusal } from "../../test/fakeApp.ts";
+import { fakeLayout } from "../../test/fakeLayout.ts";
 import { CommandQueue } from "../app/commandQueue.ts";
 import { t } from "../text.ts";
 import type { CardView, FunctionView, TreeItem, TriggerTree, TriggerView } from "./api.ts";
@@ -129,11 +138,7 @@ const scripts: unknown[] = [];
 let deleted = 0;
 
 beforeEach(() => {
-  globalThis.ResizeObserver = class {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  };
+  fakeLayout();
   Element.prototype.scrollIntoView = () => {};
   Element.prototype.setPointerCapture = () => {};
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, value: 600 });
@@ -183,6 +188,96 @@ function sized(element: Element, height: number): void {
 function drag(element: Element, type: string, clientY = 0): Promise<boolean> {
   return fireEvent(element, new MouseEvent(type, { bubbles: true, cancelable: true, clientY }));
 }
+
+type Point = [number, number];
+type EventName =
+  | "pointerDown"
+  | "pointerMove"
+  | "pointerUp"
+  | "mouseDown"
+  | "mouseMove"
+  | "mouseUp";
+
+/**
+ * Sends an event with the window as its view, where a drag goes on. jsdom refuses Vitest's window in the event's
+ * options, so the view is set after.
+ */
+function send(
+  name: EventName | "click" | "contextMenu" | "dblClick" | "wheel",
+  target: Element,
+  options: Record<string, unknown>,
+): Promise<boolean> {
+  const event = createEvent[name](target, { bubbles: true, cancelable: true, ...options });
+  Object.defineProperty(event, "view", { value: window });
+  return fireEvent(target, event);
+}
+
+/**
+ * A press of `button` at `from`, moved to `to` and let go, with the events a browser sends for it, and a moment after.
+ * The mouse moves 5 pixels first, as a real one passes a drag's threshold a pixel or two at a time.
+ */
+async function press(
+  target: Element,
+  button: number,
+  from: Point,
+  to: Point = from,
+): Promise<void> {
+  const at = ([clientX, clientY]: Point, held = true) => ({
+    button,
+    buttons: held ? [1, 4, 2][button] : 0,
+    clientX,
+    clientY,
+    pointerId: 1,
+  });
+  await send("pointerDown", target, at(from));
+  await send("mouseDown", target, at(from));
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  if (length > 0) {
+    const along = (part: number): Point => [
+      from[0] + (to[0] - from[0]) * part,
+      from[1] + (to[1] - from[1]) * part,
+    ];
+    for (const point of [along(Math.min(1, 5 / length)), along(0.5), to]) {
+      await send("pointerMove", target, at(point));
+      await send("mouseMove", target, at(point));
+    }
+  }
+  await send("pointerUp", target, at(to, false));
+  await send("mouseUp", target, at(to, false));
+  if (button === 0) await send("click", target, at(to, false));
+  if (button === 2) await send("contextMenu", target, at(to, false));
+  // A pan swallows clicks until its timer clears: a person's next click comes later.
+  await settled();
+}
+
+const wheel = (target: Element, deltaY: number, [clientX, clientY]: Point) =>
+  send("wheel", target, { deltaY, clientX, clientY });
+
+const canvas = () => screen.getByTestId("trigger-canvas");
+const emptyGrid = () => canvas().querySelector(".svelte-flow__pane") as Element;
+
+/** Where the grid's origin is on screen, and its scale. */
+function viewOf(): { x: number; y: number; scale: number } {
+  for (const element of canvas().querySelectorAll<HTMLElement>("*")) {
+    const found = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(
+      element.style.transform,
+    );
+    if (found) return { x: Number(found[1]), y: Number(found[2]), scale: Number(found[3]) };
+  }
+  throw new Error("The grid shows no view.");
+}
+
+/** Where a card stands on the grid. */
+function placeOf(name: string): Point {
+  let element: HTMLElement | null = screen.getByRole("group", { name });
+  for (; element; element = element.parentElement) {
+    const found = /^translate\((-?[\d.]+)px, (-?[\d.]+)px\)$/.exec(element.style.transform);
+    if (found) return [Number(found[1]), Number(found[2])];
+  }
+  throw new Error(`${name} has no place.`);
+}
+
+const titleOf = (name: string) => within(screen.getByRole("group", { name })).getByText(name);
 
 describe("the tree", () => {
   test("the map's header is selected at first, with its script", async () => {
@@ -375,7 +470,7 @@ describe("the context menus", () => {
   test("the empty grid offers what can be made there", async () => {
     const app = await open();
     await showCards(app);
-    await fireEvent.contextMenu(screen.getByTestId("trigger-canvas"));
+    await press(emptyGrid(), 2, [600, 500]);
     await chooseFromMenu(t("triggers.new.script"));
     await waitFor(() => expect(app.args("triggerAdd")).toEqual({ kind: "script", parent: 1 }));
   });
@@ -604,6 +699,184 @@ describe("the cards", () => {
     await showCards(app);
     await fireEvent.click(screen.getByRole("button", { name: t("triggers.openInScriptEditor") }));
     expect(scripts).toEqual([{ id: 3, kind: "custom", name: "Spell" }]);
+  });
+});
+
+describe("the grid", () => {
+  const placed = [
+    { ...card(2, "Start", "trigger", trigger), place: { x: 0, y: 0, folded: false } },
+    { ...card(3, "Spell", "custom", script), place: { x: 380, y: 40, folded: false } },
+  ];
+
+  async function openGrid(shown: CardView[] = placed): Promise<FakeApp> {
+    const app = await open({ triggerCards: shown });
+    await showCards(app);
+    // Start, picked in the tree, comes to the top middle.
+    await waitFor(() => expect(viewOf()).toEqual({ x: 230, y: 20, scale: 1 }));
+    return app;
+  }
+
+  test("a card stands at its place", async () => {
+    await openGrid();
+    expect(placeOf("Spell")).toEqual([380, 40]);
+  });
+
+  test("cards never placed stand in a column, each below the one before", async () => {
+    await openGrid(placed.map((each) => ({ ...each, place: null })));
+    expect(placeOf("Start")).toEqual([0, 0]);
+    expect(placeOf("Spell")).toEqual([0, 120]);
+  });
+
+  test("a card dragged by its title bar lands on the grid's lines, and every card keeps its place", async () => {
+    const app = await openGrid();
+    await press(titleOf("Spell"), 0, [700, 70], [745, 106]);
+    await waitFor(() => expect(app.count("triggerPlaces")).toBe(1));
+    expect(app.args("triggerPlaces")).toEqual({
+      places: [
+        { id: 2, x: 0, y: 0 },
+        { id: 3, x: 420, y: 80 },
+      ],
+    });
+    expect(placeOf("Spell")).toEqual([420, 80]);
+  });
+
+  test("a press that moves a few pixels does not move the card", async () => {
+    const app = await openGrid();
+    await press(titleOf("Spell"), 0, [700, 70], [702, 71]);
+    await settled();
+    expect(app.count("triggerPlaces")).toBe(0);
+  });
+
+  test("a drag from a card's body moves neither the card nor the grid", async () => {
+    const app = await openGrid();
+    const actions = within(screen.getByRole("group", { name: "Start" })).getByText(
+      t("triggers.actions"),
+    );
+    await press(actions, 0, [300, 200], [347, 233]);
+    await settled();
+    expect(app.count("triggerPlaces")).toBe(0);
+    expect(viewOf()).toEqual({ x: 230, y: 20, scale: 1 });
+  });
+
+  test("a left drag on the empty grid pans it, and selects nothing", async () => {
+    await openGrid();
+    await press(emptyGrid(), 0, [600, 500], [650, 530]);
+    expect(viewOf()).toEqual({ x: 280, y: 50, scale: 1 });
+    await settled();
+    expect((await row(/Start/)).getAttribute("aria-selected")).toBe("true");
+  });
+
+  test("a click on the empty grid selects its category", async () => {
+    await openGrid();
+    await press(emptyGrid(), 0, [600, 500]);
+    await waitFor(async () =>
+      expect((await row(/Setup/)).getAttribute("aria-selected")).toBe("true"),
+    );
+  });
+
+  test("a middle drag pans, even on a card", async () => {
+    const app = await openGrid();
+    await press(titleOf("Spell"), 1, [700, 70], [740, 70]);
+    expect(viewOf()).toEqual({ x: 270, y: 20, scale: 1 });
+    await settled();
+    expect(app.count("triggerPlaces")).toBe(0);
+  });
+
+  test("a right drag on the empty grid pans it, and opens no menu", async () => {
+    await openGrid();
+    await press(emptyGrid(), 2, [600, 500], [660, 520]);
+    expect(viewOf()).toEqual({ x: 290, y: 40, scale: 1 });
+    await settled();
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+
+  test("a right drag let go over a card opens no menu either", async () => {
+    await openGrid();
+    const at = (clientX: number, clientY: number) => ({ button: 2, buttons: 2, clientX, clientY });
+    await send("pointerDown", emptyGrid(), at(600, 500));
+    await send("mouseDown", emptyGrid(), at(600, 500));
+    await send("mouseMove", emptyGrid(), at(605, 500));
+    await send("mouseMove", emptyGrid(), at(660, 500));
+    await send("mouseUp", titleOf("Spell"), at(660, 500));
+    await send("contextMenu", titleOf("Spell"), at(660, 500));
+    await settled();
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+
+  test("the wheel zooms about the mouse", async () => {
+    await openGrid();
+    await wheel(emptyGrid(), -100, [430, 70]);
+    const { x, y, scale } = viewOf();
+    expect(scale).toBeGreaterThan(1);
+    expect(x).toBeCloseTo(430 - 200 * scale);
+    expect(y).toBeCloseTo(70 - 50 * scale);
+  });
+
+  test("the wheel over a box being typed in scrolls the box", async () => {
+    const note = {
+      ...card(4, "Note", "comment", { ...trigger, id: 4, kind: "comment", description: "Hello" }),
+      place: { x: 0, y: 200, folded: false },
+    };
+    await openGrid([...placed, note]);
+    const box = within(screen.getByRole("group", { name: "Note" })).getByRole("textbox");
+    box.focus();
+    await wheel(box, -100, [300, 260]);
+    expect(viewOf().scale).toBe(1);
+  });
+
+  test("Fit shows every card", async () => {
+    await openGrid();
+    await press(emptyGrid(), 0, [600, 500], [650, 530]);
+    await fireEvent.click(within(canvas()).getByRole("button", { name: t("triggers.fit") }));
+    await waitFor(() => expect(viewOf()).toEqual({ x: 20, y: 20, scale: 1 }));
+  });
+
+  test("far out, a card shows its name large", async () => {
+    await openGrid();
+    for (let notch = 0; notch < 10; notch++) {
+      await wheel(emptyGrid(), 100, [400, 300]);
+    }
+    expect(viewOf().scale).toBeLessThan(0.45);
+    expect(within(canvas()).getAllByText("Spell")).toHaveLength(2);
+  });
+
+  test("a double click on a title bar opens the card, and does not zoom", async () => {
+    await openGrid();
+    await send("dblClick", titleOf("Spell"), { clientX: 700, clientY: 70 });
+    expect(scripts).toEqual([{ id: 3, kind: "custom", name: "Spell" }]);
+    expect(viewOf().scale).toBe(1);
+  });
+
+  test("Backspace on a card leaves it be", async () => {
+    const app = await openGrid();
+    await press(titleOf("Start"), 0, [300, 30]);
+    await fireEvent.keyDown(document.body, { key: "Backspace", code: "Backspace" });
+    await settled();
+    screen.getByRole("group", { name: "Start" });
+    expect(app.count("triggerDelete")).toBe(0);
+  });
+
+  test("a function dragged over a section's title lights it", async () => {
+    await openGrid();
+    const actions = screen.getByRole("region", { name: t("triggers.actions") });
+    await drag(screen.getByTitle("Kill Unit"), "dragstart");
+    await drag(actions, "dragover", 5);
+    expect(actions.firstElementChild?.className).toMatch(/\btext-normal\b/);
+  });
+
+  test("a card picked in the tree is brought into view", async () => {
+    await openGrid();
+    await fireEvent.click(await row(/Spell/));
+    await waitFor(() => expect(viewOf()).toEqual({ x: -150, y: -20, scale: 1 }));
+  });
+
+  test("a category's grid comes back as it was left", async () => {
+    await openGrid();
+    await press(emptyGrid(), 0, [600, 500], [650, 530]);
+    await fireEvent.click(await row(/Old/));
+    await waitFor(() => expect(viewOf()).toEqual({ x: 20, y: 20, scale: 1 }));
+    await fireEvent.click(await row(/Setup/));
+    await waitFor(() => expect(viewOf()).toEqual({ x: 280, y: 50, scale: 1 }));
   });
 });
 

@@ -193,6 +193,16 @@ describe("the header", () => {
     await screen.findByRole("dialog", { name: t("about.title") });
   });
 
+  test("About names Svelte Flow, whose badge the trigger canvas leaves out", async () => {
+    await openApp();
+    await clickHeader(t("header.menu"));
+    await fireEvent.click(
+      await screen.findByRole("menuitem", { name: new RegExp(t("header.about")) }),
+    );
+    const about = await screen.findByRole("dialog", { name: t("about.title") });
+    within(about).getByText("Svelte Flow");
+  });
+
   test("the menu opens on its button as one shape, and a second click closes it", async () => {
     await openApp();
     const button = screen.getByRole("button", { name: t("header.menu") });

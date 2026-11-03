@@ -213,16 +213,24 @@ triggers are saved, the script is left as it is, and the save says so.
 A function's place in a trigger is a path of steps split by `/`: a number is a function of the trigger, `cN` a function
 inside the one before it, `pN` a parameter, `i` an array's index (`3/c1/p2/p0`).
 
-A category shows as a grid of cards (`TriggerCanvas.svelte`), which pans and zooms with a CSS transform. A trigger is the
-outer card (`TriggerCard.svelte`) and its events, conditions and actions are cards inside it (`FunctionCard.svelte`), with
-World Editor's sentence and a chip for each parameter. A card's place and fold are in `war3map.triggerlayout.json` in the
-map, read and written by `TriggerDocument.Layout.cs` and named in `war3map.imp`, as World Editor's save drops a file no
-import names (it shows in its Import Manager). The first save of a layout adds that entry. A card with no place stands
-in columns (`canvas.ts`), counted when the category first shows; moving one card keeps the places of all of them, so
-nothing else jumps. There is one selection, as in the object editor, and `zone` says where the user is, the side panel
-or the grid: the selection shows strong there and faintly on the other side, and F2 and Delete act there (`actedOn`). An
-edit to a function asks again for that card only, the rest for the whole grid. On the largest
-category of the install's maps (1520 functions) it pans at a median of 6 ms a frame, with every card drawn.
+A category shows as a grid of cards (`TriggerCanvas.svelte`) on Svelte Flow (`@xyflow/svelte`), which pans, zooms,
+snaps and moves the cards. Each card is a node (`CardNode.svelte`) that reads the rest from the grid (`setGrid` in
+`cards.ts`), and moves by its title bar (`data-grip`; what is marked `nodrag` there stays a button or a box). Two things
+stay the grid's own: Svelte Flow pans on the right button but then opens no menu, so a right click that did not move
+opens the grid's menu here; and in 1.7.0 a view set from outside never reaches its zoom, so the view moves only through
+`setViewport`.
+
+A trigger is the outer card (`TriggerCard.svelte`) and its events, conditions and actions are cards inside it
+(`FunctionCard.svelte`), with World Editor's sentence and a chip for each parameter. A card's place and fold are in
+`war3map.triggerlayout.json` in the map, read and written by `TriggerDocument.Layout.cs` and named in `war3map.imp`, as
+World Editor's save drops a file no import names (it shows in its Import Manager). The first save of a layout adds that
+entry. A card with no place stands in columns (`canvas.ts`), counted when the category first shows; moving one card
+keeps the places of all of them, so nothing else jumps. There is one selection, as in the object editor, and `zone`
+says where the user is, the side panel or the grid: the selection shows strong there and faintly on the other side, and
+F2 and Delete act there (`actedOn`). An edit to a function asks again for that card only, the rest for the whole grid.
+On the largest category of the install's maps (BlizzardTD's Initialization, 1520 functions) a step of a pan takes 9 to
+15 ms of the page's main thread with every card drawn, nearly all of it the browser painting; the canvas's own script
+takes under 1 ms, as it did before Svelte Flow, measured the same way.
 
 A script shows in `ScriptBox.svelte`, a CodeMirror 6 editor. Lua and C# are CodeMirror's own modes, and JASS is a stream
 parser in `jass.ts`, as CodeMirror has none. `scriptLanguages.ts` holds the languages and the colours. The map's language

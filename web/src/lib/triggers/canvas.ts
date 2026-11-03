@@ -1,4 +1,4 @@
-/** A category's grid: where its cards go, and how the view pans and zooms over them. */
+/** A category's grid: where its cards go, and where the view goes over them. Svelte Flow pans, zooms and drags. */
 
 /** The width of a card on the grid. */
 export const cardWidth = 340;
@@ -10,27 +10,25 @@ const titleHeight = 28;
 const pitch = cardWidth + grid * 2;
 const cardGap = grid;
 const maxColumns = 16;
-const minScale = 0.1;
-const maxScale = 1.5;
+
+/** How far the view zooms out and in. */
+export const minZoom = 0.1;
+export const maxZoom = 1.5;
 
 /** The smallest a category opens at: one long trigger should not shrink the rest to slivers. */
-export const openScale = 1 / 3;
+export const openZoom = 1 / 3;
 
 /** Below this a card's text cannot be read, and it shows its name large instead. */
-export const farScale = 0.45;
+export const farZoom = 0.45;
 
-/** What the view shows: the grid's origin on screen, and its scale. */
-export type View = { x: number; y: number; scale: number };
+/** What the view shows: the grid's origin on screen, and its zoom, as Svelte Flow's viewport. */
+export type View = { x: number; y: number; zoom: number };
 
 /** A card on the grid. */
 export type Box = { id: number; x: number; y: number; width: number; height: number };
 
 /** A card to place: where it was put, if it ever was, and how tall it is drawn. */
 export type CardSize = { id: number; place: { x: number; y: number } | null; height: number };
-
-export function snapped(value: number): number {
-  return Math.round(value / grid) * grid;
-}
 
 /** How many columns cards of these heights stand in to fill a screen of this width over height. */
 export function columnsFor(heights: number[], aspect: number): number {
@@ -75,41 +73,34 @@ export function placesToSave(
   return boxes.map(({ id, x, y }) => (id === moved.id ? moved : { id, x, y }));
 }
 
-/** The view zoomed by `factor`, the point under `(px, py)` staying there. */
-export function zoomedAt(view: View, px: number, py: number, factor: number): View {
-  const scale = Math.max(minScale, Math.min(maxScale, view.scale * factor));
-  const kept = scale / view.scale;
-  return { x: px - (px - view.x) * kept, y: py - (py - view.y) * kept, scale };
-}
-
 /** The view that shows every card; never larger than life, nor smaller than `least`. */
-export function fitted(boxes: Box[], width: number, height: number, least = minScale): View {
-  if (boxes.length === 0) return { x: grid, y: grid, scale: 1 };
+export function fitted(boxes: Box[], width: number, height: number, least = minZoom): View {
+  if (boxes.length === 0) return { x: grid, y: grid, zoom: 1 };
   const left = Math.min(...boxes.map((box) => box.x));
   const top = Math.min(...boxes.map((box) => box.y));
   const right = Math.max(...boxes.map((box) => box.x + box.width));
   const bottom = Math.max(...boxes.map((box) => box.y + box.height));
   const margin = grid;
-  const scale = Math.max(
+  const zoom = Math.max(
     least,
     Math.min(1, (width - margin * 2) / (right - left), (height - margin * 2) / (bottom - top)),
   );
-  return { x: margin - left * scale, y: margin - top * scale, scale };
+  return { x: margin - left * zoom, y: margin - top * zoom, zoom };
 }
 
 /** True when a card's title bar is wholly on screen. */
 export function titleInView(box: Box, view: View, width: number, height: number): boolean {
-  const left = view.x + box.x * view.scale;
-  const top = view.y + box.y * view.scale;
+  const left = view.x + box.x * view.zoom;
+  const top = view.y + box.y * view.zoom;
   return (
     left >= 0 &&
-    left + box.width * view.scale <= width &&
+    left + box.width * view.zoom <= width &&
     top >= 0 &&
-    top + titleHeight * view.scale <= height
+    top + titleHeight * view.zoom <= height
   );
 }
 
 /** The view that brings a card to the top middle of the screen. */
-export function focused(box: Box, width: number, _height: number, scale: number): View {
-  return { x: width / 2 - (box.x + box.width / 2) * scale, y: grid - box.y * scale, scale };
+export function focused(box: Box, width: number, _height: number, zoom: number): View {
+  return { x: width / 2 - (box.x + box.width / 2) * zoom, y: grid - box.y * zoom, zoom };
 }

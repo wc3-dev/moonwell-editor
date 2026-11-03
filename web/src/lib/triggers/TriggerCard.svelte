@@ -2,7 +2,8 @@
 /**
  * One card of a category's grid (Sven, 2026-10-31). A trigger is the outer card: its events, conditions and actions are
  * cards inside it and are never loose. Comments, variables and custom scripts are cards too, and a category inside this
- * one is a small card that opens with a double click. The grid moves a card by its title bar, marked `data-grip`.
+ * one is a small card that opens with a double click. The grid moves a card by its title bar, marked `data-grip`; what is
+ * marked `nodrag` on it stays a button or a box.
  */
 import Braces from "@lucide/svelte/icons/braces";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -152,7 +153,7 @@ function lines(text: string): number {
     {#if card.kind !== "category"}
       <button
         type="button"
-        class="shrink-0 text-white/70 hover:text-white"
+        class="nodrag shrink-0 text-white/70 hover:text-white"
         aria-label={folded ? t("triggers.unfold") : t("triggers.fold")}
         title={folded ? t("triggers.unfold") : t("triggers.fold")}
         aria-expanded={!folded}
@@ -164,7 +165,7 @@ function lines(text: string): number {
     <Icon size={13} class="shrink-0" />
     {#if renaming}
       <input
-        class="min-w-0 flex-1 rounded-[3px] border border-accent bg-deep px-1 py-0 font-medium text-normal outline-none"
+        class="nodrag min-w-0 flex-1 rounded-[3px] border border-accent bg-deep px-1 py-0 font-medium text-normal outline-none"
         value={card.name}
         aria-label={t("triggers.name")}
         spellcheck="false"
@@ -182,7 +183,7 @@ function lines(text: string): number {
     {#if trigger && (card.kind === "trigger" || card.kind === "custom" || card.kind === "script")}
       <button
         type="button"
-        class="ml-auto shrink-0 rounded-[4px] p-0.5 hover:bg-white/15 {trigger.enabled ? 'text-white' : 'text-white/40'}"
+        class="nodrag ml-auto shrink-0 rounded-[4px] p-0.5 hover:bg-white/15 {trigger.enabled ? 'text-white' : 'text-white/40'}"
         title={t("triggers.enabled")}
         aria-label={t("triggers.enabled")}
         aria-pressed={trigger.enabled}
@@ -195,7 +196,7 @@ function lines(text: string): number {
     {#if trigger && (card.kind === "trigger" || card.kind === "custom")}
       <button
         type="button"
-        class="shrink-0 rounded-[4px] p-0.5 hover:bg-white/15 {trigger.initiallyOn ? 'text-white' : 'text-white/40'}"
+        class="nodrag shrink-0 rounded-[4px] p-0.5 hover:bg-white/15 {trigger.initiallyOn ? 'text-white' : 'text-white/40'}"
         title={t("triggers.initiallyOn")}
         aria-label={t("triggers.initiallyOn")}
         aria-pressed={trigger.initiallyOn}
@@ -208,7 +209,7 @@ function lines(text: string): number {
     {#if card.kind === "custom" || card.kind === "script"}
       <button
         type="button"
-        class="shrink-0 rounded-[4px] p-0.5 text-white hover:bg-white/15"
+        class="nodrag shrink-0 rounded-[4px] p-0.5 text-white hover:bg-white/15"
         title={t("triggers.openInScriptEditor")}
         aria-label={t("triggers.openInScriptEditor")}
         onclick={() => actions.open(card.id)}

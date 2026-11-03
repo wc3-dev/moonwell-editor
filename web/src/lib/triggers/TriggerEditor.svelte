@@ -4,6 +4,7 @@
  * cards at the right. A selected trigger shows on its category's grid. Parameters that name a thing on the map are
  * picked in the map view.
  */
+import { SvelteFlowProvider } from "@xyflow/svelte";
 import { onMount, untrack } from "svelte";
 import { isScript, type OpenScript } from "../scripts/openScripts.ts";
 import { t } from "../text.ts";
@@ -99,25 +100,27 @@ onMount(() => {
         <p class="m-0 bg-panel px-3 py-1 text-warning">{state.tree.problem}</p>
       {/if}
       <div class="min-h-0 flex-1">
-        <TriggerCanvas
-          parent={state.shown.parent}
-          cards={state.shown.cards}
-          catalog={state.catalog}
-          {mode}
-          language={state.tree.language}
-          readOnly={state.readOnly}
-          selected={state.selected}
-          active={state.zone === "grid"}
-          renaming={state.renaming?.where === "grid" ? state.renaming.id : null}
-          flyTo={state.flyTo}
-          commenting={state.commenting}
-          dropKey={drag.functionDrop?.key ?? null}
-          actions={cardActions}
-          onmoved={state.moved}
-          onfold={state.folded}
-          onmenu={(x, y) => gridMenu(state, x, y)}
-          onempty={state.emptyClicked}
-        />
+        <SvelteFlowProvider>
+          <TriggerCanvas
+            parent={state.shown.parent}
+            cards={state.shown.cards}
+            catalog={state.catalog}
+            {mode}
+            language={state.tree.language}
+            readOnly={state.readOnly}
+            selected={state.selected}
+            active={state.zone === "grid"}
+            renaming={state.renaming?.where === "grid" ? state.renaming.id : null}
+            flyTo={state.flyTo}
+            commenting={state.commenting}
+            dropKey={drag.functionDrop?.key ?? null}
+            actions={cardActions}
+            onmoved={state.moved}
+            onfold={state.folded}
+            onmenu={(x, y) => gridMenu(state, x, y)}
+            onempty={state.emptyClicked}
+          />
+        </SvelteFlowProvider>
       </div>
     </div>
   {:else if state.item?.kind === "root"}
