@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <!-- Sven's War3Net fork: its trigger renderer writes the script's trigger functions. -->
-    <PackageReference Include="Moonwell.War3Net.Build" Version="6.1.2-moonwell.4" />
+    <PackageReference Include="Moonwell.War3Net.Build" Version="6.1.2-moonwell.5" />
   </ItemGroup>
 
   <ItemGroup>
