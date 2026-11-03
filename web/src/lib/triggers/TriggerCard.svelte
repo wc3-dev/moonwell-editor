@@ -93,8 +93,9 @@ function lines(text: string): number {
     ondrop={actions.dropFunction}
   >
     <div
-      class="flex items-center px-0.5 pb-[3px] text-[11px] text-muted"
-      class:text-normal={dropKey === `${card.id}:section:${kind}`}
+      class="flex items-center px-0.5 pb-[3px] text-[11px] {dropKey === `${card.id}:section:${kind}`
+        ? 'text-normal'
+        : 'text-muted'}"
     >
       {title}
       {#if !readOnly}
@@ -120,7 +121,7 @@ function lines(text: string): number {
 {/snippet}
 
 <div
-  class="rounded-[8px] border border-black bg-panel text-xs text-text {selected
+  class="rounded-[8px] border border-black bg-panel text-xs text-soft {selected
     ? active
       ? 'outline-2 outline-offset-1 outline-[#f0a020]'
       : 'outline-1 outline-offset-1 outline-[#f0a020]/50'
