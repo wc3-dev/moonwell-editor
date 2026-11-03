@@ -190,6 +190,17 @@ describe("tabs", () => {
     await waitFor(() => expect(fake.views[0]?.focused).toBeGreaterThan(before));
   });
 
+  test("the arrow keys show the tab beside", async () => {
+    const app = await openWithTerminal();
+    await fireEvent.click(screen.getByRole("button", { name: t("terminal.new") }));
+    await waitFor(() => expect(app.count("terminalStart")).toBe(2));
+    await waitFor(() => expect(tabs()).toHaveLength(2));
+    const second = tabs()[1] as HTMLElement;
+    second.focus();
+    await fireEvent.keyDown(second, { key: "ArrowLeft" });
+    await waitFor(() => expect(tabs()[0]?.getAttribute("aria-selected")).toBe("true"));
+  });
+
   test("closing a tab ends its shell and shows the one beside it", async () => {
     const app = await openWithTerminal();
     await fireEvent.click(screen.getByRole("button", { name: t("terminal.new") }));

@@ -168,3 +168,27 @@ describe("the user's own colours", () => {
     ).toBeNull();
   });
 });
+
+describe("the inserted value's form", () => {
+  test("the arrow keys move the choice", async () => {
+    const withHitPoints = unit(footmanEntry, {
+      fields: [...view.fields, field({ id: "uhpm", label: "Hit Points", value: "420" })],
+    });
+    render(TooltipEditor, { view: withHitPoints, onfields: vi.fn(), onclose });
+    await fireEvent.click(screen.getByRole("button", { name: t("tooltipEditor.insert") }));
+    const forms = within(
+      await screen.findByRole("radiogroup", { name: t("tooltipEditor.form.label") }),
+    );
+    const asItIs = forms.getByRole("radio", { name: t("tooltipEditor.form.auto") });
+    expect(asItIs.getAttribute("aria-checked")).toBe("true");
+    asItIs.focus();
+    await fireEvent.keyDown(asItIs, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(
+        forms
+          .getByRole("radio", { name: t("tooltipEditor.form.decimal") })
+          .getAttribute("aria-checked"),
+      ).toBe("true"),
+    );
+  });
+});
