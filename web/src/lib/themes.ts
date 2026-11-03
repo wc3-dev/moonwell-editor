@@ -1,94 +1,106 @@
 /**
- * The page's colour themes (Sven, 2026-11-01): VS Code's own themes (`codeThemes.ts`), each setting the colour tokens
- * app.css defines on `:root` (Kanagawa Dragon there, and first here: the default, Sven, 2026-10-29). A light theme makes
- * the whole page light. The choice is remembered in the window's storage.
+ * The theme on the page (Sven, 2026-11-02): the editor's own theme files (`themes/`), each colour a CSS variable named
+ * for its key, as app.css starts them in Kanagawa Dragon, the default (Sven, 2026-10-29). A light theme makes the whole
+ * page light. The terminal takes its colours from the theme too. The choice is `appearance.theme` in `settings.json`. The
+ * user's own themes (`themes/user.svelte.ts`) are here too, to be chosen from with the shipped ones.
  */
-import { codeThemes, codeThemeWith } from "./codeThemes.ts";
-import { interfaceColors } from "./themeColors.ts";
+import { codeThemeWith } from "./codeThemes.ts";
+import { type ColorKey, colorKeys, type Theme } from "./themes/format.ts";
+import { defaultTheme } from "./themes/shipped.ts";
 
-/** The colour tokens every theme sets, as app.css names them without the `--`. */
-export const tokens = [
-  "bg",
-  "surface",
-  "raised",
-  "hover",
-  "border",
-  "fg",
-  "text",
-  "muted",
-  "faint",
-  "accent",
-  "accent-hi",
-  "accent-lo",
-  "changed",
-  "warn",
-  "warn-lo",
-  "cyan",
-  "purple",
-  "kind-unit",
-  "kind-item",
-  "kind-destructable",
-  "kind-doodad",
-  "kind-ability",
-  "kind-buff",
-  "kind-upgrade",
-] as const;
+export {
+  allThemes,
+  copyTheme,
+  loadUserThemes,
+  type ThemeFile,
+  themeChanged,
+  themeFiles,
+  watchThemes,
+} from "./themes/user.svelte.ts";
+export type { Theme };
+export { defaultTheme };
 
-export type Token = (typeof tokens)[number];
-
-export type Theme = {
-  id: string;
-  name: string;
-  type: "dark" | "light";
-  colors: Record<Token, string>;
-};
-
-/** The theme the page starts with when none is chosen. */
-export const defaultTheme = "kanagawa-dragon";
-
-const fromFiles: Theme[] = codeThemes.map(({ id, name, type, ...rest }) => ({
-  id,
-  name,
-  type,
-  colors: interfaceColors({ id, name, type, ...rest }),
-}));
-
-/** Every theme: the default, then the others in the code themes' order, dark ones first. */
-export const themes: Theme[] = [
-  ...fromFiles.filter((each) => each.id === defaultTheme),
-  ...fromFiles.filter((each) => each.id !== defaultTheme),
-];
-
-const storageKey = "moonwell-editor.theme";
-
-/** The theme with this id (or the id of a palette from before, which VS Code's own took over), or the default one. */
-export function themeOf(id: string | null | undefined): Theme {
-  const wanted = codeThemeWith(id ?? "")?.id;
-  return themes.find((each) => each.id === wanted) ?? (themes[0] as Theme);
+/** The theme with this id (or the id of a palette from before, which VS Code's own took over); undefined for none. */
+export function findTheme(id: string | null | undefined, list: Theme[]): Theme | undefined {
+  const wanted = id ?? "";
+  const byId = (each: string | undefined) => list.find((theme) => theme.id === each);
+  return byId(wanted) ?? byId(codeThemeWith(wanted)?.id);
 }
 
-/** Puts a theme's colours on the page. */
+/** The theme with this id (or the id of a palette from before), or the default one. */
+export function themeOf(id: string | null | undefined, list: Theme[]): Theme {
+  return (
+    findTheme(id, list) ?? list.find((theme) => theme.id === defaultTheme) ?? (list[0] as Theme)
+  );
+}
+
+/** The CSS variable a colour is on the page: `state.warningBackground` is `--state-warning-background`. */
+export function cssName(key: ColorKey): string {
+  return `--${key.replace(".", "-").replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+}
+
+const pageKeys = colorKeys.filter((key) => !key.startsWith("terminal."));
+
+/** A theme's colours as the page's CSS variables, all but the terminal's. */
+export function themeVars(chosen: Theme): Record<string, string> {
+  return Object.fromEntries(pageKeys.map((key) => [cssName(key), chosen.colors[key]]));
+}
+
+/** Puts a theme's colours on the page, all but the terminal's. */
 export function applyTheme(chosen: Theme, root: HTMLElement = document.documentElement): void {
-  for (const token of tokens) root.style.setProperty(`--${token}`, chosen.colors[token]);
+  for (const [name, color] of Object.entries(themeVars(chosen)))
+    root.style.setProperty(name, color);
   root.dataset.theme = chosen.id;
   root.dataset.scheme = chosen.type;
   root.style.colorScheme = chosen.type;
 }
 
-/** The theme chosen last; the default one when none was, or the storage cannot be read. */
-export function savedTheme(): Theme {
-  try {
-    return themeOf(localStorage.getItem(storageKey));
-  } catch {
-    return themeOf(defaultTheme);
-  }
-}
+/** A terminal's colours, by the names xterm.js gives them. */
+export type TerminalColors = {
+  background: string;
+  foreground: string;
+  cursor: string;
+  selectionBackground: string;
+  black: string;
+  red: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+  brightBlack: string;
+  brightRed: string;
+  brightGreen: string;
+  brightYellow: string;
+  brightBlue: string;
+  brightMagenta: string;
+  brightCyan: string;
+  brightWhite: string;
+};
 
-/** Remembers the theme chosen (the page still shows it when the storage cannot be written). */
-export function saveTheme(chosen: Theme): void {
-  try {
-    localStorage.setItem(storageKey, chosen.id);
-  } catch {
-    // Not remembered: the next start shows the default theme.
-  }
+/** A theme's colours for the terminal panel. */
+export function terminalTheme({ colors }: Theme): TerminalColors {
+  return {
+    background: colors["terminal.background"],
+    foreground: colors["terminal.foreground"],
+    cursor: colors["terminal.cursor"],
+    selectionBackground: colors["terminal.selection"],
+    black: colors["terminal.black"],
+    red: colors["terminal.red"],
+    green: colors["terminal.green"],
+    yellow: colors["terminal.yellow"],
+    blue: colors["terminal.blue"],
+    magenta: colors["terminal.magenta"],
+    cyan: colors["terminal.cyan"],
+    white: colors["terminal.white"],
+    brightBlack: colors["terminal.brightBlack"],
+    brightRed: colors["terminal.brightRed"],
+    brightGreen: colors["terminal.brightGreen"],
+    brightYellow: colors["terminal.brightYellow"],
+    brightBlue: colors["terminal.brightBlue"],
+    brightMagenta: colors["terminal.brightMagenta"],
+    brightCyan: colors["terminal.brightCyan"],
+    brightWhite: colors["terminal.brightWhite"],
+  };
 }

@@ -1,0 +1,313 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Moonwell Editor theme",
+  "description": "The colours of an interface theme. Hex colours only: #rgb, #rrggbb or #rrggbbaa; a see-through colour is laid over the panel. A colour left out is worked out from the four required ones.",
+  "type": "object",
+  "required": ["name", "type", "colors"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Where this schema is, for suggestions in the editor you write the file in."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The name Settings shows."
+    },
+    "type": {
+      "enum": ["dark", "light"],
+      "description": "Sets the header's shading, the scroll bars and number boxes, the defaults for colours left out, and the code theme used when none is chosen."
+    },
+    "colors": {
+      "type": "object",
+      "description": "The colours. Four are required; every other one is worked out when left out.",
+      "required": ["background.base", "background.panel", "text.normal", "accent.normal"],
+      "additionalProperties": false,
+      "properties": {
+        "background.base": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Required. The theme's deepest background: the trigger cards' bodies, and text on the accent colour. The gaps and fields are worked out from it."
+        },
+        "background.panel": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Required. The panels, and the window's frame."
+        },
+        "background.gutter": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The gaps between panels, the title bar and the status bar. Left out: background.base, 22% toward black (light: 7%)."
+        },
+        "background.raised": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Rows, headers, cards and buttons inside a panel, and the trigger canvas. Left out: background.panel, 9% toward text.normal."
+        },
+        "background.hover": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Under the pointer. Left out: background.raised."
+        },
+        "background.field": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Text boxes, dropdowns and checkboxes. Left out: background.base, 30% toward black (light: 3%)."
+        },
+        "background.selection": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The selected row or item. Left out: accent.normal 32% into background.panel, lightness at most 0.44 (light: 28%, at least 0.84)."
+        },
+        "background.button": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "A dialog's main button. Left out: accent.normal 40% into background.raised, lightness at most 0.44 (light: 34%, at least 0.8)."
+        },
+        "border.normal": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Edges of panels, boxes and menus, and the window's frame. Left out: background.panel, 18% toward text.normal."
+        },
+        "border.faint": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Thin lines between rows in grids. Left out: border.normal at 70%."
+        },
+        "text.normal": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Required. Names, values and most text; text under the pointer."
+        },
+        "text.soft": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The page's default: labels, descriptions and running text. Left out: text.normal, 10% toward background.panel, moved toward text.normal until it reads 4.5 on the panel."
+        },
+        "text.muted": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Secondary text; the edge of a box under the pointer. Left out: text.normal, 18% toward background.panel, moved until it reads 3."
+        },
+        "text.faint": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Hints, placeholders and what is turned off. Left out: text.normal, 55% toward background.panel, moved until it reads 2."
+        },
+        "accent.normal": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Required. Focus rings, and the edge of the focused or hovered box."
+        },
+        "accent.text": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Accent text: the selected label, links and notices. Left out: accent.normal, moved toward text.normal until it reads 3 on the panel."
+        },
+        "accent.background": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The tint behind active chips and picked items. Left out: background.panel, 18% toward accent.normal."
+        },
+        "state.changed": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Values changed from the game's. Left out: VS Code's warning yellow (#cca700, light #bf8803)."
+        },
+        "state.warning": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Errors, warnings and the delete buttons. Left out: VS Code's error red (#f14c4c, light #e51400)."
+        },
+        "state.warningBackground": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Rows and buttons in a warning state. Left out: background.panel, 18% toward state.warning."
+        },
+        "kind.unit": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of units. Left out: VS Code's default terminal blue."
+        },
+        "kind.item": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of items. Left out: halfway between kind.upgrade and kind.doodad, the orange between red and yellow."
+        },
+        "kind.destructable": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of destructables. Left out: VS Code's default terminal green."
+        },
+        "kind.doodad": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of doodads. Left out: VS Code's default terminal yellow."
+        },
+        "kind.ability": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of abilities. Left out: VS Code's default terminal cyan."
+        },
+        "kind.buff": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of buffs. Left out: VS Code's default terminal magenta."
+        },
+        "kind.upgrade": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The icon and name of upgrades. Left out: VS Code's default terminal red."
+        },
+        "terminal.background": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The terminal's background. Left out: background.panel."
+        },
+        "terminal.foreground": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The terminal's text. Left out: text.normal."
+        },
+        "terminal.cursor": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The terminal's cursor. Left out: text.normal."
+        },
+        "terminal.selection": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "The terminal's selected text. Left out: background.selection."
+        },
+        "terminal.black": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: background.base."
+        },
+        "terminal.red": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: state.warning."
+        },
+        "terminal.green": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: kind.destructable."
+        },
+        "terminal.yellow": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: state.changed."
+        },
+        "terminal.blue": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: kind.unit."
+        },
+        "terminal.magenta": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: kind.buff."
+        },
+        "terminal.cyan": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: kind.ability."
+        },
+        "terminal.white": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: text.soft."
+        },
+        "terminal.brightBlack": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: text.faint."
+        },
+        "terminal.brightRed": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.red, 20% toward text.normal."
+        },
+        "terminal.brightGreen": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.green, 20% toward text.normal."
+        },
+        "terminal.brightYellow": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.yellow, 20% toward text.normal."
+        },
+        "terminal.brightBlue": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.blue, 20% toward text.normal."
+        },
+        "terminal.brightMagenta": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.magenta, 20% toward text.normal."
+        },
+        "terminal.brightCyan": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: terminal.cyan, 20% toward text.normal."
+        },
+        "terminal.brightWhite": {
+          "type": "string",
+          "format": "color-hex",
+          "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Left out: text.normal."
+        }
+      }
+    }
+  }
+}

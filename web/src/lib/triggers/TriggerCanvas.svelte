@@ -318,7 +318,7 @@ const minor = $derived(grid * view.scale);
   bind:this={element}
   bind:clientWidth={width}
   bind:clientHeight={height}
-  class="canvas-look relative h-full min-h-0 overflow-hidden bg-raised select-none [--line-major:color-mix(in_srgb,var(--bg)_70%,transparent)] [--line-minor:color-mix(in_srgb,var(--border)_55%,transparent)]"
+  class="canvas-look relative h-full min-h-0 overflow-hidden bg-raised select-none [--line-major:color-mix(in_srgb,var(--background-base)_70%,transparent)] [--line-minor:color-mix(in_srgb,var(--border-normal)_55%,transparent)]"
   style:background-image={lines}
   style:background-size="{major}px {major}px, {major}px {major}px, {minor}px {minor}px, {minor}px {minor}px"
   style:background-position="{view.x}px {view.y}px"
@@ -390,10 +390,10 @@ const minor = $derived(grid * view.scale);
   {/if}
 
   <div
-    class="absolute top-2 right-2 flex items-center gap-2 rounded-md border border-black bg-surface px-2 py-0.5 text-xs text-muted"
+    class="absolute top-2 right-2 flex items-center gap-2 rounded-md border border-black bg-panel px-2 py-0.5 text-xs text-muted"
     data-zoom
   >
     <span title={t("triggers.zoom")}>{Math.round(view.scale * 100)}%</span>
-    <button type="button" class="text-fg hover:text-accent-hi" onclick={fit}>{t("triggers.fit")}</button>
+    <button type="button" class="text-normal hover:text-accent-text" onclick={fit}>{t("triggers.fit")}</button>
   </div>
 </div>

@@ -2,11 +2,11 @@
 const shape = "min-w-[72px] rounded-ui border px-4 py-0.5";
 
 const looks = {
-  primary: `${shape} border-transparent bg-primary text-fg hover:brightness-110 disabled:opacity-50`,
-  plain: `${shape} border-transparent bg-raised text-fg hover:border-accent`,
-  danger: `${shape} border-warn bg-warn-lo text-fg hover:brightness-125`,
-  outline: `${shape} border-transparent bg-raised text-fg hover:border-accent`,
-  accent: `${shape} border-transparent bg-primary text-fg hover:brightness-110 disabled:opacity-50`,
+  primary: `${shape} border-transparent bg-button text-normal hover:brightness-110 disabled:opacity-50`,
+  plain: `${shape} border-transparent bg-raised text-normal hover:border-accent`,
+  danger: `${shape} border-warning bg-warning-background text-normal hover:brightness-125`,
+  outline: `${shape} border-transparent bg-raised text-normal hover:border-accent`,
+  accent: `${shape} border-transparent bg-button text-normal hover:brightness-110 disabled:opacity-50`,
 };
 </script>
 

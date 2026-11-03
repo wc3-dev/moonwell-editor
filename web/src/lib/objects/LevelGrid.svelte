@@ -76,15 +76,15 @@ async function reset(field: FieldView): Promise<void> {
 }
 </script>
 
-<div class="grid grid-cols-[8px_1fr] border-b border-hairline">
+<div class="grid grid-cols-[8px_1fr] border-b border-line-faint">
   <span></span>
   <div class="overflow-x-auto py-1 pr-2 pb-2">
     <table class="border-collapse">
       <thead>
         <tr>
-          <th class="border border-hairline px-2 py-0.5"></th>
+          <th class="border border-line-faint px-2 py-0.5"></th>
           {#each columns as level (level)}
-            <th class="border border-hairline px-2 py-0.5 text-right font-mono text-mono font-normal text-muted">
+            <th class="border border-line-faint px-2 py-0.5 text-right font-mono text-mono font-normal text-muted">
               {level}
             </th>
           {/each}
@@ -99,7 +99,7 @@ async function reset(field: FieldView): Promise<void> {
             title={off ? t("details.inFavourites") : undefined}
           >
             <th
-              class="border border-hairline px-2 py-0.5 text-left font-normal whitespace-nowrap"
+              class="border border-line-faint px-2 py-0.5 text-left font-normal whitespace-nowrap"
               scope="row"
               oncontextmenu={(event) => menuOf(row.field, event)}
             >
@@ -115,8 +115,8 @@ async function reset(field: FieldView): Promise<void> {
               {#if editable && !off}
                 <td
                   class="group border p-0 align-middle {field.warning || errors[key]
-                    ? 'border-warn'
-                    : 'border-hairline'} {selected === key ? 'bg-select' : ''}"
+                    ? 'border-warning'
+                    : 'border-line-faint'} {selected === key ? 'bg-selection' : ''}"
                   title={field.warning ?? undefined}
                   onfocusin={() => onselect(field)}
                   onpointerdown={() => onselect(field)}
@@ -144,7 +144,7 @@ async function reset(field: FieldView): Promise<void> {
                     {#if field.changed}
                       <button
                         type="button"
-                        class="px-1 text-changed opacity-40 group-hover:opacity-100 hover:text-fg focus:opacity-100"
+                        class="px-1 text-changed opacity-40 group-hover:opacity-100 hover:text-normal focus:opacity-100"
                         title={t("levelGrid.resetTitle", {
                           level: field.level,
                           value: standardOf(field) || t("field.empty"),
@@ -157,7 +157,7 @@ async function reset(field: FieldView): Promise<void> {
                     {/if}
                   </span>
                   {#if errors[key]}
-                    <span class="block max-w-56 px-1.5 pb-0.5 text-small whitespace-normal text-warn" role="alert">
+                    <span class="block max-w-56 px-1.5 pb-0.5 text-small whitespace-normal text-warning" role="alert">
                       {errors[key]}
                     </span>
                   {/if}
@@ -167,9 +167,9 @@ async function reset(field: FieldView): Promise<void> {
                   class="max-w-56 truncate border px-2 py-0.5 font-mono text-mono {field.type ===
                     'int' || field.type === 'float'
                     ? 'text-right'
-                    : 'text-left'} {field.changed ? 'text-changed' : 'text-fg'} {field.warning
-                    ? 'border-warn bg-warn-lo'
-                    : 'border-hairline'}"
+                    : 'text-left'} {field.changed ? 'text-changed' : 'text-normal'} {field.warning
+                    ? 'border-warning bg-warning-background'
+                    : 'border-line-faint'}"
                   title={cellTitle(field, shown)}
                   oncontextmenu={(event) => menuOf(field, event)}
                 >

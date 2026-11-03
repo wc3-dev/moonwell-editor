@@ -126,7 +126,7 @@ async function send(script: OpenScript, text: string): Promise<void> {
 </script>
 
 <div class="grid h-full min-h-0 grid-cols-[260px_1fr] gap-1 max-[1100px]:grid-cols-[210px_1fr]" data-testid="script-editor">
-  <aside class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-surface" aria-label={t("scripts.list")}>
+  <aside class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-panel" aria-label={t("scripts.list")}>
     <div class="flex items-center justify-between gap-2 px-2 py-1">
       <span class="text-muted">{t("scripts.list")}</span>
       {#if tree}
@@ -139,8 +139,8 @@ async function send(script: OpenScript, text: string): Promise<void> {
       {#each scripts as script (script.id)}
         <div
           class="group flex h-[22px] items-center gap-1 pr-1 pl-2 {script.id === active
-            ? 'bg-select text-fg [&_*]:text-inherit'
-            : 'text-body hover:bg-hover'}"
+            ? 'bg-selection text-normal [&_*]:text-inherit'
+            : 'text-soft hover:bg-hover'}"
         >
           <button
             type="button"
@@ -153,7 +153,7 @@ async function send(script: OpenScript, text: string): Promise<void> {
           </button>
           <button
             type="button"
-            class="shrink-0 rounded-ui p-0.5 text-muted hover:bg-hover hover:text-fg focus:opacity-100 {script.id === active
+            class="shrink-0 rounded-ui p-0.5 text-muted hover:bg-hover hover:text-normal focus:opacity-100 {script.id === active
               ? ''
               : 'opacity-0 group-hover:opacity-100'}"
             title={t("scripts.close", { name: script.name })}
@@ -169,11 +169,11 @@ async function send(script: OpenScript, text: string): Promise<void> {
 
   <div class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-ui bg-[var(--code-bg)]">
     {#if tree?.problem}
-      <p class="m-0 bg-surface px-3 py-1 text-warn">{tree.problem}</p>
+      <p class="m-0 bg-panel px-3 py-1 text-warning">{tree.problem}</p>
     {/if}
     <div bind:this={host} class="min-h-0 flex-1 {scripts.length > 0 ? '' : 'hidden'}"></div>
     {#if scripts.length === 0}
-      <div class="grid flex-1 place-items-center bg-surface p-6">
+      <div class="grid flex-1 place-items-center bg-panel p-6">
         <p class="m-0 max-w-md text-center text-muted">{t("scripts.empty")}</p>
       </div>
     {/if}

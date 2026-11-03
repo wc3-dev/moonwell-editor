@@ -89,7 +89,7 @@ function jump(at: number): void {
 
 // Like Windows' own caption buttons, they take no keyboard focus; every one has the same hover.
 const buttonClass =
-  "flex items-center justify-center text-muted outline-none hover:bg-hover hover:text-fg disabled:text-faint disabled:opacity-50 disabled:hover:bg-transparent [app-region:no-drag]";
+  "flex items-center justify-center text-muted outline-none hover:bg-hover hover:text-normal disabled:text-faint disabled:opacity-50 disabled:hover:bg-transparent [app-region:no-drag]";
 </script>
 
 {#snippet arrow(which: "back" | "forward")}
@@ -127,7 +127,7 @@ const buttonClass =
   <!-- Every piece on one centre line (Sven, 2026-10-27): one line height, tags as boxes of a fixed height. -->
   <span class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2 leading-none">
     {#if map}
-      <b class="shrink-0 font-semibold text-fg">{title}</b>
+      <b class="shrink-0 font-semibold text-normal">{title}</b>
       <span class="flex h-4 shrink-0 items-center rounded-ui border border-line px-1 pt-px text-small text-muted">
         {map.archive ? t("titleBar.archive") : t("titleBar.folder")}
       </span>
@@ -198,7 +198,7 @@ const buttonClass =
             class="flex items-center gap-3 rounded-ui px-2 py-1 text-left hover:bg-hover"
             onclick={() => jump(visit.at)}
           >
-            <span class="min-w-0 flex-1 truncate text-fg">{visit.name}</span>
+            <span class="min-w-0 flex-1 truncate text-normal">{visit.name}</span>
             <span class="font-mono text-mono text-faint">{visit.id}</span>
           </button>
         {/each}

@@ -178,8 +178,8 @@ function findObjects(): void {
         <button
           type="button"
           class="rounded-ui px-2 py-1 {way === each.way
-            ? 'bg-accent-lo text-accent-hi'
-            : 'text-muted hover:bg-hover hover:text-fg'}"
+            ? 'bg-accent-background text-accent-text'
+            : 'text-muted hover:bg-hover hover:text-normal'}"
           aria-pressed={way === each.way}
           onclick={() => (chosen = each.way)}
         >
@@ -189,7 +189,7 @@ function findObjects(): void {
       {#if pickKind}
         <button
           type="button"
-          class="ml-auto inline-flex items-center gap-1 rounded-ui px-2 py-1 text-muted hover:bg-hover hover:text-fg"
+          class="ml-auto inline-flex items-center gap-1 rounded-ui px-2 py-1 text-muted hover:bg-hover hover:text-normal"
           onclick={pick}
         >
           <Crosshair size={14} />
@@ -198,24 +198,24 @@ function findObjects(): void {
       {/if}
     </div>
 
-    <p class="m-0 min-h-[20px] text-fg">
+    <p class="m-0 min-h-[20px] text-normal">
       {#if parameter.function}
         {#each parameter.function.sentence as part, index (index)}{#if part.parameter}{@const inner = part.parameter}<button
               type="button"
-              class="rounded-ui underline decoration-dotted underline-offset-2 hover:bg-accent-lo {inner.kind === 'none'
-                ? 'text-warn'
-                : 'text-accent-hi'}"
+              class="rounded-ui underline decoration-dotted underline-offset-2 hover:bg-accent-background {inner.kind === 'none'
+                ? 'text-warning'
+                : 'text-accent-text'}"
               onclick={() => onopen(inner)}>{part.text}</button
             >{:else}{part.text}{/if}{/each}
       {:else if parameter.index}
         {parameter.value}[<button
           type="button"
-          class="rounded-ui text-accent-hi underline decoration-dotted underline-offset-2 hover:bg-accent-lo"
+          class="rounded-ui text-accent-text underline decoration-dotted underline-offset-2 hover:bg-accent-background"
           title={t("triggers.parameter.index")}
           onclick={() => parameter.index && onopen(parameter.index)}>{parameter.index.text}</button
         >]
       {:else if parameter.kind === "none"}
-        <span class="text-warn">{t("triggers.parameter.none")}</span>
+        <span class="text-warning">{t("triggers.parameter.none")}</span>
       {:else}
         {parameter.text}
       {/if}
@@ -223,7 +223,7 @@ function findObjects(): void {
 
     {#if way === "value"}
       <input
-        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
         placeholder={objectKind ? t("triggers.parameter.search") : ""}
         aria-label={t("triggers.parameter.value")}
         bind:value={text}
@@ -241,7 +241,7 @@ function findObjects(): void {
           {#each hits as hit (hit.id)}
             <button
               type="button"
-              class="flex w-full items-baseline gap-2 px-2 py-[3px] text-left text-body hover:bg-hover"
+              class="flex w-full items-baseline gap-2 px-2 py-[3px] text-left text-soft hover:bg-hover"
               onclick={() => set("value", hit.id)}
             >
               {hit.name}<span class="font-mono text-mono text-faint">{hit.id}</span>
@@ -251,7 +251,7 @@ function findObjects(): void {
       {/if}
     {:else if way !== null}
       <input
-        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
         placeholder={t("triggers.parameter.filter")}
         aria-label={t("triggers.parameter.filter")}
         bind:value={filter}
@@ -264,8 +264,8 @@ function findObjects(): void {
               role="option"
               aria-selected={parameter.kind === "preset" && parameter.value === each.key}
               class="block w-full px-2 py-[3px] text-left {parameter.kind === 'preset' && parameter.value === each.key
-                ? 'bg-accent-lo text-fg'
-                : 'text-body hover:bg-hover'}"
+                ? 'bg-accent-background text-normal'
+                : 'text-soft hover:bg-hover'}"
               onclick={() => set("preset", each.key)}
             >
               {each.text}
@@ -280,8 +280,8 @@ function findObjects(): void {
               role="option"
               aria-selected={parameter.kind === "variable" && parameter.value === each.value}
               class="block w-full px-2 py-[3px] text-left {parameter.kind === 'variable' && parameter.value === each.value
-                ? 'bg-accent-lo text-fg'
-                : 'text-body hover:bg-hover'}"
+                ? 'bg-accent-background text-normal'
+                : 'text-soft hover:bg-hover'}"
               onclick={() => set("variable", each.value)}
             >
               {each.text}
@@ -296,8 +296,8 @@ function findObjects(): void {
               role="option"
               aria-selected={parameter.kind === "function" && parameter.value === each.name}
               class="block w-full px-2 py-[3px] text-left {parameter.kind === 'function' && parameter.value === each.name
-                ? 'bg-accent-lo text-fg'
-                : 'text-body hover:bg-hover'}"
+                ? 'bg-accent-background text-normal'
+                : 'text-soft hover:bg-hover'}"
               onclick={() => set("function", each.name)}
             >
               {each.title}
@@ -308,6 +308,6 @@ function findObjects(): void {
         {/if}
       </div>
     {/if}
-    {#if problem}<p class="m-0 text-warn">{problem}</p>{/if}
+    {#if problem}<p class="m-0 text-warning">{problem}</p>{/if}
   </div>
 </Dialog>

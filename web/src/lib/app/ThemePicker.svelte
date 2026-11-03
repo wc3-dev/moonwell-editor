@@ -13,17 +13,13 @@ type Props = {
 
 let { label, options, selected, swatch, onpick }: Props = $props();
 
-// By place in the list: a Select's value cannot be empty, and the code theme's first choice has no id.
-const choices = $derived(
-  options.map((each, index) => ({ value: String(index), label: each.name })),
-);
-const value = $derived(String(options.findIndex((each) => each.id === selected.id)));
-const themeAt = (index: string): T => options[Number(index)] as T;
+const choices = $derived(options.map((each) => ({ value: each.id, label: each.name })));
+const themeAt = (id: string): T => options.find((each) => each.id === id) as T;
 </script>
 
-{#snippet palette(index: string)}
-  <span class="mr-1 flex shrink-0 overflow-hidden rounded-ui border border-black/30">
-    {#each swatch(themeAt(index)) as color, each (each)}
+{#snippet palette(id: string)}
+  <span class="mr-1 flex shrink-0 overflow-hidden rounded-ui border border-line">
+    {#each swatch(themeAt(id)) as color, each (each)}
       <span class="h-4 w-2.5" style:background={color}></span>
     {/each}
   </span>
@@ -32,12 +28,12 @@ const themeAt = (index: string): T => options[Number(index)] as T;
 <div class="w-72">
   <Select
     options={choices}
-    {value}
+    value={selected.id}
     {label}
-    tone="border-transparent bg-field text-fg hover:border-muted"
+    tone="border-transparent bg-field text-normal hover:border-muted"
     compact
     named
     leading={palette}
-    onpick={(index) => onpick(themeAt(index))}
+    onpick={(id) => onpick(themeAt(id))}
   />
 </div>

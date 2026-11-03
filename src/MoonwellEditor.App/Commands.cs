@@ -111,11 +111,12 @@ public sealed record CellsChanged(int Changed);
 /// </summary>
 public sealed partial class Commands
 {
-    private readonly Settings _settings;
+    private readonly Home _home;
     private readonly Func<string, string?> _askFolder;
     private readonly Func<string, string?> _askArchive;
     private readonly Func<string, Data> _load;
     private readonly Func<string?> _findGame;
+    private readonly Action<string> _open;
     private readonly object _lock = new();
 
     // The map from the command line, until the page asks for it.
@@ -139,7 +140,7 @@ public sealed partial class Commands
     private TerrainCopy? _terrain;
 
     /// <summary>Makes the commands.</summary>
-    /// <param name="settings">Where the Warcraft III folder chosen is remembered.</param>
+    /// <param name="home">The .moonwell folder: where the Warcraft III folder chosen and the recent maps are kept.</param>
     /// <param name="askFolder">
     /// Asks the user for a folder, with the text given for the dialog; gives null when they cancel. It may be called on
     /// any thread.
@@ -161,20 +162,28 @@ public sealed partial class Commands
     /// Finds the Warcraft III install when none is chosen (the app uses <c>GameInstall.Find</c>); null when there is
     /// none. Null for no search.
     /// </param>
+    /// <param name="open">
+    /// Opens a folder or a file with the shell (the <c>openHome</c> command); the app uses <c>Process.Start</c>. It may
+    /// be called on any thread. Null for none: <c>openHome</c> then opens nothing.
+    /// </param>
     public Commands(
-        Settings settings,
+        Home home,
         Func<string, string?> askFolder,
         Func<string, Data> load,
         string? startupMap = null,
         Func<string, string?>? askArchive = null,
-        Func<string?>? findGame = null)
+        Func<string?>? findGame = null,
+        Action<string>? open = null)
     {
         _findGame = findGame ?? (() => null);
-        _settings = settings;
+        _home = home;
+        _open = open ?? (_ => { });
         _askFolder = askFolder;
         _askArchive = askArchive ?? (_ => null);
         _load = load;
         _startupMap = string.IsNullOrEmpty(startupMap) ? null : startupMap;
+        _home.Changed += change => HomeChanged?.Invoke(change);
+        _home.GameFolderChanged += LoadGameFolder;
     }
 
     /// <summary>Raised, on a background thread, when a load ends (well or badly).</summary>
@@ -250,10 +259,10 @@ public sealed partial class Commands
     /// <returns>The background load, which ends when the data is loaded or has failed.</returns>
     public Task StartLoading()
     {
-        var folder = _settings.GameFolder ?? _findGame();
+        var folder = _home.GameFolder ?? _findGame();
         if (!string.IsNullOrEmpty(folder))
         {
-            Begin(folder, false);
+            Begin(folder);
         }
 
         return Loading;
@@ -362,6 +371,9 @@ public sealed partial class Commands
             "uiScale" => UiScale(Number(args, "percent")),
             "assetList" => AssetsOf(Text(args, "kind"), OptionalText(args, "mode") ?? "de"),
             "mapScene" => MapSceneOf(OptionalText(args, "mode") ?? "de"),
+            "writeHome" => WriteHome(Text(args, "file"), Text(args, "text")),
+            "setState" => SetState(Text(args, "key"), ValueOf(args)),
+            "openHome" => OpenHome(OptionalText(args, "file")),
             _ when command.StartsWith("trigger", StringComparison.Ordinal) => RunTrigger(command, args),
             _ when RunsAlongside(command) => RunTerminal(command, args),
             _ => throw new UnknownCommandException(command),
@@ -422,11 +434,11 @@ public sealed partial class Commands
         _session = session;
         try
         {
-            _settings.RememberMap(store.Path);
+            _home.RememberMap(store.Path);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // A settings file that cannot be written only means the map is not in the recent list next time.
+            // A state file that cannot be written only means the map is not in the recent list next time.
         }
 
         return Changed(Info(store, session));
@@ -824,15 +836,16 @@ public sealed partial class Commands
         var folder = _askFolder(Texts.Get("app.choose.game"));
         if (!string.IsNullOrEmpty(folder))
         {
-            Begin(folder, true);
+            Begin(folder);
         }
 
         return State();
     }
 
-    // Loads on a background task. The folder is saved in the settings only once it has loaded, so a wrong choice does
-    // not replace a working one. A newer load makes an older one that is still running count for nothing.
-    private void Begin(string folder, bool save)
+    // Loads on a background task. The folder is not saved here: the page writes it to settings.json once it has loaded,
+    // so a wrong choice does not replace a working one. A newer load makes an older one that is still running count for
+    // nothing.
+    private void Begin(string folder)
     {
         int mine;
         lock (_lock)
@@ -858,12 +871,6 @@ public sealed partial class Commands
 
                     _data = data;
                     _version++;
-                }
-
-                if (save)
-                {
-                    _settings.GameFolder = folder;
-                    _settings.Save();
                 }
             }
             catch (Exception exception)

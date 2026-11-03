@@ -329,7 +329,7 @@ export function collapseAll(collapse: boolean): void {
 <div class="relative flex min-h-0 flex-1 flex-col" style:--label-width="{labelWidth}px" bind:this={root}>
   <div class="shrink-0 px-2 py-[5px]">
     <div class="flex items-start gap-2">
-      <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2 text-title font-semibold text-fg">
+      <h1 class="m-0 flex min-w-0 flex-1 items-baseline gap-2 text-title font-semibold text-normal">
         <span class="truncate">{view.name}</span>
         <span class="font-mono text-mono font-normal text-muted">{view.id}</span>
       </h1>
@@ -337,7 +337,7 @@ export function collapseAll(collapse: boolean): void {
         <div class="flex shrink-0 gap-1" role="group" aria-label={t("details.objectGroup")}>
           <button
             type="button"
-            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-body hover:border-accent hover:text-fg"
+            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-soft hover:border-accent hover:text-normal"
             title={t("details.copyTitle")}
             onclick={oncopy}
           >
@@ -346,7 +346,7 @@ export function collapseAll(collapse: boolean): void {
           </button>
           <button
             type="button"
-            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-body hover:border-warn hover:text-warn"
+            class="flex h-5 items-center gap-1 rounded-ui border border-transparent bg-raised px-2 text-soft hover:border-warning hover:text-warning"
             title={t("details.deleteTitle")}
             onclick={ondelete}
           >
@@ -364,7 +364,7 @@ export function collapseAll(collapse: boolean): void {
         {:else if link.id}
           <button
             type="button"
-            class="font-semibold text-body hover:text-fg hover:underline"
+            class="font-semibold text-soft hover:text-normal hover:underline"
             onclick={() => onopen(view.kind, link.id)}
           >
             {link.name}
@@ -379,7 +379,7 @@ export function collapseAll(collapse: boolean): void {
         : tCount("details.fieldsChanged", changedCount)}
     </div>
     {#if view.readOnly}
-      <p class="mt-2 flex items-center gap-1.5 text-warn" data-testid="read-only">
+      <p class="mt-2 flex items-center gap-1.5 text-warning" data-testid="read-only">
         <Lock size={14} />
         {t("details.readOnly", { reason: view.readOnly })}
       </p>
@@ -409,7 +409,7 @@ export function collapseAll(collapse: boolean): void {
         <div>
           <button
             type="button"
-            class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-fg"
+            class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-normal"
             data-changed={(!open && category.rows.some(isChanged)) || undefined}
             aria-expanded={open}
             onclick={() => (closed[category.key] = open)}
@@ -538,8 +538,8 @@ export function collapseAll(collapse: boolean): void {
   <button
     type="button"
     class="p-1 first:rounded-l-[2px] last:rounded-r-[2px] {pressed
-      ? 'bg-accent-lo text-accent-hi'
-      : 'text-muted hover:bg-line hover:text-fg'}"
+      ? 'bg-accent-background text-accent-text'
+      : 'text-muted hover:bg-line hover:text-normal'}"
     title={label}
     aria-label={label}
     aria-pressed={pressed}

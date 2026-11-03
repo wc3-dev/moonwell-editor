@@ -3,14 +3,13 @@
  * script looks as it does in VS Code (Sven, 2026-11-01). Monaco reads the files as they are. A script box on a card has
  * one colour per kind of word, read from the same file. Aurora X is left out, for its GPL.
  */
-import type { Theme } from "./themes.ts";
+import { scopeColor, type TokenRule } from "./scopeColor.ts";
+import type { ThemeType } from "./themes/format.ts";
 
 const files = import.meta.glob<string>(
   ["/node_modules/tm-themes/themes/*.json", "!/node_modules/tm-themes/themes/aurora-x.json"],
   { query: "?raw", import: "default", eager: true },
 );
-
-type TokenRule = { scope?: string | string[]; settings?: { foreground?: string } };
 
 export type CodeTheme = {
   id: string;
@@ -44,9 +43,14 @@ export function codeThemeWith(id: string): CodeTheme | undefined {
   return codeThemes.find((each) => each.id === (earlierIds[id] ?? id));
 }
 
-/** The theme scripts are drawn in: the one chosen for them (Sven, 2026-10-31), or the interface's when none is. */
-export function codeThemeOf(id: string, theme: Theme): CodeTheme {
-  return codeThemeWith(id) ?? (codeThemeWith(theme.id) as CodeTheme);
+/**
+ * The theme scripts are drawn in: the one chosen for them (Sven, 2026-10-31), else Dark Plus, or Light Plus under a
+ * light editor theme (Sven, 2026-11-02).
+ */
+export function codeThemeOf(id: string, type: ThemeType): CodeTheme {
+  return (
+    codeThemeWith(id) ?? (codeThemeWith(type === "light" ? "light-plus" : "dark-plus") as CodeTheme)
+  );
 }
 
 /** The colours a script is drawn in, as app.css names them without the `--`. */
@@ -66,29 +70,6 @@ export const codeTokens = [
 ] as const;
 
 export type CodeToken = (typeof codeTokens)[number];
-
-function selectors(scope: TokenRule["scope"]): string[] {
-  const list = typeof scope === "string" ? scope.split(",") : (scope ?? []);
-  return list.map((each) => each.trim());
-}
-
-/** The colour a scope gets, as VS Code picks it: the rule that names most of the scope, the later of two the same. */
-export function scopeColor(theme: CodeTheme, scope: string, otherwise: string): string {
-  let color = otherwise;
-  let matched = 0;
-  for (const rule of theme.tokenColors) {
-    const foreground = rule.settings?.foreground;
-    if (!foreground) continue;
-    for (const selector of selectors(rule.scope)) {
-      const named = scope === selector || scope.startsWith(`${selector}.`);
-      if (named && selector.length >= matched) {
-        color = foreground;
-        matched = selector.length;
-      }
-    }
-  }
-  return color;
-}
 
 /** A theme's colours for a script box. What a file leaves out is VS Code's default for its kind of theme. */
 export function codeColors(theme: CodeTheme): Record<CodeToken, string> {

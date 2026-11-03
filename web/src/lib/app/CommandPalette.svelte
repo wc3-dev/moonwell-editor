@@ -40,7 +40,7 @@ function onkeydown(event: KeyboardEvent): void {
 
 <div class="fixed inset-0 z-40 bg-black/30" role="presentation" data-testid="palette-veil" onclick={close}></div>
 <div
-  class="fixed top-[60px] left-1/2 z-40 w-[520px] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-ui border border-line bg-surface p-1 text-body"
+  class="fixed top-[60px] left-1/2 z-40 w-[520px] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-ui border border-line bg-panel p-1 text-soft"
   role="dialog"
   aria-label={t("palette.label")}
   tabindex="-1"
@@ -49,7 +49,7 @@ function onkeydown(event: KeyboardEvent): void {
   <Command.Root label={t("palette.label")} loop vimBindings={false}>
     <Command.Input
       bind:ref={input}
-      class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+      class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
       placeholder={t("palette.placeholder")}
     />
     <Command.List class="mt-1 max-h-[min(360px,calc(100vh-120px))] overflow-auto">
@@ -58,7 +58,7 @@ function onkeydown(event: KeyboardEvent): void {
         {#each commands as each (each.action)}
           <Command.Item
             value={each.name}
-            class="flex cursor-default items-center gap-6 px-2 py-0.5 outline-none data-selected:bg-select data-selected:text-fg"
+            class="flex cursor-default items-center gap-6 px-2 py-0.5 outline-none data-selected:bg-selection data-selected:text-normal"
             onSelect={() => choose(each.action)}
           >
             {each.name}

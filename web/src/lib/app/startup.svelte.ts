@@ -12,6 +12,8 @@ import {
 import { loadAssetNames } from "../assetNames.svelte.ts";
 import { call, on } from "../bridge.ts";
 import { errorText } from "../errors.ts";
+import { setPref, watchSettings } from "../prefs.svelte.ts";
+import { watchThemes } from "../themes.ts";
 import { chooseGameData, type GameDataState, gameData, newer, viewOf } from "./gameData.ts";
 import type { MapSession } from "./mapSession.svelte.ts";
 
@@ -29,6 +31,8 @@ export class Startup {
 
   readonly #session: MapSession;
   #gameDataReady = false;
+  /** The folder the user chose, until it has loaded and is written to `settings.json`. */
+  #chosen: string | null = null;
 
   constructor(session: MapSession) {
     this.#session = session;
@@ -42,6 +46,8 @@ export class Startup {
         on("gameData", (payload) => this.#take(payload as GameDataState)),
         onSessionChanged((state) => (this.#session.state = state)),
         onCloseRequested(this.#session.closeRequested),
+        watchSettings(),
+        watchThemes(),
       ];
     } catch (error) {
       this.connection = errorText(error);
@@ -74,7 +80,16 @@ export class Startup {
   choose = async (): Promise<void> => {
     this.problem = "";
     try {
-      this.#take(await chooseGameData());
+      const before = this.data;
+      const state = await chooseGameData();
+      // A dialog closed with no choice answers with the state as it was.
+      if (
+        state.source !== null &&
+        (state.source !== before?.source || state.version !== before?.version)
+      ) {
+        this.#chosen = state.source;
+      }
+      this.#take(state);
     } catch (error) {
       this.problem = errorText(error);
     }
@@ -82,6 +97,11 @@ export class Startup {
 
   #take(state: GameDataState): void {
     this.data = newer(this.data, state);
+    // The folder is kept once it has loaded, so a wrong choice does not replace a working one.
+    if (this.data.loaded && this.data.source !== null && this.data.source === this.#chosen) {
+      this.#chosen = null;
+      setPref("gameFolder", this.data.source);
+    }
     if (this.view === "ready" && !this.#gameDataReady) {
       this.#gameDataReady = true;
       this.#whenReady();

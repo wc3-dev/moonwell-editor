@@ -337,7 +337,7 @@ export function insert(token: string): void {
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         data-popup
-        class="z-40 max-h-[280px] w-[380px] overflow-auto rounded-ui border border-line bg-surface p-1 text-body outline-none"
+        class="z-40 max-h-[280px] w-[380px] overflow-auto rounded-ui border border-line bg-panel p-1 text-soft outline-none"
       >
         <div bind:this={list} role="listbox" aria-label={label}>
           {#each slash.items as item, index (item.token)}
@@ -347,7 +347,7 @@ export function insert(token: string): void {
               aria-selected={index === slash.index}
               data-index={index}
               class="flex cursor-pointer items-center gap-2 rounded-ui px-2 py-1 {index === slash.index
-                ? 'bg-hover text-fg'
+                ? 'bg-hover text-normal'
                 : ''}"
               onpointerdown={(event) => event.preventDefault()}
               onpointermove={() => slash && (slash.index = index)}

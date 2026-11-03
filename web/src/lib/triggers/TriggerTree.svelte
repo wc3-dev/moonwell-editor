@@ -35,7 +35,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
 </script>
 
 <aside
-  class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-surface"
+  class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-panel"
   aria-label={t("triggers.tree")}
   onpointerdown={() => (state.zone = "tree")}
   onfocusin={() => (state.zone = "tree")}
@@ -66,9 +66,9 @@ const iconOf: Record<TreeKind, typeof Folder> = {
       {@const renaming = state.renaming?.id === row.item.id}
       {@const dropHere = drag.dropAt?.id === row.item.id ? drag.dropAt.place : null}
       <div
-        class="flex h-[22px] items-center gap-1 pr-2 {dropHere === 'inside' ? 'bg-accent-lo text-fg outline-1 -outline-offset-1 outline-accent' : state.selected === row.item.id && !dropHere ? (state.zone === 'tree' ? 'bg-select text-fg [&_*]:text-inherit' : 'bg-raised text-fg') : 'text-body hover:bg-hover'}"
-        class:shadow-[inset_0_2px_0_var(--accent)]={dropHere === "before"}
-        class:shadow-[inset_0_-2px_0_var(--accent)]={dropHere === "after"}
+        class="flex h-[22px] items-center gap-1 pr-2 {dropHere === 'inside' ? 'bg-accent-background text-normal outline-1 -outline-offset-1 outline-accent' : state.selected === row.item.id && !dropHere ? (state.zone === 'tree' ? 'bg-selection text-normal [&_*]:text-inherit' : 'bg-raised text-normal') : 'text-soft hover:bg-hover'}"
+        class:shadow-[inset_0_2px_0_var(--accent-normal)]={dropHere === "before"}
+        class:shadow-[inset_0_-2px_0_var(--accent-normal)]={dropHere === "after"}
         style:padding-left={`${row.depth * 16 + 4}px`}
         role="treeitem"
         aria-selected={state.selected === row.item.id}
@@ -92,7 +92,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
         {#if row.children && row.item.kind !== "root"}
           <button
             type="button"
-            class="shrink-0 text-muted hover:text-fg"
+            class="shrink-0 text-muted hover:text-normal"
             aria-label={row.item.name}
             onclick={(event) => {
               event.stopPropagation();
@@ -107,7 +107,7 @@ const iconOf: Record<TreeKind, typeof Folder> = {
         <Icon size={15} class="shrink-0 {row.item.enabled ? 'text-muted' : 'text-faint'}" />
         {#if renaming && state.renaming?.where === "tree"}
           <input
-            class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-fg outline-none"
+            class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-normal outline-none"
             value={row.item.name}
             aria-label={t("triggers.name")}
             spellcheck="false"

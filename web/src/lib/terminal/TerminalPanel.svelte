@@ -1,13 +1,13 @@
 <script lang="ts">
 /**
  * The terminal panel under the page (Sven, 2026-11-01): a tab for each shell, a button for a new one and a list of the
- * other shells on this PC. Its top edge drags to change its height, which is remembered.
+ * other shells on this PC. Its top edge drags to change its height, which is remembered in `state.json`.
  */
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import Plus from "@lucide/svelte/icons/plus";
 import X from "@lucide/svelte/icons/x";
 import { getEditor } from "../app/editor.svelte.ts";
-import { prefs, setPref } from "../prefs.svelte.ts";
+import { setState, stateOf } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
 import { terminalShells } from "./api.ts";
 import TerminalView from "./TerminalView.svelte";
@@ -16,7 +16,9 @@ const editor = getEditor();
 const { terminals } = editor;
 
 const lowest = 100;
-let height = $state(prefs.terminalHeight);
+const isHeight = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+let height = $state(stateOf("terminalHeight", 240, isHeight));
 
 // The page keeps its toolbar and status bar and some room of its own.
 function fitting(wanted: number): number {
@@ -32,7 +34,7 @@ function startDrag(event: PointerEvent): void {
   const stop = () => {
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", stop);
-    setPref("terminalHeight", height);
+    setState("terminalHeight", height);
     terminals.focusAsked++;
   };
   handle.addEventListener("pointermove", move);
@@ -49,13 +51,13 @@ async function pickShell(button: HTMLElement): Promise<void> {
   };
 }
 
-const iconButton = "rounded-ui p-1 text-muted hover:bg-hover hover:text-fg";
+const iconButton = "rounded-ui p-1 text-muted hover:bg-hover hover:text-normal";
 </script>
 
 <div class="min-h-0">
   {#if terminals.tabs.length > 0}
     <section
-      class="relative mx-1 mb-1 flex flex-col overflow-hidden rounded-ui bg-surface {terminals.open ? '' : 'hidden'}"
+      class="relative mx-1 mb-1 flex flex-col overflow-hidden rounded-ui bg-panel {terminals.open ? '' : 'hidden'}"
       style:height="{fitting(height)}px"
       aria-label={t("terminal.label")}
     >
@@ -70,7 +72,7 @@ const iconButton = "rounded-ui p-1 text-muted hover:bg-hover hover:text-fg";
           {@const active = tab.key === terminals.active}
           {@const name = tab.name || t("terminal.label")}
           <div
-            class="flex cursor-default items-center gap-1 px-2 py-0.5 {active ? 'bg-surface text-fg' : 'text-muted hover:text-fg'}"
+            class="flex cursor-default items-center gap-1 px-2 py-0.5 {active ? 'bg-panel text-normal' : 'text-muted hover:text-normal'}"
             role="tab"
             tabindex="0"
             aria-selected={active}
@@ -80,7 +82,7 @@ const iconButton = "rounded-ui p-1 text-muted hover:bg-hover hover:text-fg";
             {name}
             <button
               type="button"
-              class="rounded-ui text-faint hover:text-fg"
+              class="rounded-ui text-faint hover:text-normal"
               title={t("terminal.close", { name })}
               aria-label={t("terminal.close", { name })}
               onclick={(event) => {

@@ -113,13 +113,13 @@ function focusOnMount(element: HTMLInputElement): void {
     <span
       class="inline-flex items-center rounded-ui border border-line bg-raised {field.changed
         ? 'text-changed'
-        : 'text-fg'} {field.warning ? 'border-warn' : ''}"
+        : 'text-normal'} {field.warning ? 'border-warning' : ''}"
     >
       {#if object.found}
         {@const found = object.found}
         <button
           type="button"
-          class="rounded-l-ui px-1.5 hover:text-accent-hi"
+          class="rounded-l-ui px-1.5 hover:text-accent-text"
           title={t("ids.open", { name: found.name })}
           onclick={() => onopen(found.kind, object.id)}
         >
@@ -132,7 +132,7 @@ function focusOnMount(element: HTMLInputElement): void {
       {/if}
       <button
         type="button"
-        class="px-0.5 text-faint hover:text-warn"
+        class="px-0.5 text-faint hover:text-warning"
         aria-label={t("ids.takeOut", { name: object.found?.name ?? object.id })}
         onclick={() => onset(removeId(field.value, at))}
       >
@@ -142,7 +142,7 @@ function focusOnMount(element: HTMLInputElement): void {
   {/each}
   <button
     type="button"
-    class="inline-flex items-center rounded-ui border border-dashed border-line px-1 py-px text-muted hover:border-accent hover:text-fg focus:border-accent focus:outline-none"
+    class="inline-flex items-center rounded-ui border border-dashed border-line px-1 py-px text-muted hover:border-accent hover:text-normal focus:border-accent focus:outline-none"
     aria-label={single
       ? t("ids.chooseLabel", { field: field.label })
       : t("ids.addLabel", { field: field.label })}
@@ -157,7 +157,7 @@ function focusOnMount(element: HTMLInputElement): void {
 {#if open && addButton}
   <Popover anchor={addButton} onclose={close}>
     <input
-      class="w-[300px] rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+      class="w-[300px] rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
       placeholder={searchPrompt(kinds)}
       aria-label={t("ids.search")}
       bind:value={query}
@@ -166,7 +166,7 @@ function focusOnMount(element: HTMLInputElement): void {
       use:focusOnMount
     />
     {#if problem}
-      <p class="m-0 px-2 py-1 text-warn">{problem}</p>
+      <p class="m-0 px-2 py-1 text-warning">{problem}</p>
     {:else if query.trim() !== "" && hits.length === 0}
       <p class="m-0 px-2 py-1 text-muted">{t("ids.nothingFound")}</p>
     {/if}
@@ -175,7 +175,7 @@ function focusOnMount(element: HTMLInputElement): void {
         <button
           type="button"
           class="flex items-center gap-2 rounded-ui px-2 py-1 text-left {at === index
-            ? 'bg-hover text-fg'
+            ? 'bg-hover text-normal'
             : 'hover:bg-hover'}"
           onclick={() => add(hit)}
         >

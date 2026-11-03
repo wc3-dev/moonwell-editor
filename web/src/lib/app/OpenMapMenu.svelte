@@ -62,7 +62,7 @@ function pick(entry: OpenEntry): void {
         <button
           type="button"
           role="menuitem"
-          class="px-2 py-1 text-left hover:bg-select hover:text-fg focus:bg-select focus:text-fg focus:outline-none"
+          class="px-2 py-1 text-left hover:bg-selection hover:text-normal focus:bg-selection focus:text-normal focus:outline-none"
           onclick={() => pick(entry)}
         >
           {entry.label}

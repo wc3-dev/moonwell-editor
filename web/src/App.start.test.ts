@@ -3,9 +3,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/sve
 import { tick } from "svelte";
 import { describe, expect, test } from "vitest";
 import App from "./App.svelte";
-import { setPref } from "./lib/prefs.svelte.ts";
+import { loadSettings, prefs, setPref } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
-import { appTests, arena, FakeApp, gameReady, openApp, Refusal } from "./test/fakeApp.ts";
+import { shippedThemes } from "./lib/themes/shipped.ts";
+import { themeOf } from "./lib/themes.ts";
+import { appTests, arena, FakeApp, gameReady, openApp, press, Refusal } from "./test/fakeApp.ts";
 
 appTests();
 
@@ -156,5 +158,141 @@ describe("the window", () => {
     const scaled = new FakeApp();
     render(App);
     await waitFor(() => expect(scaled.args("uiScale")).toEqual({ percent: 120 }));
+  });
+});
+
+describe("settings.json", () => {
+  test("a boot with a theme mounts in it", async () => {
+    loadSettings('{"appearance.theme": "nord", "editor.alphaNotice": false}');
+    new FakeApp();
+    render(App);
+    expect(document.documentElement.dataset.theme).toBe("nord");
+    await screen.findByTestId("no-map");
+    expect(document.documentElement.dataset.theme).toBe("nord");
+  });
+
+  test("a save of the file with another theme switches the page and the window's frame", async () => {
+    const app = new FakeApp();
+    render(App);
+    await screen.findByTestId("no-map");
+    await app.emit("homeChanged", {
+      file: "settings.json",
+      text: '{"appearance.theme": "dracula"}',
+    });
+    const dracula = themeOf("dracula", shippedThemes);
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dracula"));
+    await waitFor(() =>
+      expect(app.args("frameColors")).toEqual({
+        surface: dracula.colors["background.panel"],
+        border: dracula.colors["border.normal"],
+      }),
+    );
+  });
+
+  test("a save of the file with another UI scale reaches the window", async () => {
+    const app = new FakeApp();
+    render(App);
+    await screen.findByTestId("no-map");
+    await app.emit("homeChanged", { file: "settings.json", text: '{"appearance.uiScale": 80}' });
+    await waitFor(() => expect(app.args("uiScale")).toEqual({ percent: 80 }));
+    await app.emit("homeChanged", { file: "settings.json", text: "{}" });
+    await waitFor(() => expect(app.args("uiScale")).toEqual({ percent: 100 }));
+  });
+
+  test("a folder chosen is written to the file once it has loaded", async () => {
+    const app = new FakeApp({
+      gameData: { source: null, loaded: false, error: null, version: 1 },
+      chooseGameData: { source: "D:/War3", loaded: false, error: null, version: 2 },
+    });
+    render(App);
+    await screen.findByTestId("first-start");
+    await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
+    await waitFor(() => expect(app.count("chooseGameData")).toBe(1));
+    await app.idle();
+    expect(app.count("writeHome")).toBe(0);
+    expect(prefs.gameFolder).toBeNull();
+    await app.emit("gameData", {
+      source: "D:/War3",
+      loaded: true,
+      error: null,
+      version: 3,
+      game: "2.0.4",
+    });
+    await waitFor(() => expect(app.count("writeHome")).toBe(1));
+    expect(JSON.parse((app.args("writeHome") as { text: string }).text)).toMatchObject({
+      "game.folder": "D:/War3",
+    });
+    expect(prefs.gameFolder).toBe("D:/War3");
+  });
+
+  test("a folder that fails to load is not written", async () => {
+    const app = new FakeApp({
+      gameData: { source: null, loaded: false, error: null, version: 1 },
+      chooseGameData: { source: "D:/Nope", loaded: false, error: null, version: 2 },
+    });
+    render(App);
+    await screen.findByTestId("first-start");
+    await fireEvent.click(screen.getByRole("button", { name: /Choose the Warcraft III folder/ }));
+    await waitFor(() => expect(app.count("chooseGameData")).toBe(1));
+    await app.emit("gameData", {
+      source: "D:/Nope",
+      loaded: false,
+      error: "No storage here",
+      version: 3,
+    });
+    await screen.findByTestId("game-data-error");
+    await app.idle();
+    expect(app.count("writeHome")).toBe(0);
+    expect(prefs.gameFolder).toBeNull();
+  });
+
+  test("a folder dialog that is closed with no choice writes nothing", async () => {
+    const app = new FakeApp({ chooseGameData: gameReady });
+    render(App);
+    await waitFor(() => expect(app.count("assetNames")).toBe(1));
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("tab", { name: t("settings.tab.data") }));
+    await fireEvent.click(await screen.findByRole("button", { name: t("settings.data.change") }));
+    await waitFor(() => expect(app.count("chooseGameData")).toBe(1));
+    await app.emit("gameData", { ...gameReady, version: 2 });
+    await app.idle();
+    expect(app.count("writeHome")).toBe(0);
+  });
+
+  test("Settings says what is wrong with the file and what could not be saved", async () => {
+    loadSettings('{\n  "editor.alphaNotice": false,\n  "appearance.uiScale": 90\n}');
+    const app = new FakeApp({ writeHome: new Refusal("failed", "Disk full") });
+    render(App);
+    await screen.findByTestId("no-map");
+    await press("F10");
+    const dialog = within(
+      await screen.findByRole("dialog", { name: t("settings.title") }, { timeout: 5000 }),
+    );
+    expect(
+      dialog.getByText(
+        t("settings.problem.at", {
+          line: 3,
+          text: t("settings.problem.badValue", { key: "appearance.uiScale" }),
+        }),
+      ),
+    ).toBeTruthy();
+    expect(dialog.queryByTestId("home-notice")).toBeNull();
+    await fireEvent.click(dialog.getByRole("radio", { name: "80%" }));
+    expect((await dialog.findByTestId("home-notice")).textContent).toContain("Disk full");
+    expect(app.count("writeHome")).toBe(1);
+  });
+
+  test("Settings says a file that can't be read as JSON is not written to", async () => {
+    loadSettings("{ oops");
+    new FakeApp();
+    render(App);
+    await screen.findByTestId("no-map");
+    await press("F10");
+    const dialog = within(
+      await screen.findByRole("dialog", { name: t("settings.title") }, { timeout: 5000 }),
+    );
+    expect(
+      dialog.getByText(t("settings.problem.at", { line: 1, text: t("settings.problem.notJson") })),
+    ).toBeTruthy();
   });
 });

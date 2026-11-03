@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { field, footmanEntry, unit } from "../../test/fakeApp.ts";
+import { FakeApp, field, footmanEntry, unit } from "../../test/fakeApp.ts";
 import type { FieldView } from "../api.ts";
+import { loadState } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
 import { sendTyped } from "../typing.ts";
 import TooltipEditor from "./TooltipEditor.svelte";
@@ -36,11 +37,15 @@ function open(answer: string | null = null) {
 }
 
 beforeEach(() => {
-  localStorage.clear();
+  loadState(null);
   onclose.mockClear();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  delete window.chrome;
+  loadState(null);
+});
 
 describe("saving", () => {
   test("a text goes to the object a moment after it is typed", async () => {
@@ -90,7 +95,7 @@ describe("the user's own colours", () => {
     screen.getByRole("button", { name: t("tooltipEditor.ownTitle", { colour }) });
   const code = () => screen.queryByRole("textbox", { name: t("colourPicker.code") });
 
-  beforeEach(() => localStorage.setItem("moonwell-editor.tooltip-colours", `["${colour}"]`));
+  beforeEach(() => loadState(JSON.stringify({ tooltipColours: [colour] })));
 
   test("a click colours the selection and opens no picker", async () => {
     open();
@@ -110,7 +115,8 @@ describe("the user's own colours", () => {
     await waitFor(() => expect(code()).not.toBeNull());
   });
 
-  test("a right click removes it too", async () => {
+  test("a right click removes it too, and state.json is told", async () => {
+    const app = new FakeApp();
     open();
     await fireEvent.contextMenu(swatch());
     await fireEvent.click(
@@ -121,5 +127,44 @@ describe("the user's own colours", () => {
         screen.queryByRole("button", { name: t("tooltipEditor.ownTitle", { colour }) }),
       ).toBeNull(),
     );
+    expect(app.args("setState")).toEqual({ key: "tooltipColours", value: [] });
+  });
+
+  test("a colour picked in the picker is kept in state.json", async () => {
+    const app = new FakeApp();
+    open();
+    await fireEvent.contextMenu(swatch());
+    await fireEvent.click(
+      await screen.findByRole("menuitem", { name: t("tooltipEditor.changeColour") }),
+    );
+    const input = await waitFor(() => {
+      const found = code();
+      if (!found) throw new Error("no picker yet");
+      return found as HTMLInputElement;
+    });
+    await fireEvent.input(input, { target: { value: "#445566" } });
+    await fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(app.args("setState")).toEqual({ key: "tooltipColours", value: ["#445566"] }),
+    );
+  });
+
+  test("what the state holds that is not a colour is left out", async () => {
+    loadState(JSON.stringify({ tooltipColours: [colour, "red", 3, "#abcdef"] }));
+    open();
+    expect(
+      screen.getByRole("button", { name: t("tooltipEditor.ownTitle", { colour: "#abcdef" }) }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: t("tooltipEditor.ownTitle", { colour: "red" }) }),
+    ).toBeNull();
+  });
+
+  test("state that is not a list holds no colours", () => {
+    loadState(JSON.stringify({ tooltipColours: "#112233" }));
+    open();
+    expect(
+      screen.queryByRole("button", { name: t("tooltipEditor.ownTitle", { colour }) }),
+    ).toBeNull();
   });
 });

@@ -34,6 +34,15 @@ const { appearance, history, notices, objects, pages, startup, terminals } = edi
 const { objectActions, session } = editor;
 
 $effect(() => applyCodeTheme(appearance.codeTheme));
+$effect(() => appearance.show());
+// The window scales the page: it is told when the scale in the settings changes, from Settings or from the file.
+let windowScale = 100;
+$effect(() => {
+  const percent = prefs.uiScale;
+  if (percent === windowScale) return;
+  windowScale = percent;
+  uiScale(percent).catch(() => {});
+});
 $effect(() => pages.followPick(picking.kind !== null, session.map !== null));
 // The table view is an experimental feature: turning them off goes back to the details.
 $effect(() => {
@@ -50,13 +59,13 @@ function visitOf({ place, at }: { place: Place; at: number }): Visit {
 }
 
 onMount(() => {
-  appearance.use(appearance.theme);
-  if (prefs.uiScale !== 100) uiScale(prefs.uiScale).catch(() => {});
   const stopStartup = startup.start();
   const stopTerminals = terminals.listen();
+  const stopHotkeys = editor.followHotkeys();
   return () => {
     stopStartup();
     stopTerminals();
+    stopHotkeys();
   };
 });
 </script>

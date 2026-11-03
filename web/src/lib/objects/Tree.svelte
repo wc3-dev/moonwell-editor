@@ -153,7 +153,7 @@ function clearOnEscape(event: KeyboardEvent): void {
 <div class="flex h-full min-h-0 flex-col">
   <div class="p-[3px]">
     <input
-      class="w-full rounded-ui border border-transparent bg-field px-2 py-px text-fg outline-none focus:border-accent"
+      class="w-full rounded-ui border border-transparent bg-field px-2 py-px text-normal outline-none focus:border-accent"
       placeholder={t("tree.filterPlaceholder")}
       aria-label={t("tree.filterLabel")}
       bind:value={filter}
@@ -162,7 +162,7 @@ function clearOnEscape(event: KeyboardEvent): void {
   </div>
 
   {#if error}
-    <p class="px-2.5 text-warn">{error}</p>
+    <p class="px-2.5 text-warning">{error}</p>
   {:else if !entries}
     <p class="px-2.5 text-muted">{t("tree.loading")}</p>
   {:else if lines.length === 0}
@@ -187,7 +187,7 @@ function clearOnEscape(event: KeyboardEvent): void {
                  with the arrows of what it holds (Sven, 2026-11-01). -->
             <button
               type="button"
-              class="flex w-full items-center pr-2.5 pl-3.5 text-left font-semibold text-body hover:text-fg"
+              class="flex w-full items-center pr-2.5 pl-3.5 text-left font-semibold text-soft hover:text-normal"
               style:height="{rowHeight}px"
               aria-expanded={line.open}
               onclick={() => {
@@ -219,13 +219,13 @@ function clearOnEscape(event: KeyboardEvent): void {
           {:else if line.type === "entry" && line.entry.id === renaming}
             {@const entry = line.entry}
             <div
-              class="flex w-full items-center gap-1.5 bg-select pr-2.5"
+              class="flex w-full items-center gap-1.5 bg-selection pr-2.5"
               style:height="{rowHeight}px"
               style:padding-left="{10 + line.depth * 16}px"
             >
               <span class="w-3 shrink-0"></span>
               <input
-                class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-fg outline-none"
+                class="min-w-0 flex-1 rounded-ui border border-accent bg-field px-1 py-0 text-normal outline-none"
                 value={entry.name}
                 aria-label={t("tree.renameLabel", { id: entry.id })}
                 spellcheck="false"
@@ -249,8 +249,8 @@ function clearOnEscape(event: KeyboardEvent): void {
               class="flex w-full items-center gap-1.5 pr-2.5 text-left whitespace-nowrap {entry.id ===
               selected
                 ? active
-                  ? 'bg-select text-fg [&_*]:text-inherit'
-                  : 'bg-raised text-fg'
+                  ? 'bg-selection text-normal [&_*]:text-inherit'
+                  : 'bg-raised text-normal'
                 : 'hover:bg-hover'}"
               style:height="{rowHeight}px"
               style:padding-left="{10 + line.depth * 16}px"
@@ -279,12 +279,12 @@ function clearOnEscape(event: KeyboardEvent): void {
                     onerror={(event) => ((event.currentTarget as HTMLImageElement).style.visibility = "hidden")}
                   />
                   <span
-                    class="pointer-events-none absolute inset-0 rounded-[2px] shadow-[inset_0_0_0_1px_var(--faint)]"
+                    class="pointer-events-none absolute inset-0 rounded-[2px] shadow-[inset_0_0_0_1px_var(--text-faint)]"
                     aria-hidden="true"
                   ></span>
                 </span>
               {/if}
-              <span class="truncate {entry.baseId ? 'text-accent-hi' : ''}">
+              <span class="truncate {entry.baseId ? 'text-accent-text' : ''}">
                 {entry.name}
                 {#if entry.suffix}<span class="text-muted">{entry.suffix}</span>{/if}
               </span>

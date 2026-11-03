@@ -85,9 +85,9 @@ onMount(() => {
   <TriggerTree {state} {drag} />
 
   {#if state.problem}
-    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-warn">{state.problem}</p></div>
+    <div class="rounded-ui bg-panel p-4"><p class="m-0 text-warning">{state.problem}</p></div>
   {:else if !state.tree || !state.catalog}
-    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-muted">{t("triggers.loading")}</p></div>
+    <div class="rounded-ui bg-panel p-4"><p class="m-0 text-muted">{t("triggers.loading")}</p></div>
   {:else if state.shown}
     <div
       class="flex min-h-0 flex-col overflow-hidden rounded-ui"
@@ -96,7 +96,7 @@ onMount(() => {
       onfocusin={() => (state.zone = "grid")}
     >
       {#if state.tree.problem}
-        <p class="m-0 bg-surface px-3 py-1 text-warn">{state.tree.problem}</p>
+        <p class="m-0 bg-panel px-3 py-1 text-warning">{state.tree.problem}</p>
       {/if}
       <div class="min-h-0 flex-1">
         <TriggerCanvas
@@ -123,7 +123,7 @@ onMount(() => {
   {:else if state.item?.kind === "root"}
     <MapHeaderPanel {state} tree={state.tree} root={state.item} />
   {:else if state.gridParent === null}
-    <div class="rounded-ui bg-surface p-4"><p class="m-0 text-muted">{t("triggers.nothingSelected")}</p></div>
+    <div class="rounded-ui bg-panel p-4"><p class="m-0 text-muted">{t("triggers.nothingSelected")}</p></div>
   {/if}
 </div>
 

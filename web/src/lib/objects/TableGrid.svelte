@@ -195,15 +195,15 @@ function lookOf(
   column: Column,
   cell: TableCell | undefined,
 ): { bg: string; fg: string; title?: string } {
-  if (!cell?.applies) return { bg: "bg-surface", fg: "", title: t("table.doesNotApply") };
+  if (!cell?.applies) return { bg: "bg-panel", fg: "", title: t("table.doesNotApply") };
   if (row.readOnly) {
     return {
-      bg: "bg-surface",
+      bg: "bg-panel",
       fg: "text-muted",
       title: t("table.readOnly", { reason: row.readOnly }),
     };
   }
-  if (cell.warning) return { bg: "bg-warn-lo", fg: "text-warn", title: cell.warning };
+  if (cell.warning) return { bg: "bg-warning-background", fg: "text-warning", title: cell.warning };
   if (cell.changed) {
     const base = textOf(column, { ...cell, value: cell.base });
     return {
@@ -212,7 +212,7 @@ function lookOf(
       title: t("table.standard", { value: base === "" ? t("table.empty") : base }),
     };
   }
-  return { bg: "", fg: "text-fg" };
+  return { bg: "", fg: "text-normal" };
 }
 
 function ariaSort(key: string): "ascending" | "descending" | "none" {
@@ -400,7 +400,7 @@ function setEdited(value: string): Promise<string | null> {
 >
   <div class="min-w-full" style:width="{width}px">
     <div
-      class="sticky top-0 z-[2] flex h-[34px] bg-raised text-body"
+      class="sticky top-0 z-[2] flex h-[34px] bg-raised text-soft"
       role="row"
       aria-rowindex={1}
     >
@@ -415,7 +415,7 @@ function setEdited(value: string): Promise<string | null> {
         >
           <button
             type="button"
-            class="flex min-w-0 flex-1 items-center gap-1 px-2.5 text-left font-semibold hover:text-fg"
+            class="flex min-w-0 flex-1 items-center gap-1 px-2.5 text-left font-semibold hover:text-normal"
             title={t("table.sortBy", { column: fixed.label.toLowerCase() })}
             onclick={() => onsort(fixed.key)}
           >
@@ -434,7 +434,7 @@ function setEdited(value: string): Promise<string | null> {
         >
           <button
             type="button"
-            class="flex min-w-0 flex-1 flex-col justify-center pl-2.5 text-left hover:text-fg"
+            class="flex min-w-0 flex-1 flex-col justify-center pl-2.5 text-left hover:text-normal"
             title={t("table.columnTitle", { label: labelOf(column), field: column.field })}
             onclick={() => onsort(key)}
           >
@@ -446,7 +446,7 @@ function setEdited(value: string): Promise<string | null> {
           </button>
           <button
             type="button"
-            class="shrink-0 self-start p-1 text-faint opacity-0 group-hover:opacity-100 hover:text-warn focus:opacity-100"
+            class="shrink-0 self-start p-1 text-faint opacity-0 group-hover:opacity-100 hover:text-warning focus:opacity-100"
             title={t("table.removeColumn")}
             aria-label={t("table.removeColumnLabel", { label: labelOf(column) })}
             onclick={() => onremove(key)}
@@ -458,7 +458,7 @@ function setEdited(value: string): Promise<string | null> {
       <div class="flex shrink-0" style:width="{addWidth}px" role="columnheader">
         <button
           type="button"
-          class="flex flex-1 items-center gap-1 px-2.5 text-left text-faint hover:text-fg"
+          class="flex flex-1 items-center gap-1 px-2.5 text-left text-faint hover:text-normal"
           onclick={(event) => onadd(event.currentTarget)}
         >
           <Plus size={13} />
@@ -474,22 +474,22 @@ function setEdited(value: string): Promise<string | null> {
     <div class="relative" style:height="{rows.length * rowHeight}px">
       {#each visible as { row, index } (row.id)}
         <div
-          class="group absolute inset-x-0 flex border-b border-hairline hover:bg-hover"
+          class="group absolute inset-x-0 flex border-b border-line-faint hover:bg-hover"
           style:top="{index * rowHeight}px"
           style:height="{rowHeight}px"
           role="row"
           aria-rowindex={index + 2}
         >
           <div
-            class="sticky left-0 z-[1] flex shrink-0 items-center border-r border-hairline bg-surface group-hover:bg-hover"
+            class="sticky left-0 z-[1] flex shrink-0 items-center border-r border-line-faint bg-panel group-hover:bg-hover"
             style:width="{nameWidth}px"
             role="rowheader"
           >
             <button
               type="button"
               class="min-w-0 flex-1 truncate px-2.5 text-left hover:underline {row.baseId
-                ? 'text-accent-hi'
-                : 'text-fg'}"
+                ? 'text-accent-text'
+                : 'text-normal'}"
               title={t("table.openInDetails", { name: row.name })}
               onclick={() => onopen(row.id)}
             >
@@ -498,7 +498,7 @@ function setEdited(value: string): Promise<string | null> {
             </button>
           </div>
           <div
-            class="flex shrink-0 items-center border-r border-hairline px-2.5 font-mono text-mono text-faint"
+            class="flex shrink-0 items-center border-r border-line-faint px-2.5 font-mono text-mono text-faint"
             style:width="{idWidth}px"
             role="gridcell"
           >
@@ -511,8 +511,8 @@ function setEdited(value: string): Promise<string | null> {
             <!-- The grid's scroller takes the focus and the keys, never a cell (see the top of this file). -->
             <!-- svelte-ignore a11y_interactive_supports_focus -->
             <div
-              class="flex shrink-0 cursor-cell items-center border-r border-hairline px-2.5 select-none {picked
-                ? 'bg-accent-lo'
+              class="flex shrink-0 cursor-cell items-center border-r border-line-faint px-2.5 select-none {picked
+                ? 'bg-accent-background'
                 : look.bg} {look.fg} {isFocus(index, col)
                 ? 'outline-2 -outline-offset-2 outline-accent'
                 : ''} {isNumber(column) ? 'justify-end font-mono text-mono' : ''}"
@@ -543,7 +543,7 @@ function setEdited(value: string): Promise<string | null> {
         >
           {#key editing}
             <div
-              class="flex min-h-6 items-center rounded-ui border border-accent bg-surface p-0.5"
+              class="flex min-h-6 items-center rounded-ui border border-accent bg-panel p-0.5"
             >
               <div class="min-w-0 flex-1">
                 <FieldEditor
@@ -561,7 +561,7 @@ function setEdited(value: string): Promise<string | null> {
           {/key}
           {#if editError}
             <p
-              class="m-0 mt-0.5 rounded-ui border border-warn bg-surface px-1.5 py-0.5 text-warn"
+              class="m-0 mt-0.5 rounded-ui border border-warning bg-panel px-1.5 py-0.5 text-warning"
               role="alert"
             >
               {editError}

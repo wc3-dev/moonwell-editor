@@ -95,7 +95,7 @@ const folderName = $derived(
 
 <footer class="relative flex items-center gap-4 px-2 text-muted">
   {#if connection}
-    <span class="text-warn" data-testid="status">{connection}</span>
+    <span class="text-warning" data-testid="status">{connection}</span>
   {/if}
   {#if session}
     {#if session.dirty}
@@ -108,7 +108,7 @@ const folderName = $derived(
   {/if}
   {#if notice}
     <span
-      class="min-w-0 truncate {notice.warn ? 'text-warn' : 'text-accent-hi'}"
+      class="min-w-0 truncate {notice.warn ? 'text-warning' : 'text-accent-text'}"
       data-testid="notice"
       title={noticeTitle(notice)}
       role="status"
@@ -116,7 +116,7 @@ const folderName = $derived(
       {notice.text}
     </span>
     {#if notice.caution}
-      <span class="shrink-0 whitespace-nowrap text-warn" data-testid="notice-caution">
+      <span class="shrink-0 whitespace-nowrap text-warning" data-testid="notice-caution">
         {notice.caution}
       </span>
     {/if}
@@ -126,7 +126,7 @@ const folderName = $derived(
   {#if problems.length > 0}
     <button
       type="button"
-      class="flex items-center gap-1 text-warn hover:underline"
+      class="flex items-center gap-1 text-warning hover:underline"
       aria-expanded={showProblems}
       onclick={() => (showProblems = !showProblems)}
     >
@@ -144,7 +144,7 @@ const folderName = $derived(
     {:else if dataView === "ready"}
       {@render folderText(tParts("status.dataReady", { tables }))}
     {:else if dataView === "failed"}
-      <span class="text-warn">{t("status.dataFailed")}</span>
+      <span class="text-warning">{t("status.dataFailed")}</span>
     {:else if dataView === "missing"}
       {t("status.dataMissing")}
     {/if}
@@ -152,26 +152,26 @@ const folderName = $derived(
 
   {#if loadingText}
     <span
-      class="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 bg-gutter px-2 text-fg"
+      class="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-1.5 bg-gutter px-2 text-normal"
       data-testid="loading"
       role="status"
     >
-      <LoaderCircle size={13} class="animate-spin text-accent-hi" />
+      <LoaderCircle size={13} class="animate-spin text-accent-text" />
       {loadingText}
     </span>
   {/if}
 
   {#if showProblems && problems.length > 0}
     <div
-      class="absolute bottom-[26px] left-1 z-10 w-[560px] max-w-[calc(100%-24px)] rounded-ui border border-line bg-surface p-3 text-body"
+      class="absolute bottom-[26px] left-1 z-10 w-[560px] max-w-[calc(100%-24px)] rounded-ui border border-line bg-panel p-3 text-soft"
       role="dialog"
       aria-label={t("status.problemsTitle")}
     >
       <div class="mb-2 flex items-center">
-        <span class="font-semibold text-fg">{t("status.problemsTitle")}</span>
+        <span class="font-semibold text-normal">{t("status.problemsTitle")}</span>
         <button
           type="button"
-          class="ml-auto text-muted hover:text-fg"
+          class="ml-auto text-muted hover:text-normal"
           aria-label={t("status.close")}
           onclick={() => (showProblems = false)}
         >

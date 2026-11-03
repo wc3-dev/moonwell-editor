@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
@@ -14,12 +15,19 @@ public sealed class MainForm : Form
     // The game's and the map's icons and models, which the page loads from here (see GameAssets).
     private const string AssetHost = "game.moonwelleditor";
 
+    // What WebView2 shows before the page has painted when no theme was shown before (see PageBackground).
+    private static readonly Color DarkGrey = Color.FromArgb(0x12, 0x12, 0x12);
+
+    // The colours of the theme the page showed last, which the window starts in (see Home.LastPageColors).
+    private readonly PageColors? _lastColors;
+
     // Made again when the browser process ends (see OnProcessFailed).
-    private WebView2 _web = NewWeb();
+    private WebView2 _web = NewWeb(DarkGrey);
 
     // Whether the window is maximized, as the page's title bar was last told.
     private volatile bool _maximized;
     private readonly Commands _commands;
+    private readonly Home _home;
     private readonly Bridge _bridge;
 
     // The page's requests are answered one at a time, in the order they came. The terminal's have a line of their own,
@@ -56,20 +64,33 @@ public sealed class MainForm : Form
         var appData = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MoonwellEditor");
         var cache = Path.Combine(appData, "gamedata");
+        // The settings, hotkeys and themes are in the .moonwell folder; the old settings in appData move over once.
+        _home = new Home(Home.DefaultFolder(Environment.GetEnvironmentVariable), appData);
+        // The window starts in the last theme's colours, so a light theme doesn't open on dark grey (Sven, 2026-11-03).
+        // The frame's border follows once the window has a handle (see OnHandleCreated).
+        _lastColors = _home.LastPageColors;
+        if (_lastColors != null)
+        {
+            _web.DefaultBackgroundColor = ColorTranslator.FromHtml(_lastColors.Gutter);
+            BackColor = ColorTranslator.FromHtml(_lastColors.Panel);
+        }
+
         // The map is asked for only once the commands are made.
         var assets = new GameAssets(() => _commands!.Store);
         _commands = new Commands(
-            new Settings(appData),
+            _home,
             AskForFolder,
             folder => LoadGame(folder, cache, assets),
             startupMap,
             AskForArchive,
-            () => GameInstall.Find());
+            () => GameInstall.Find(),
+            OpenWithShell);
         _bridge = new Bridge(_commands.Run);
         _terminalLine = new OrderedLine(Reply);
         _commands.Assets = assets;
         _commands.GameDataChanged += state => Notify("gameData", state);
         _commands.SessionChanged += state => Notify("sessionChanged", state);
+        _commands.HomeChanged += change => Notify("homeChanged", change);
         _commands.CloseAsking += () => OnWindowThread(_closeGuard.PageAsking);
         _commands.CloseApproved += () => OnWindowThread(() =>
         {
@@ -102,6 +123,7 @@ public sealed class MainForm : Form
 
         Load += async (_, _) =>
         {
+            _home.Watch();
             _ = _commands.StartLoading();
             await StartPage();
         };
@@ -111,6 +133,7 @@ public sealed class MainForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         _commands.Terminals.Dispose();
+        _home.Dispose();
         base.OnFormClosed(e);
     }
 
@@ -119,6 +142,10 @@ public sealed class MainForm : Form
     {
         base.OnHandleCreated(e);
         TitleBar.Style(Handle);
+        if (_lastColors != null)
+        {
+            TitleBar.SetBorder(Handle, ColorTranslator.FromHtml(_lastColors.Border));
+        }
     }
 
     /// <inheritdoc />
@@ -212,6 +239,13 @@ public sealed class MainForm : Form
             return dialog.ShowDialog(this) == DialogResult.OK ? dialog.FileName : null;
         });
 
+    // Opens a folder, or a file with what it is opened with, from a command's background thread.
+    private void OpenWithShell(string path) =>
+        Invoke(() =>
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        });
+
     // While a page is loaded, the window stays open and asks it: the page sends what is still typed, closes the window
     // at once when nothing is unsaved, and otherwise asks the user to save, discard or cancel; it closes the window
     // with the closeWindow command. With no page, only unsaved edits keep the window open (the window then asks). A
@@ -303,8 +337,8 @@ public sealed class MainForm : Form
         });
     }
 
-    private static WebView2 NewWeb() =>
-        new() { Dock = DockStyle.Fill, DefaultBackgroundColor = Color.FromArgb(0x12, 0x12, 0x12) };
+    private static WebView2 NewWeb(Color background) =>
+        new() { Dock = DockStyle.Fill, DefaultBackgroundColor = background };
 
     private async Task StartPage()
     {
@@ -404,11 +438,23 @@ public sealed class MainForm : Form
 
     // https://game.moonwelleditor/icon?path=... answers with the icon as PNG, /file?path=... with the file's bytes, 404
     // when there is none. Read on a background thread: the first icons wait for the install to open. /terrain?mode=...
-    // answers with the terrain bytes of the last map scene in that mode (the mapScene command builds them).
+    // answers with the terrain bytes of the last map scene in that mode (the mapScene command builds them). /home.js
+    // answers at once, before any wait: it is the script the page runs before it paints, with the .moonwell folder's
+    // files (see Home.BootScript).
     private void ServeAsset(CoreWebView2Environment environment, CoreWebView2WebResourceRequestedEventArgs e)
     {
         var assets = _commands.Assets;
         var uri = new Uri(e.Request.Uri);
+        if (uri.AbsolutePath == "/home.js")
+        {
+            e.Response = environment.CreateWebResourceResponse(
+                new MemoryStream(System.Text.Encoding.UTF8.GetBytes(_home.BootScript())),
+                200,
+                "OK",
+                "Content-Type: text/javascript\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store");
+            return;
+        }
+
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var path = query["path"];
         var mode = query["mode"] is "sd" or "hd" or "de" ? query["mode"]! : "de";
@@ -483,11 +529,12 @@ public sealed class MainForm : Form
         }
     }
 
-    // Puts a new WebView2 in place of one whose browser process ended, and loads the page in it.
+    // Puts a new WebView2 in place of one whose browser process ended, and loads the page in it. It starts in the colours
+    // of the theme shown last, which may have changed since the window opened.
     private async Task RestartPage()
     {
         var old = _web;
-        _web = NewWeb();
+        _web = NewWeb(_home.LastPageColors is { } last ? ColorTranslator.FromHtml(last.Gutter) : DarkGrey);
         Controls.Remove(old);
         old.Dispose();
         Controls.Add(_web);

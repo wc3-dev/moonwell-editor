@@ -63,7 +63,7 @@ $effect(() => {
         snug
       />
       <input
-        class="w-0 min-w-0 flex-1 rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-0 min-w-0 flex-1 rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
         placeholder={t("triggers.function.filter")}
         aria-label={t("triggers.function.filter")}
         bind:value={text}
@@ -76,8 +76,8 @@ $effect(() => {
           role="option"
           aria-selected={chosen?.name === each.name}
           class="block w-full px-2 py-[3px] text-left {chosen?.name === each.name
-            ? 'bg-accent-lo text-fg'
-            : 'text-body hover:bg-hover'}"
+            ? 'bg-accent-background text-normal'
+            : 'text-soft hover:bg-hover'}"
           onclick={() => (chosen = each)}
           ondblclick={() => onpick(each.name)}
         >
@@ -88,7 +88,7 @@ $effect(() => {
       {/each}
     </div>
     <div class="min-h-[52px]">
-      <p class="m-0 text-fg">{sentence}</p>
+      <p class="m-0 text-normal">{sentence}</p>
       {#if chosen?.hint}<p class="m-0 mt-1 text-muted">{chosen.hint}</p>{/if}
     </div>
   </div>

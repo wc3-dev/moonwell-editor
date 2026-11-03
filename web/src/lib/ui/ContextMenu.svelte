@@ -41,7 +41,7 @@ const point = $derived({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) })
         if (event.target instanceof Node && anchor?.contains(event.target)) event.preventDefault();
       }}
       data-popup
-      class="z-50 min-w-[210px] rounded-ui border border-line bg-surface p-0.5 text-body outline-none {anchor
+      class="z-50 min-w-[210px] rounded-ui border border-line bg-panel p-0.5 text-soft outline-none {anchor
         ? 'menu-list'
         : ''}"
       oncontextmenu={(event) => event.preventDefault()}
@@ -54,8 +54,8 @@ const point = $derived({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) })
             disabled={item.disabled}
             textValue={item.label}
             onSelect={item.run}
-            class="flex w-full cursor-default items-center gap-6 px-4 py-0.5 text-left outline-none data-disabled:opacity-40 data-highlighted:bg-select data-highlighted:text-fg {item.danger
-              ? 'text-warn'
+            class="flex w-full cursor-default items-center gap-6 px-4 py-0.5 text-left outline-none data-disabled:opacity-40 data-highlighted:bg-selection data-highlighted:text-normal {item.danger
+              ? 'text-warning'
               : ''}"
           >
             {item.label}

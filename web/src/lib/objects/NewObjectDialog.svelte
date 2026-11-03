@@ -20,9 +20,9 @@ const { objectActions } = getEditor();
     <label class="flex items-center gap-2">
       {t("dialog.new.id")}
       <input
-        class="w-28 rounded-ui border bg-field px-2 py-1 font-mono text-mono text-fg outline-none focus:border-accent {asked.error ||
+        class="w-28 rounded-ui border bg-field px-2 py-1 font-mono text-mono text-normal outline-none focus:border-accent {asked.error ||
         typedProblem
-          ? 'border-warn'
+          ? 'border-warning'
           : 'border-transparent'}"
         maxlength="4"
         spellcheck="false"
@@ -37,7 +37,7 @@ const { objectActions } = getEditor();
       />
     </label>
     {#if asked.error || typedProblem}
-      <p class="mt-2 mb-0 text-warn" role="alert">{asked.error || typedProblem}</p>
+      <p class="mt-2 mb-0 text-warning" role="alert">{asked.error || typedProblem}</p>
     {/if}
     {#snippet actions()}
       <DialogButton onclick={() => (objectActions.creating = null)}>{t("dialog.cancel")}</DialogButton>

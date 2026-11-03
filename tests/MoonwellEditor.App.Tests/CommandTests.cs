@@ -72,7 +72,7 @@ public sealed class CommandTests(GameDataFixture fixture, ITestOutputHelper outp
         Assert.Equal(0, opened.GetProperty("problems").GetArrayLength());
         Assert.Equal(1, opened.GetProperty("counts").GetProperty("unit").GetInt32());
         Assert.Equal(1, opened.GetProperty("counts").GetProperty("upgrade").GetInt32());
-        Assert.Equal(map, new Settings(Path.Combine(_root, "settings")).RecentMaps[0]);
+        Assert.Equal(map, new Home(Path.Combine(_root, "settings")).RecentMaps[0]);
         Assert.Equal(new SessionState(false, 0), _events[^1]);
 
         var tree = Result(await Ask(bridge, "tree", new { kind = "unit" }));
@@ -413,9 +413,9 @@ public sealed class CommandTests(GameDataFixture fixture, ITestOutputHelper outp
     [Fact]
     public async Task Map_commands_need_the_game_data_and_a_map()
     {
-        var settings = new Settings(Path.Combine(_root, "settings"));
+        var home = new Home(Path.Combine(_root, "settings"));
         var commands = new Commands(
-            settings, _ => throw new InvalidOperationException("no dialog"), _ => throw new InvalidOperationException());
+            home, _ => throw new InvalidOperationException("no dialog"), _ => throw new InvalidOperationException());
         var bridge = new Bridge(commands.Run);
 
         Assert.Equal("gameDataMissing", ErrorCode(await Ask(bridge, "openMap", new { path = _root })));
@@ -465,7 +465,7 @@ public sealed class CommandTests(GameDataFixture fixture, ITestOutputHelper outp
         Assert.Equal(archive, opened.GetProperty("path").GetString());
         Assert.True(opened.GetProperty("archive").GetBoolean());
         Assert.Equal(0, opened.GetProperty("problems").GetArrayLength());
-        Assert.Equal(archive, new Settings(Path.Combine(_root, "settings")).RecentMaps[0]);
+        Assert.Equal(archive, new Home(Path.Combine(_root, "settings")).RecentMaps[0]);
         Assert.Null(asked);
 
         Assert.True(Ok(await SetLife(bridge, "500")));
@@ -536,10 +536,15 @@ public sealed class CommandTests(GameDataFixture fixture, ITestOutputHelper outp
             return true;
         }
 
-        var settings = new Settings(Path.Combine(_root, "settings")) { GameFolder = fixture.Folder };
+        var folder = Path.Combine(_root, "settings");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(
+            Path.Combine(folder, "settings.json"),
+            JsonSerializer.Serialize(new Dictionary<string, string?> { ["game.folder"] = fixture.Folder }));
+        var home = new Home(folder);
         var data = fixture.Data;
         commands = new Commands(
-            settings,
+            home,
             _ => ask == null ? Path.Combine(_root, "map") : ask(),
             _ => data,
             askArchive: askArchive);

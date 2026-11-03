@@ -384,15 +384,15 @@ function ownerOf(pick: Pick): string {
   {#if status !== "ready" || problems.length > 0 || software}
     <div class="pointer-events-none absolute left-3 top-3 flex max-w-md flex-col gap-1">
       {#if status === "loading"}
-        <p class="rounded-ui bg-surface/90 px-2 py-1 text-muted">{t("mapView.loading")}</p>
+        <p class="rounded-ui bg-panel/90 px-2 py-1 text-muted">{t("mapView.loading")}</p>
       {:else if status === "failed"}
-        <p class="rounded-ui bg-surface/90 px-2 py-1 text-warn">{t("mapView.failed", { error: failure })}</p>
+        <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning">{t("mapView.failed", { error: failure })}</p>
       {/if}
       {#if software}
-        <p class="rounded-ui bg-surface/90 px-2 py-1 text-warn">{t("mapView.software")}</p>
+        <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning">{t("mapView.software")}</p>
       {/if}
       {#each problems as problem (problem)}
-        <p class="rounded-ui bg-surface/90 px-2 py-1 text-warn">{problem}</p>
+        <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning">{problem}</p>
       {/each}
     </div>
   {/if}
@@ -406,7 +406,7 @@ function ownerOf(pick: Pick): string {
         <button
           type="button"
           class="rounded-ui bg-raised px-2 py-px {layer.kinds.every((kind) => layers.kinds.has(kind))
-            ? 'text-fg'
+            ? 'text-normal'
             : 'text-muted line-through'}"
           aria-pressed={layer.kinds.every((kind) => layers.kinds.has(kind))}
           onclick={() => toggle(layer.kinds)}>{t(layer.key)}</button
@@ -414,13 +414,13 @@ function ownerOf(pick: Pick): string {
       {/each}
       <button
         type="button"
-        class="rounded-ui bg-raised px-2 py-px {layers.regions ? 'text-fg' : 'text-muted line-through'}"
+        class="rounded-ui bg-raised px-2 py-px {layers.regions ? 'text-normal' : 'text-muted line-through'}"
         aria-pressed={layers.regions}
         onclick={() => (layers = { ...layers, regions: !layers.regions })}>{t("mapView.layer.regions")}</button
       >
       <button
         type="button"
-        class="rounded-ui bg-raised px-2 py-px {layers.cameras ? 'text-fg' : 'text-muted line-through'}"
+        class="rounded-ui bg-raised px-2 py-px {layers.cameras ? 'text-normal' : 'text-muted line-through'}"
         aria-pressed={layers.cameras}
         onclick={() => (layers = { ...layers, cameras: !layers.cameras })}>{t("mapView.layer.cameras")}</button
       >
@@ -428,7 +428,7 @@ function ownerOf(pick: Pick): string {
   </div>
   {#if picking.kind !== null}
     <p
-      class="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-ui border border-accent bg-surface/95 px-3 py-1 text-fg"
+      class="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-ui border border-accent bg-panel/95 px-3 py-1 text-normal"
       data-testid="pick-banner"
     >
       {t("mapView.picking", { kind: t(kindNames[picking.kind]) })}
@@ -438,7 +438,7 @@ function ownerOf(pick: Pick): string {
     {@const shown = selected ?? hovered}
     {#if shown}
       <p
-        class="pointer-events-none absolute bottom-3 left-3 max-w-[80%] truncate rounded-ui bg-surface/90 px-2 py-1 text-fg"
+        class="pointer-events-none absolute bottom-3 left-3 max-w-[80%] truncate rounded-ui bg-panel/90 px-2 py-1 text-normal"
         data-testid="map-selection"
       >
         {describe(shown)}{#if ownerOf(shown)}<span class="text-muted"> · {ownerOf(shown)}</span>{/if}

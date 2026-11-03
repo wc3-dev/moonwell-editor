@@ -33,7 +33,7 @@ async function pick(x: number, y: number): Promise<void> {
 
 <button
   type="button"
-  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
+  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-normal {open ? 'text-accent-text' : ''}"
   title={t("commandCard.pickTitle")}
   aria-label={t("commandCard.pickLabel", { field: pair.x.label.replace(/\s*\(X\)$/, "") })}
   aria-haspopup="dialog"
@@ -54,8 +54,8 @@ async function pick(x: number, y: number): Promise<void> {
             <button
               type="button"
               class="flex size-10 items-center justify-center rounded-ui border font-mono text-mono {here
-                ? 'border-accent bg-accent-lo text-accent-hi'
-                : 'border-transparent bg-field text-faint hover:border-muted hover:text-fg'}"
+                ? 'border-accent bg-accent-background text-accent-text'
+                : 'border-transparent bg-field text-faint hover:border-muted hover:text-normal'}"
               title={t("commandCard.cell", { x, y })}
               aria-pressed={here}
               onclick={() => pick(x, y)}
@@ -66,7 +66,7 @@ async function pick(x: number, y: number): Promise<void> {
         {/each}
       </div>
       {#if error}
-        <p class="m-0 mt-1 max-w-44 text-small text-warn" role="alert">{error}</p>
+        <p class="m-0 mt-1 max-w-44 text-small text-warning" role="alert">{error}</p>
       {/if}
     </div>
   </Popover>

@@ -88,7 +88,7 @@ async function toggle(value: string, on: boolean): Promise<void> {
   <Popover anchor={button} onclose={() => (open = false)} dropdown>
     <div class="flex flex-col" role="group" aria-label={field.label}>
       {#each options as option (option.value)}
-        <label class="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-select hover:text-fg">
+        <label class="flex cursor-pointer items-center gap-2 px-1 py-0.5 hover:bg-selection hover:text-normal">
           <input
             type="checkbox"
             class="accent-accent"

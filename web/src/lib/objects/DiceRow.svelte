@@ -134,10 +134,10 @@ async function resetAll(): Promise<void> {
 
 <div
   data-changed={(changed && !disabled) || undefined}
-  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-line-faint {disabled
     ? 'opacity-50'
     : totalSelected
-      ? 'bg-select'
+      ? 'bg-selection'
       : 'hover:bg-raised'}"
   role="group"
   aria-label={label}
@@ -154,7 +154,7 @@ async function resetAll(): Promise<void> {
     type="button"
     class="flex h-full items-center justify-center focus:outline-none {changed
       ? 'text-changed'
-      : 'text-faint hover:text-fg'}"
+      : 'text-faint hover:text-normal'}"
     aria-expanded={open}
     title={open ? t("dice.hideParts") : t("dice.showParts")}
     aria-label={open ? t("dice.hideParts") : t("dice.showParts")}
@@ -164,7 +164,7 @@ async function resetAll(): Promise<void> {
   </button>
   <button
     type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 pl-0.5 text-left focus:outline-none {totalSelected ? 'text-fg' : ''}"
+    class="flex cursor-default items-center self-stretch border-r border-line-faint pr-2 pl-0.5 text-left focus:outline-none {totalSelected ? 'text-normal' : ''}"
     aria-expanded={open}
     title={open ? t("dice.hideParts") : t("dice.showParts")}
     onclick={ontoggle}
@@ -176,10 +176,10 @@ async function resetAll(): Promise<void> {
       <!-- Shows only its value, as the other boxes do; a field while the total is selected (Sven, 2026-10-29). -->
       <input
         class="field-sizing-content min-w-[8ch] max-w-full rounded-ui border px-1.5 py-px font-mono text-mono outline-none placeholder:text-faint focus:border-solid focus:border-accent focus:bg-field {error
-          ? 'border-warn bg-warn-lo'
+          ? 'border-warning bg-warning-background'
           : totalSelected
             ? 'border-transparent bg-field'
-            : 'border-transparent bg-transparent hover:border-dashed hover:border-muted'} {changed ? 'text-changed' : 'text-fg'}"
+            : 'border-transparent bg-transparent hover:border-dashed hover:border-muted'} {changed ? 'text-changed' : 'text-normal'}"
         value={draft ?? rangeText(range)}
         placeholder="0"
         data-field="{fields.base.id}:total"
@@ -196,7 +196,7 @@ async function resetAll(): Promise<void> {
       {#if changed}
         <button
           type="button"
-          class="ml-auto shrink-0 px-1 text-changed hover:text-fg"
+          class="ml-auto shrink-0 px-1 text-changed hover:text-normal"
           title={t("field.resetTitle", { value: standard })}
           aria-label={t("field.resetLabel", { field: label })}
           onclick={resetAll}
@@ -205,13 +205,13 @@ async function resetAll(): Promise<void> {
         </button>
       {/if}
     {:else}
-      <span class="px-1.5 py-px font-mono text-mono {changed ? 'text-changed' : 'text-fg'}"
+      <span class="px-1.5 py-px font-mono text-mono {changed ? 'text-changed' : 'text-normal'}"
         >{rangeText(range)}</span
       >
     {/if}
   </span>
   {#if error}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn" role="alert">{error}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warning" role="alert">{error}</span>
   {/if}
 </div>
 {#if open}

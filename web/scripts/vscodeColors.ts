@@ -1,67 +1,43 @@
 /**
- * The interface's colours from a VS Code theme (Sven, 2026-11-01). Which of a file's colours each token reads was
- * measured against the 13 palettes the editor had before, each against its own theme's file, so a theme looks as it did.
- * VS Code has no name for the seven kinds of object: they take the terminal's colours, else the syntax's. What a file
- * leaves out or sets too close to the panels is worked out, so every theme stays readable.
+ * The editor's colours from a VS Code theme (Sven, 2026-11-01). Which of a file's colours each one reads was measured
+ * against the 13 palettes the editor had before, each against its own theme's file, so a theme looks as it did. VS Code
+ * has no name for the seven kinds of object: they take the terminal's colours, else the syntax's. What a file leaves out
+ * or sets too close to the panels is worked out, so every theme stays readable.
+ *
+ * The mapping used to run in the page; it is here to make the shipped themes once (Sven, 2026-11-02). Gutter, field,
+ * selection, button and the faint border are left to `fillColors`, which works them out as `app.css` did.
  */
-import { type CodeTheme, scopeColor } from "./codeThemes.ts";
-import type { Token } from "./themes.ts";
+import { scopeColor, type TokenRule } from "../src/lib/scopeColor.ts";
+import { contrast, flattened, luminance, mix, parsed, readable } from "../src/lib/themes/color.ts";
+import type { ColorKey, Colors, ThemeType } from "../src/lib/themes/format.ts";
 
-type Rgba = { rgb: [number, number, number]; alpha: number };
+/** A VS Code theme's file as its author publishes it. */
+export type VsCodeThemeFile = {
+  displayName: string;
+  type: ThemeType;
+  colors: Record<string, string>;
+  tokenColors: TokenRule[];
+};
 
-function parsed(color: string): Rgba {
-  const digits = color.slice(1);
-  const full = digits.length <= 4 ? [...digits].map((digit) => digit + digit).join("") : digits;
-  const part = (at: number) => Number.parseInt(full.slice(at, at + 2), 16);
-  return {
-    rgb: [part(0), part(2), part(4)],
-    alpha: full.length === 8 ? part(6) / 255 : 1,
-  };
-}
-
-function written(rgb: [number, number, number]): string {
-  return `#${rgb.map((part) => Math.round(part).toString(16).padStart(2, "0")).join("")}`;
-}
-
-/** `amount` of the way from one solid colour to the other, from 0 to 1. */
-export function mix(from: string, to: string, amount: number): string {
-  const a = parsed(from).rgb;
-  const b = parsed(to).rgb;
-  return written([
-    a[0] + (b[0] - a[0]) * amount,
-    a[1] + (b[1] - a[1]) * amount,
-    a[2] + (b[2] - a[2]) * amount,
-  ]);
-}
-
-/** A colour that may be see-through as it shows on `under`, which is solid. */
-function flattened(color: string, under: string): string {
-  const { rgb, alpha } = parsed(color);
-  return mix(under, written(rgb), alpha);
-}
-
-function luminance(color: string): number {
-  const [r, g, b] = parsed(color).rgb.map((part) => {
-    const value = part / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  }) as [number, number, number];
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** How far apart two colours read, from 1 to 21: the WCAG's measure. */
-export function contrast(a: string, b: string): number {
-  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
-  return (light + 0.05) / (dark + 0.05);
-}
-
-/** A colour moved toward `toward` until it reads `ratio` against `on`. */
-function readable(color: string, on: string, toward: string, ratio: number): string {
-  for (let step = 0; step < 10; step++) {
-    const moved = mix(color, toward, step / 10);
-    if (contrast(moved, on) >= ratio) return moved;
-  }
-  return toward;
-}
+type KindKey = Extract<ColorKey, `kind.${string}`>;
+type TerminalKey = Extract<ColorKey, `terminal.${string}`>;
+type InterfaceKey =
+  | KindKey
+  | "background.base"
+  | "background.panel"
+  | "background.raised"
+  | "background.hover"
+  | "border.normal"
+  | "text.normal"
+  | "text.soft"
+  | "text.muted"
+  | "text.faint"
+  | "accent.normal"
+  | "accent.text"
+  | "accent.background"
+  | "state.changed"
+  | "state.warning"
+  | "state.warningBackground";
 
 // A panel-coloured shade: close enough to the panels to sit with them, far enough to show.
 function shades(color: string, panel: string): boolean {
@@ -74,30 +50,6 @@ function colourful(color: string): boolean {
   const { rgb } = parsed(color);
   return Math.max(...rgb) - Math.min(...rgb) >= 32;
 }
-
-/** A terminal's colours, by the names xterm.js gives them. */
-export type TerminalColors = {
-  background: string;
-  foreground: string;
-  cursor: string;
-  selectionBackground: string;
-  black: string;
-  red: string;
-  green: string;
-  yellow: string;
-  blue: string;
-  magenta: string;
-  cyan: string;
-  white: string;
-  brightBlack: string;
-  brightRed: string;
-  brightGreen: string;
-  brightYellow: string;
-  brightBlue: string;
-  brightMagenta: string;
-  brightCyan: string;
-  brightWhite: string;
-};
 
 const ansiNames = ["Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White"];
 
@@ -115,24 +67,24 @@ const ansiDefaults = {
 };
 
 /** A theme's colours for the terminal panel, on its panels unless it gives the terminal a background of its own. */
-export function terminalColors(theme: CodeTheme): TerminalColors {
+export function terminalColors(theme: VsCodeThemeFile): Record<TerminalKey, string> {
   const { colors } = theme;
-  const { surface, fg } = interfaceColors(theme);
+  const { "background.panel": panel, "text.normal": fg } = interfaceColors(theme);
   const terminal = colors["terminal.background"];
-  const background = terminal ? flattened(terminal, surface) : surface;
+  const background = terminal ? flattened(terminal, panel) : panel;
   const read = (key: string, otherwise: string): string => {
     const color = colors[key];
     return color ? flattened(color, background) : otherwise;
   };
   const named = (name: string, bright: boolean, at: number): [string, string] => [
-    bright ? `bright${name}` : name.toLowerCase(),
+    `terminal.${bright ? `bright${name}` : name.toLowerCase()}`,
     read(`terminal.ansi${bright ? "Bright" : ""}${name}`, ansiDefaults[theme.type][at] as string),
   ];
   return {
-    background,
-    foreground: readable(read("terminal.foreground", fg), background, fg, 3),
-    cursor: read("terminalCursor.foreground", fg),
-    selectionBackground: read(
+    "terminal.background": background,
+    "terminal.foreground": readable(read("terminal.foreground", fg), background, fg, 3),
+    "terminal.cursor": read("terminalCursor.foreground", fg),
+    "terminal.selection": read(
       "terminal.selectionBackground",
       read("editor.selectionBackground", mix(background, fg, 0.25)),
     ),
@@ -140,11 +92,11 @@ export function terminalColors(theme: CodeTheme): TerminalColors {
       ...ansiNames.map((name, at) => named(name, false, at)),
       ...ansiNames.map((name, at) => named(name, true, at + 8)),
     ]),
-  } as TerminalColors;
+  } as Record<TerminalKey, string>;
 }
 
 /** The interface's colours of a theme, each a solid `#rrggbb`. */
-export function interfaceColors(theme: CodeTheme): Record<Token, string> {
+export function interfaceColors(theme: VsCodeThemeFile): Record<InterfaceKey, string> {
   const { colors } = theme;
   const dark = theme.type === "dark";
   const end = dark ? "#ffffff" : "#000000";
@@ -195,33 +147,36 @@ export function interfaceColors(theme: CodeTheme): Record<Token, string> {
   );
 
   return {
-    bg: under ?? mix(surface, "#000000", dark ? 0.3 : 0.05),
-    surface,
-    raised,
-    hover: shade(["list.inactiveSelectionBackground", "list.hoverBackground"], raised),
-    border: mix(surface, fg, 0.18),
-    fg,
-    text: readable(mix(fg, surface, 0.1), surface, fg, 4.5),
-    muted: mark(mix(fg, surface, 0.18)),
-    faint: mark(
+    "background.base": under ?? mix(surface, "#000000", dark ? 0.3 : 0.05),
+    "background.panel": surface,
+    "background.raised": raised,
+    "background.hover": shade(["list.inactiveSelectionBackground", "list.hoverBackground"], raised),
+    "border.normal": mix(surface, fg, 0.18),
+    "text.normal": fg,
+    "text.soft": readable(mix(fg, surface, 0.1), surface, fg, 4.5),
+    "text.muted": mark(mix(fg, surface, 0.18)),
+    "text.faint": mark(
       first("gitDecoration.ignoredResourceForeground", "editorLineNumber.foreground") ??
         mix(fg, surface, 0.55),
       2,
     ),
-    accent,
-    "accent-hi": cyan,
-    "accent-lo": mix(surface, accent, 0.18),
-    changed: yellow,
-    warn: red,
-    "warn-lo": mix(surface, red, 0.18),
-    cyan,
-    purple: mark(first("terminal.ansiBrightMagenta") ?? magenta),
-    "kind-unit": blue,
-    "kind-item": mark(mix(red, yellow, 0.5)),
-    "kind-destructable": green,
-    "kind-doodad": yellow,
-    "kind-ability": cyan,
-    "kind-buff": magenta,
-    "kind-upgrade": red,
+    "accent.normal": accent,
+    "accent.text": cyan,
+    "accent.background": mix(surface, accent, 0.18),
+    "state.changed": yellow,
+    "state.warning": red,
+    "state.warningBackground": mix(surface, red, 0.18),
+    "kind.unit": blue,
+    "kind.item": mark(mix(red, yellow, 0.5)),
+    "kind.destructable": green,
+    "kind.doodad": yellow,
+    "kind.ability": cyan,
+    "kind.buff": magenta,
+    "kind.upgrade": red,
   };
+}
+
+/** The colours of an editor theme that a VS Code theme sets; `fillColors` works out the rest. */
+export function editorColors(file: VsCodeThemeFile): Partial<Colors> {
+  return { ...interfaceColors(file), ...terminalColors(file) };
 }
