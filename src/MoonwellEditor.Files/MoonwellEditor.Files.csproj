@@ -17,8 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Sven's War3Net fork; 6.1.2-moonwell.4 writes object files back byte for byte. -->
-    <PackageReference Include="Moonwell.War3Net.Build.Core" Version="6.1.2-moonwell.4" />
+    <!-- Sven's War3Net fork: object files written back byte for byte, and from 6.1.2-moonwell.5 MPQ archives read and
+         rebuilt as the game looks files up (Moonwell.War3Net.IO.Mpq). -->
+    <PackageReference Include="Moonwell.War3Net.Build.Core" Version="6.1.2-moonwell.5" />
     <!-- Moonwell's game-data reader, for the tables the game reads under a map's data option (DataOptions). -->
     <PackageReference Include="Moonwell.GameData" Version="$(MoonwellVersion)" />
     <!-- A map's object files, the seven kinds and the id rules, shared with Moonwell's build. -->

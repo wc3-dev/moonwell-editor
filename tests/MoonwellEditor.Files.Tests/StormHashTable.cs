@@ -1,9 +1,9 @@
-namespace MoonwellEditor.Files;
+namespace MoonwellEditor.Files.Tests;
 
 /// <summary>
-/// An MPQ archive's hash table as the file holds it, read and written without War3Net, and looked up the way the
-/// game's own MPQ code (Storm) looks a file up. War3Net's table and its hashing are internal, and its lookup does not
-/// stop at an empty slot as the game's does.
+/// An MPQ archive's hash table as the file holds it, read and written without War3Net, so a test can break an
+/// archive's table on purpose (War3Net keeps writing a table internal), and looked up the way the game's own MPQ code
+/// (Storm) looks a file up.
 /// </summary>
 internal static class StormHashTable
 {
@@ -96,28 +96,6 @@ internal static class StormHashTable
         return Walk(slots, home, name1, name2, locale, blocks).Slot;
     }
 
-    /// <summary>
-    /// The slot the game finds a file with no known name in, in <paramref name="now"/>, where <paramref name="old"/>
-    /// had it at <paramref name="slot"/>; -1 when it might not be found. Its home slot (where its name hashes to) is
-    /// not known, but the game found it in the old table, so the home is in the run of non-empty slots that ends at
-    /// its old slot. From the start of that run the new table must lead over non-empty slots to the same name and
-    /// locale, at its old slot or after it, with no entry of that name and locale before it: then the game finds it
-    /// from whichever slot of the run its home is.
-    /// </summary>
-    public static int FindUnnamed(Slot[] old, Slot[] now, int slot, int blocks)
-    {
-        var size = old.Length;
-        var back = 0;
-        while (back < size - 1 && !old[(slot - back - 1 + size) % size].IsEmpty)
-        {
-            back++;
-        }
-
-        var entry = old[slot];
-        var (found, steps) = Walk(now, (slot - back + size) % size, entry.Name1, entry.Name2, entry.Locale, blocks);
-        return found >= 0 && steps >= back ? found : -1;
-    }
-
     // From start, forward to the first empty slot: the first entry with these hashes and locale that points at a
     // block, and how many slots after start it is; (-1, -1) when there is none.
     private static (int Slot, int Steps) Walk(Slot[] slots, int start, uint name1, uint name2, uint locale, int blocks)
@@ -150,7 +128,7 @@ internal static class StormHashTable
         var size = BitConverter.ToUInt32(fields, 8);
         if (size == 0 || size > 1 << 20 || (size & (size - 1)) != 0)
         {
-            throw new InvalidDataException(Texts.Get("app.hashTable.size", ("size", size)));
+            throw new InvalidDataException($"The hash table's size, {size}, is not a power of two.");
         }
 
         return (header + offset, (int)size);

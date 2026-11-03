@@ -285,7 +285,6 @@ public sealed class MapArchive : IMapStore
             original.AddFileNames(KnownNames);
             original.AddFileNames(written.Select(file => file.Name));
             var pre = ReadPreArchive(source);
-            var blockSize = ReadUInt16(source, pre.Length + 14);
 
             builder = new MpqArchiveBuilder(original);
             foreach (var (name, bytes) in written)
@@ -307,19 +306,14 @@ public sealed class MapArchive : IMapStore
                 target.Write(pre);
 
                 // The original's block size (SaveTo would write War3Net's default, and compress files again); the
-                // builder keeps the hash table's size.
+                // builder keeps the hash table's size, and every slot the original used, so the game's lookups still
+                // reach a file with no known name, kept at its old slot.
                 var options = new MpqArchiveCreateOptions
                 {
-                    BlockSize = blockSize,
+                    BlockSize = original.Header.BlockSize,
                     AttributesFlags = AttributesFlags.Crc32,
                 };
                 builder.SaveTo(target, options, leaveOpen: true);
-
-                // Behind bytes before the header, War3Net writes two of the header's fields wrong: the header's size
-                // (32 minus the bytes before it) and the archive's size (those bytes counted in). Both are set again.
-                WriteUInt32(target, pre.Length + 4, HeaderSize);
-                WriteUInt32(target, pre.Length + 8, (uint)(target.Length - pre.Length));
-                KeepLookups(source, target, pre.Length);
             }
 
             BeforeCheck?.Invoke(saving);
@@ -335,37 +329,6 @@ public sealed class MapArchive : IMapStore
                     file.Dispose();
                 }
             }
-        }
-    }
-
-    // The game looks a file up from the hash-table slot its name hashes to, forward to the first empty slot (it steps
-    // over deleted entries). War3Net leaves the original's deleted entries, its entries that point at no block and
-    // its (signature) out of the table it writes, and puts a file with no known name back at its old slot, so a slot
-    // one of those filled on the way to such a file would now stop the game short of it. Every slot that held
-    // something in the original and is empty in the new table gets a deleted entry: the game steps over it as it did
-    // before. Tables of different sizes are left; the check refuses one when it matters.
-    private static void KeepLookups(Stream original, Stream target, long header)
-    {
-        var old = StormHashTable.Read(original, header);
-        var now = StormHashTable.Read(target, header);
-        if (old.Length != now.Length)
-        {
-            return;
-        }
-
-        var changed = false;
-        for (var slot = 0; slot < old.Length; slot++)
-        {
-            if (!old[slot].IsEmpty && now[slot].IsEmpty)
-            {
-                now[slot] = StormHashTable.Slot.Deleted;
-                changed = true;
-            }
-        }
-
-        if (changed)
-        {
-            StormHashTable.Write(target, header, now);
         }
     }
 
@@ -385,10 +348,44 @@ public sealed class MapArchive : IMapStore
         return null;
     }
 
+    // The slot the game finds a file with no known name in, in now, where old had it at slot; -1 when it might not be
+    // found. Its home slot (where its name hashes to) is not known, but the game found it in the old table, so the home
+    // is in the run of non-empty slots that ends at its old slot. From the start of that run the new table must lead
+    // over non-empty slots to the same name and locale, at its old slot or after it, with no entry of that name and
+    // locale before it: then the game finds it from whichever slot of the run its home is.
+    private static int FindUnnamed(IReadOnlyList<MpqHash> old, IReadOnlyList<MpqHash> now, int slot, int blocks)
+    {
+        var size = old.Count;
+        var back = 0;
+        while (back < size - 1 && !old[(slot - back - 1 + size) % size].IsEmpty)
+        {
+            back++;
+        }
+
+        var entry = old[slot];
+        var start = (slot - back + size) % size;
+        for (var step = 0; step < size; step++)
+        {
+            var i = (start + step) % size;
+            var hash = now[i];
+            if (hash.IsEmpty)
+            {
+                break;
+            }
+
+            if (hash.Name == entry.Name && hash.Locale == entry.Locale && hash.BlockIndex < (uint)blocks)
+            {
+                return step >= back ? i : -1;
+            }
+        }
+
+        return -1;
+    }
+
     // Opens the new archive at saving and compares it with the original, slot by slot in the original's hash table
     // (so files with no known name count too), read as the file holds it. Every file of the original is found in the
-    // new archive the way the game looks files up (see StormHashTable: a named file from the slot its name hashes to,
-    // one with no known name from wherever the game may have started for it) with the same flags and the same stored
+    // new archive the way the game looks files up (a named file from the slot its name hashes to, one with no known
+    // name from wherever the game may have started for it, see FindUnnamed) with the same flags and the same stored
     // bytes (decompressed bytes for a file encrypted by its position, which moves); each written file holds its new
     // bytes; the bytes before the MPQ header are the same; and there are no other entries. (listfile), (attributes)
     // and (signature) are left out: War3Net writes them anew. Throws MapArchiveException on the first difference.
@@ -416,8 +413,8 @@ public sealed class MapArchive : IMapStore
             throw CheckFailed(Texts.Get("app.archive.checkBefore"));
         }
 
-        var oldTable = StormHashTable.Read(originalStream, pre.Length);
-        var newTable = StormHashTable.Read(stream, pre.Length);
+        var oldTable = original.GetHashTable();
+        var newTable = saved.GetHashTable();
         var specials = new[] { "(listfile)", "(attributes)", "(signature)" }
             .Select(MpqHash.GetHashedFileName)
             .ToHashSet();
@@ -428,36 +425,36 @@ public sealed class MapArchive : IMapStore
         }
 
         var expectedCount = 0;
-        for (var slot = 0; slot < oldTable.Length; slot++)
+        for (var slot = 0; slot < oldTable.Count; slot++)
         {
             // A hash entry that points at no block is no file; War3Net leaves it out.
             var entry = oldTable[slot];
-            if (!entry.IsLive || entry.Block >= original.Count || specials.Contains(entry.Name))
+            if (entry.IsEmpty || entry.IsDeleted || entry.BlockIndex >= original.Count || specials.Contains(entry.Name))
             {
                 continue;
             }
 
             expectedCount++;
-            if (entry.Locale == 0 && writtenBytes.ContainsKey(entry.Name))
+            if (entry.Locale == MpqLocale.Neutral && writtenBytes.ContainsKey(entry.Name))
             {
                 continue;   // checked below, with the written files
             }
 
-            var old = original[(int)entry.Block];
+            var old = original[(int)entry.BlockIndex];
             var label = old.FileName ?? Texts.Get("app.archive.unnamed", ("hash", entry.Name.ToString("X16")));
             int found;
             if (old.FileName is { } name)
             {
-                found = StormHashTable.Find(newTable, name, entry.Locale, saved.Count);
+                found = saved.FindHashIndex(name, entry.Locale);
             }
-            else if (newTable.Length != oldTable.Length)
+            else if (newTable.Count != oldTable.Count)
             {
                 throw CheckFailed(Texts.Get(
-                    "app.archive.checkSlots", ("now", newTable.Length), ("old", oldTable.Length), ("file", label)));
+                    "app.archive.checkSlots", ("now", newTable.Count), ("old", oldTable.Count), ("file", label)));
             }
             else
             {
-                found = StormHashTable.FindUnnamed(oldTable, newTable, slot, saved.Count);
+                found = FindUnnamed(oldTable, newTable, slot, saved.Count);
             }
 
             if (found < 0)
@@ -465,7 +462,7 @@ public sealed class MapArchive : IMapStore
                 throw CheckFailed(Texts.Get("app.archive.checkNotFound", ("file", label)));
             }
 
-            var now = saved[(int)newTable[found].Block];
+            var now = saved[(int)newTable[found].BlockIndex];
             if ((old.Flags & ~MpqFileFlags.Garbage) != (now.Flags & ~MpqFileFlags.Garbage))
             {
                 throw CheckFailed(Texts.Get("app.archive.checkFlags", ("file", label)));
@@ -500,20 +497,20 @@ public sealed class MapArchive : IMapStore
                 expectedCount++;
             }
 
-            var found = StormHashTable.Find(newTable, name, 0, saved.Count);
+            var found = saved.FindHashIndex(name, MpqLocale.Neutral);
             if (found < 0)
             {
                 throw CheckFailed(Texts.Get("app.archive.checkNotFound", ("file", name)));
             }
 
-            if (Decompressed(saved, saved[(int)newTable[found].Block]) is not { } after
+            if (Decompressed(saved, saved[(int)newTable[found].BlockIndex]) is not { } after
                 || !after.AsSpan().SequenceEqual(bytes))
             {
                 throw CheckFailed(Texts.Get("app.archive.checkBytes", ("file", name)));
             }
         }
 
-        var savedCount = newTable.Count(entry => entry.IsLive && !specials.Contains(entry.Name));
+        var savedCount = newTable.Count(entry => !entry.IsEmpty && !entry.IsDeleted && !specials.Contains(entry.Name));
         if (savedCount != expectedCount)
         {
             throw CheckFailed(Texts.Get("app.archive.checkCount", ("count", savedCount), ("expected", expectedCount)));
@@ -588,20 +585,6 @@ public sealed class MapArchive : IMapStore
     // a file it cannot read) keeps the map from other programs. Through a BufferedStream it reads the file plainly.
     private static BufferedStream OpenRead(string path, FileShare share) =>
         new(new FileStream(path, FileMode.Open, FileAccess.Read, share), 64 * 1024);
-
-    private static ushort ReadUInt16(Stream stream, long position)
-    {
-        var bytes = new byte[2];
-        stream.Position = position;
-        stream.ReadExactly(bytes);
-        return BitConverter.ToUInt16(bytes);
-    }
-
-    private static void WriteUInt32(Stream stream, long position, uint value)
-    {
-        stream.Position = position;
-        stream.Write(BitConverter.GetBytes(value));
-    }
 
     // Reads the archive at path: its stamp (taken first, so a change made while reading is seen later), the bytes
     // before the MPQ header, the names of its files, and the bytes of the files named (null for one it does not have).

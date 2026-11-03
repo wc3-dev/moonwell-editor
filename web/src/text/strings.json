@@ -112,7 +112,6 @@
   "app.folder.unlisted": "Other",
   "app.folder.water": "Water",
   "app.gameData.notInstall": "{folder} is not a Warcraft III install: it has no .build.info. Choose the game's own folder, the one with Warcraft III Launcher.exe.",
-  "app.hashTable.size": "The hash table's size, {size}, is not a power of two.",
   "app.limit.above": "Above World Editor's limit of {limit}.",
   "app.limit.below": "Below World Editor's limit of {limit}.",
   "app.limit.empty": "May not be empty.",
