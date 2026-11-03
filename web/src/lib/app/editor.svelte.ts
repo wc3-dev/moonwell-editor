@@ -7,7 +7,15 @@ import type { MenuItem } from "../ui/ContextMenu.svelte";
 import { Appearance } from "./appearance.svelte.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
-import { type Action, actionList, actionOf, kindActions, loadKeymap, shownKey } from "./keymap.ts";
+import {
+  type Action,
+  actionList,
+  actionOf,
+  kindActions,
+  loadedKeymap,
+  shownKey,
+  watchHotkeys,
+} from "./keymap.ts";
 import { MapSession } from "./mapSession.svelte.ts";
 import { Notices } from "./notices.svelte.ts";
 import { ObjectActions } from "./objectActions.svelte.ts";
@@ -81,7 +89,8 @@ export class Editor {
   });
   readonly startup = new Startup(this.session);
 
-  keymap = $state(loadKeymap());
+  /** The keys: what `hotkeys.json` made when the page loaded it, and what Settings and a save of the file change. */
+  keymap = $state(loadedKeymap());
   settingsOpen = $state(false);
   aboutOpen = $state(false);
   /** The notice the editor opens with, until Settings turns it off. */
@@ -229,6 +238,9 @@ export class Editor {
     actionList
       .filter((each) => this.#listed(each.action))
       .map(({ action, name }) => ({ action, name, keys: this.keymap[action] }));
+
+  /** Takes the keys of `hotkeys.json` as another program saves it. Gives the way to stop. */
+  followHotkeys = (): (() => void) => watchHotkeys((keymap) => (this.keymap = keymap));
 
   /** Runs a command the palette picked, as its key would on the page. */
   runCommand = (action: Action): void => {

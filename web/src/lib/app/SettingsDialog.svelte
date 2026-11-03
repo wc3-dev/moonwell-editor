@@ -9,15 +9,26 @@ import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 import { onMount } from "svelte";
-import { type Kind, kinds, type MapInfo, uiScale } from "../api.ts";
+import { type Kind, kinds, type MapInfo } from "../api.ts";
 import { type CodeTheme, codeColors, codeThemeOf, codeThemes } from "../codeThemes.ts";
 import { graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
+import { openHome } from "../home/home.ts";
+import type { Problem } from "../home/jsonc.ts";
+import { homeNotice } from "../home/notice.svelte.ts";
 import TeamColourGrid from "../objects/TeamColourGrid.svelte";
 import { kindNames } from "../objects/tree.ts";
-import { prefs, setPref, uiScales } from "../prefs.svelte.ts";
+import { prefs, setPref, settingsProblems, uiScales } from "../prefs.svelte.ts";
 import { type Shell, terminalShells } from "../terminal/api.ts";
 import { t } from "../text.ts";
-import { type Theme, themes } from "../themes.ts";
+import { requiredKeys } from "../themes/format.ts";
+import {
+  allThemes,
+  copyTheme,
+  findTheme,
+  type Theme,
+  type ThemeFile,
+  themeFiles,
+} from "../themes.ts";
 import Dialog from "../ui/Dialog.svelte";
 import Popover from "../ui/Popover.svelte";
 import Select from "../ui/Select.svelte";
@@ -27,6 +38,7 @@ import {
   actionList,
   clashes,
   defaultKeymap,
+  hotkeyProblems,
   type Keymap,
   keyOf,
   saveKeymap,
@@ -64,6 +76,72 @@ const tableNames: Record<string, string> = {
   melee_v0: "melee_v0",
 };
 
+// What is wrong with settings.json, in a sentence.
+function problemText(problem: Problem): string {
+  const text =
+    problem.code === "badValue"
+      ? t("settings.problem.badValue", { key: problem.key ?? "" })
+      : problem.code === "unreadable"
+        ? t("settings.problem.unreadable")
+        : t("settings.problem.notJson");
+  return problem.line === undefined ? text : t("settings.problem.at", { line: problem.line, text });
+}
+
+// What is wrong with hotkeys.json, in a sentence.
+function hotkeyProblemText(problem: Problem): string {
+  const key = problem.key ?? "";
+  const text =
+    problem.code === "unknownKey"
+      ? t("hotkeys.problem.unknownKey", { key })
+      : problem.code === "badValue"
+        ? t("hotkeys.problem.badValue", { key })
+        : problem.code === "unreadable"
+          ? t("hotkeys.problem.unreadable")
+          : t("hotkeys.problem.notJson");
+  return problem.line === undefined ? text : t("settings.problem.at", { line: problem.line, text });
+}
+
+// What is wrong with a theme file, in a sentence.
+function themeProblemText(problem: Problem): string {
+  const key = problem.key ?? "";
+  const text =
+    problem.code === "noName"
+      ? t("settings.themeProblem.noName")
+      : problem.code === "badType"
+        ? t("settings.themeProblem.badType")
+        : problem.code === "missing"
+          ? t("settings.themeProblem.missing", { key })
+          : problem.code === "badColor"
+            ? requiredKeys.some((each) => each === key)
+              ? t("settings.themeProblem.badRequiredColor", { key })
+              : t("settings.themeProblem.badColor", { key })
+            : problem.code === "unknownKey"
+              ? t("settings.themeProblem.unknownKey", { key })
+              : problem.code === "badValue"
+                ? t("settings.themeProblem.badValue", { key })
+                : problem.code === "unreadable"
+                  ? t("settings.themeProblem.unreadable")
+                  : t("settings.themeProblem.notJson");
+  return problem.line === undefined ? text : t("settings.problem.at", { line: problem.line, text });
+}
+
+// The sentence above a theme file's problems: a file that could not be loaded is left out, or the last version of it that
+// loaded is still in use.
+function themeFileHead(each: ThemeFile): string {
+  if (!each.refused) return t("settings.themeFile.warnings", { file: each.file });
+  return inUse.has(each.id)
+    ? t("settings.themeFile.kept", { file: each.file })
+    : t("settings.themeFile.left", { file: each.file });
+}
+
+// The themes to choose from, the user's among them; the chosen one is the default when none has its id (Sven, 2026-11-02).
+const themes = $derived(allThemes());
+const inUse = $derived(
+  new Set(themes.filter((each) => each.source === "user").map((each) => each.id)),
+);
+const chosenGone = $derived(findTheme(prefs.theme, themes) === undefined);
+const chosenRefused = $derived(themeFiles.find((each) => each.id === prefs.theme && each.refused));
+
 const customKinds = $derived(map ? kinds.filter((kind: Kind) => (map.counts[kind] ?? 0) > 0) : []);
 
 // The switches under Other.
@@ -74,18 +152,18 @@ const switches = [
   { key: "showHidden", text: t("settings.showHidden") },
 ] as const;
 
-// The code themes: the interface's own (an empty id), then every one VS Code has.
-const sameTheme = $derived<CodeTheme>({
-  ...codeThemeOf("", theme),
-  id: "",
-  name: t("settings.codeThemeSame"),
-});
-const codeThemeChoices = $derived([sameTheme, ...codeThemes]);
-
 const themeSwatch = ({ colors }: Theme): string[] =>
-  (["bg", "surface", "accent", "changed", "kind-unit", "kind-item", "kind-ability"] as const).map(
-    (token) => colors[token],
-  );
+  (
+    [
+      "background.base",
+      "background.panel",
+      "accent.normal",
+      "state.changed",
+      "kind.unit",
+      "kind.item",
+      "kind.ability",
+    ] as const
+  ).map((key) => colors[key]);
 
 function codeSwatch(theme: CodeTheme): string[] {
   const colors = codeColors(theme);
@@ -148,12 +226,12 @@ function resetAll(): void {
 {#snippet row(label: string, value: string, mono = false)}
   <div class="flex gap-3 py-0.5">
     <span class="w-32 shrink-0 text-muted">{label}</span>
-    <span class="min-w-0 break-words {mono ? 'font-mono text-mono' : ''} text-fg">{value}</span>
+    <span class="min-w-0 break-words {mono ? 'font-mono text-mono' : ''} text-normal">{value}</span>
   </div>
 {/snippet}
 
 {#snippet heading(text: string)}
-  <h3 class="m-0 mt-2.5 mb-[3px] font-semibold text-fg first:mt-1">{text}</h3>
+  <h3 class="m-0 mt-2.5 mb-[3px] font-semibold text-normal first:mt-1">{text}</h3>
 {/snippet}
 
 <Dialog
@@ -162,6 +240,17 @@ function resetAll(): void {
   wide
   focus={false}
 >
+  {#if settingsProblems.length > 0 || homeNotice.text}
+    <div class="mb-2 flex flex-col gap-0.5 rounded-ui bg-warning-background px-2.5 py-1.5 text-warning">
+      {#each settingsProblems as each (each.key ?? each.code)}
+        <p class="m-0">{problemText(each)}</p>
+      {/each}
+      {#if homeNotice.text}
+        <p class="m-0" data-testid="home-notice">{homeNotice.text}</p>
+      {/if}
+    </div>
+  {/if}
+
   <div class="mb-2 flex border-b border-line" role="tablist">
     {#each tabs as each (each.tab)}
       <button
@@ -169,8 +258,8 @@ function resetAll(): void {
         role="tab"
         aria-selected={tab === each.tab}
         class="-mb-px rounded-t-ui border-b px-2.5 py-0.5 {tab === each.tab
-          ? 'border-transparent bg-raised text-fg'
-          : 'border-line text-muted hover:text-fg'}"
+          ? 'border-transparent bg-raised text-normal'
+          : 'border-line text-muted hover:text-normal'}"
         onclick={() => (tab = each.tab)}
       >
         {each.name}
@@ -188,8 +277,8 @@ function resetAll(): void {
             role="radio"
             aria-checked={graphics.mode === each.mode}
             class="rounded-ui border border-transparent px-3 py-0.5 {graphics.mode === each.mode
-              ? 'bg-select text-fg'
-              : 'bg-raised text-body hover:border-muted'}"
+              ? 'bg-selection text-normal'
+              : 'bg-raised text-soft hover:border-muted'}"
             onclick={() => setGraphicsMode(each.mode)}
           >
             {each.name}
@@ -205,12 +294,9 @@ function resetAll(): void {
             role="radio"
             aria-checked={prefs.uiScale === percent}
             class="rounded-ui border border-transparent px-2.5 py-0.5 font-mono text-mono {prefs.uiScale === percent
-              ? 'bg-select text-fg'
-              : 'bg-raised text-body hover:border-muted'}"
-            onclick={() => {
-              setPref("uiScale", percent);
-              uiScale(percent).catch(() => {});
-            }}
+              ? 'bg-selection text-normal'
+              : 'bg-raised text-soft hover:border-muted'}"
+            onclick={() => setPref("uiScale", percent)}
           >
             {percent}%
           </button>
@@ -225,13 +311,58 @@ function resetAll(): void {
         swatch={themeSwatch}
         onpick={ontheme}
       />
+      {#if chosenGone}
+        <p
+          class="m-0 mt-1.5 rounded-ui bg-warning-background px-2.5 py-1.5 text-warning"
+          data-testid="theme-gone"
+        >
+          {chosenRefused
+            ? t("settings.theme.refused", { file: chosenRefused.file, name: theme.name })
+            : t("settings.theme.missing", { id: prefs.theme, name: theme.name })}
+        </p>
+      {/if}
+      <div class="mt-1.5 flex gap-1">
+        <button
+          type="button"
+          class="rounded-ui border border-transparent bg-raised px-3 py-0.5 text-soft hover:border-muted"
+          onclick={() => void openHome("themes")}
+        >
+          {t("settings.themesFolder")}
+        </button>
+        <button
+          type="button"
+          class="rounded-ui border border-transparent bg-raised px-3 py-0.5 text-soft hover:border-muted"
+          title={t("settings.copyThemeTitle")}
+          onclick={() => void copyTheme(theme)}
+        >
+          {t("settings.copyTheme")}
+        </button>
+      </div>
+      {#each themeFiles as each (each.file)}
+        {#if each.replaces || each.problems.length > 0}
+          <div class="mt-1.5 flex flex-col gap-1" data-testid="theme-file">
+            {#if each.replaces}
+              <p class="m-0 text-muted">{t("settings.themeFile.replaces", { file: each.file })}</p>
+            {/if}
+            {#if each.problems.length > 0}
+              <div class="flex flex-col gap-0.5 rounded-ui bg-warning-background px-2.5 py-1.5 text-warning">
+                <p class="m-0">{themeFileHead(each)}</p>
+                {#each each.problems as problem, index (index)}
+                  <p class="m-0 pl-3">{themeProblemText(problem)}</p>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      {/each}
 
-      <!-- Scripts have a theme of their own, the interface's until one is chosen (Sven, 2026-10-31). -->
+      <!-- Scripts have a theme of their own (Sven, 2026-10-31): Dark Plus, or Light Plus under a light theme, until one
+           is chosen (Sven, 2026-11-02). -->
       {@render heading(t("settings.codeTheme"))}
       <ThemePicker
         label={t("settings.codeTheme")}
-        options={codeThemeChoices}
-        selected={codeThemeChoices.find((each) => each.id === prefs.codeTheme) ?? sameTheme}
+        options={codeThemes}
+        selected={codeThemeOf(prefs.codeTheme, theme.type)}
         swatch={codeSwatch}
         onpick={(each) => setPref("codeTheme", each.id)}
       />
@@ -243,7 +374,7 @@ function resetAll(): void {
             options={shells.map((shell) => ({ value: shell.id, label: shell.name }))}
             value={prefs.terminalShell || (shells[0] as Shell).id}
             label={t("settings.terminalShell")}
-            tone="border-transparent bg-field text-fg hover:border-muted"
+            tone="border-transparent bg-field text-normal hover:border-muted"
             compact
             named
             onpick={(id) => setPref("terminalShell", id)}
@@ -270,15 +401,25 @@ function resetAll(): void {
         {/each}
       </div>
     {:else if tab === "hotkeys"}
+      {#if hotkeyProblems.length > 0}
+        <div
+          class="mb-2 flex flex-col gap-0.5 rounded-ui bg-warning-background px-2.5 py-1.5 text-warning"
+          data-testid="hotkey-problems"
+        >
+          {#each hotkeyProblems as each (each.key ?? each.code)}
+            <p class="m-0">{hotkeyProblemText(each)}</p>
+          {/each}
+        </div>
+      {/if}
       <div class="flex flex-col">
         {#each actionList as each (each.action)}
           {@const keys = keymap[each.action]}
           {@const changed = keys.join("|") !== each.keys.join("|")}
           {@const clash = keys.flatMap((key) => clashes(keymap, each.action, key))}
           <div class="flex items-center gap-2 border-t border-line py-1 first:border-t-0">
-            <span class="min-w-0 flex-1 truncate {changed ? 'text-changed' : 'text-body'}">{each.name}</span>
+            <span class="min-w-0 flex-1 truncate {changed ? 'text-changed' : 'text-soft'}">{each.name}</span>
             {#if clash.length > 0}
-              <span class="text-small text-warn" title={t("settings.clashTitle")}>
+              <span class="text-small text-warning" title={t("settings.clashTitle")}>
                 {t("settings.clash", {
                   action: actionList.find((other) => other.action === clash[0])?.name ?? "",
                 })}
@@ -287,8 +428,8 @@ function resetAll(): void {
             <button
               type="button"
               class="min-w-28 rounded-ui border px-2 py-0.5 text-right font-mono text-mono {listening === each.action
-                ? 'border-accent bg-field text-accent-hi'
-                : 'border-transparent bg-field text-fg hover:border-muted'}"
+                ? 'border-accent bg-field text-accent-text'
+                : 'border-transparent bg-field text-normal hover:border-muted'}"
               onclick={() => (listening = listening === each.action ? null : each.action)}
             >
               {listening === each.action
@@ -297,7 +438,7 @@ function resetAll(): void {
             </button>
             <button
               type="button"
-              class="rounded-ui p-1 text-faint hover:text-fg disabled:opacity-30"
+              class="rounded-ui p-1 text-faint hover:text-normal disabled:opacity-30"
               title={t("settings.resetTitle", {
                 keys: each.keys.map(shownKey).join(", ") || t("settings.noKeys"),
               })}
@@ -310,7 +451,7 @@ function resetAll(): void {
           </div>
         {/each}
       </div>
-      <button type="button" class="mt-3 text-muted hover:text-fg" onclick={resetAll}>
+      <button type="button" class="mt-3 text-muted hover:text-normal" onclick={resetAll}>
         {t("settings.resetAll")}
       </button>
     {:else if tab === "map"}
@@ -376,7 +517,7 @@ function resetAll(): void {
       )}
       <button
         type="button"
-        class="mt-3 rounded-ui border border-transparent bg-raised px-3 py-0.5 text-body hover:border-muted"
+        class="mt-3 rounded-ui border border-transparent bg-raised px-3 py-0.5 text-soft hover:border-muted"
         onclick={onchoose}
       >
         {t("settings.data.change")}

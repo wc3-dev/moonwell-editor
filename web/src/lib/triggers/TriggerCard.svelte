@@ -71,7 +71,7 @@ const icons = {
 };
 const Icon = $derived(icons[card.kind]);
 const box =
-  "w-full resize-none rounded-[5px] border border-line bg-raised px-1.5 py-1 text-fg outline-none focus:border-accent disabled:opacity-60";
+  "w-full resize-none rounded-[5px] border border-line bg-raised px-1.5 py-1 text-normal outline-none focus:border-accent disabled:opacity-60";
 const variableText = $derived.by(() => {
   const each = card.variable;
   if (!each) return "";
@@ -94,13 +94,13 @@ function lines(text: string): number {
   >
     <div
       class="flex items-center px-0.5 pb-[3px] text-[11px] text-muted"
-      class:text-fg={dropKey === `${card.id}:section:${kind}`}
+      class:text-normal={dropKey === `${card.id}:section:${kind}`}
     >
       {title}
       {#if !readOnly}
         <button
           type="button"
-          class="ml-auto rounded-[4px] bg-raised p-px text-fg hover:bg-accent hover:text-bg"
+          class="ml-auto rounded-[4px] bg-raised p-px text-normal hover:bg-accent hover:text-deep"
           title={addLabel}
           aria-label={addLabel}
           onclick={() => actions.add(card.id, kind)}
@@ -120,7 +120,7 @@ function lines(text: string): number {
 {/snippet}
 
 <div
-  class="rounded-[8px] border border-black bg-surface text-xs text-text {selected
+  class="rounded-[8px] border border-black bg-panel text-xs text-text {selected
     ? active
       ? 'outline-2 outline-offset-1 outline-[#f0a020]'
       : 'outline-1 outline-offset-1 outline-[#f0a020]/50'
@@ -163,7 +163,7 @@ function lines(text: string): number {
     <Icon size={13} class="shrink-0" />
     {#if renaming}
       <input
-        class="min-w-0 flex-1 rounded-[3px] border border-accent bg-bg px-1 py-0 font-medium text-fg outline-none"
+        class="min-w-0 flex-1 rounded-[3px] border border-accent bg-deep px-1 py-0 font-medium text-normal outline-none"
         value={card.name}
         aria-label={t("triggers.name")}
         spellcheck="false"
@@ -225,7 +225,7 @@ function lines(text: string): number {
     {:else if card.kind === "variable"}
       <button
         type="button"
-        class="block w-full px-2 py-1.5 text-left text-fg hover:bg-hover disabled:hover:bg-transparent"
+        class="block w-full px-2 py-1.5 text-left text-normal hover:bg-hover disabled:hover:bg-transparent"
         disabled={readOnly}
         onclick={() => actions.variable(card)}
       >

@@ -5,6 +5,37 @@
 
 import { t } from "./text.ts";
 
+/**
+ * The player colours' names in `settings.json`, in player order: the keys of `teamColour.*` in the page's text. They
+ * are a public format, so they are never renamed.
+ */
+export const teamColorIds = [
+  "red",
+  "blue",
+  "teal",
+  "purple",
+  "yellow",
+  "orange",
+  "green",
+  "pink",
+  "gray",
+  "lightBlue",
+  "darkGreen",
+  "brown",
+  "maroon",
+  "navy",
+  "turquoise",
+  "violet",
+  "wheat",
+  "peach",
+  "mint",
+  "lavender",
+  "coal",
+  "snow",
+  "emerald",
+  "peanut",
+] as const;
+
 /** A player colour: its name as the game gives it and its sRGB hex code. */
 export type TeamColor = { name: string; hex: string };
 

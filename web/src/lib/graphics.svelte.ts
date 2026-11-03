@@ -1,10 +1,11 @@
 /**
  * The graphics mode the editor shows (Sven, 2026-10-27), as World Editor's: Classic (`sd`), Reforged (`hd`) or
  * Definitive Edition (`de`, the default). It picks the icons and models (each mode's own files first) and the values
- * the game keeps per mode (the Priest's icon is BTNPriest in Classic, BTNPriestV1 otherwise). Remembered in the
- * window's storage.
+ * the game keeps per mode (the Priest's icon is BTNPriest in Classic, BTNPriestV1 otherwise). Kept in
+ * `settings.json` as `game.graphicsMode` (Sven, 2026-11-02).
  */
 import type { FieldView, ObjectView } from "./api.ts";
+import { prefs, setPref } from "./prefs.svelte.ts";
 import { t } from "./text.ts";
 
 export type GraphicsMode = "sd" | "hd" | "de";
@@ -16,29 +17,16 @@ export const graphicsModes: { mode: GraphicsMode; name: string }[] = [
   { mode: "de", name: t("graphics.de") },
 ];
 
-const storageKey = "moonwell-editor.graphics";
-
-function saved(): GraphicsMode {
-  try {
-    const value = localStorage.getItem(storageKey);
-    if (value === "sd" || value === "hd" || value === "de") return value;
-  } catch {
-    // The default, below.
-  }
-  return "de";
-}
-
 /** The mode on the page; reading it in a template follows its changes. */
-export const graphics = $state<{ mode: GraphicsMode }>({ mode: saved() });
+export const graphics = {
+  get mode(): GraphicsMode {
+    return prefs.graphicsMode;
+  },
+};
 
 /** Shows another mode, and remembers it. */
 export function setGraphicsMode(mode: GraphicsMode): void {
-  graphics.mode = mode;
-  try {
-    localStorage.setItem(storageKey, mode);
-  } catch {
-    // Not remembered: the next start shows the default.
-  }
+  setPref("graphicsMode", mode);
 }
 
 /** A field as the mode shows it: a standard value the game keeps per mode is the mode's. */

@@ -108,10 +108,10 @@ async function flip(event: MouseEvent): Promise<void> {
 
 <div
   data-changed={(field.changed && !disabled) || undefined}
-  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-hairline {disabled
+  class="group grid min-h-6 grid-cols-[8px_var(--label-width,220px)_minmax(120px,1fr)] items-center border-b border-line-faint {disabled
     ? 'opacity-50'
     : selected
-      ? 'bg-select'
+      ? 'bg-selection'
       : 'hover:bg-raised'}"
   role="group"
   aria-label={field.label}
@@ -128,7 +128,7 @@ async function flip(event: MouseEvent): Promise<void> {
   <span class="h-full w-[3px] justify-self-center {field.changed ? 'bg-changed' : ''}"></span>
   <button
     type="button"
-    class="flex cursor-default items-center self-stretch border-r border-hairline pr-2 text-left focus:outline-none {selected ? 'text-fg [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
+    class="flex cursor-default items-center self-stretch border-r border-line-faint pr-2 text-left focus:outline-none {selected ? 'text-normal [&_*]:text-inherit' : ''} {nested ? 'pl-5 text-muted' : 'pl-0.5'}"
     title={editable && field.modes ? title : undefined}
     onclick={() => onselect(field)}
   >
@@ -168,7 +168,7 @@ async function flip(event: MouseEvent): Promise<void> {
         <!-- At the row's right end (Sven, 2026-10-29). -->
         <button
           type="button"
-          class="ml-auto shrink-0 px-1 text-changed hover:text-fg"
+          class="ml-auto shrink-0 px-1 text-changed hover:text-normal"
           title={t("field.resetTitle", { value: standard === "" ? t("field.empty") : standard })}
           aria-label={t("field.resetLabel", { field: field.label })}
           onclick={reset}
@@ -185,7 +185,7 @@ async function flip(event: MouseEvent): Promise<void> {
               type="button"
               class="rounded-ui border border-transparent bg-raised px-1.5 hover:border-accent {field.changed
                 ? 'text-changed'
-                : 'text-fg'}"
+                : 'text-normal'}"
               onclick={() => onopen(found.kind, object.id)}
             >
               {found.name}
@@ -199,8 +199,8 @@ async function flip(event: MouseEvent): Promise<void> {
     {:else}
       <span
         class="block max-w-full truncate rounded-ui border px-1.5 py-px font-mono text-mono {field.warning
-          ? 'border-warn bg-warn-lo'
-          : 'border-transparent'} {field.changed ? 'text-changed' : 'text-fg'}"
+          ? 'border-warning bg-warning-background'
+          : 'border-transparent'} {field.changed ? 'text-changed' : 'text-normal'}"
         {title}
       >
         {shown === "" ? " " : shown}
@@ -208,8 +208,8 @@ async function flip(event: MouseEvent): Promise<void> {
     {/if}
   </span>
   {#if error}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn" role="alert">{error}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warning" role="alert">{error}</span>
   {:else if field.warning}
-    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warn">{field.warning}</span>
+    <span class="col-start-2 col-end-4 pr-2 pb-1.5 text-warning">{field.warning}</span>
   {/if}
 </div>

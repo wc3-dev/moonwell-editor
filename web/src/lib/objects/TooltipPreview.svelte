@@ -64,7 +64,7 @@ let broken = $state("");
   <div class="mb-2 flex items-center gap-1 text-muted">
     <button
       type="button"
-      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-normal disabled:opacity-40"
       aria-label={t("tooltip.levelBefore")}
       disabled={shown <= 1}
       onclick={() => (level = shown - 1)}
@@ -74,7 +74,7 @@ let broken = $state("");
     <span class="min-w-16 text-center">{t("tooltip.level", { level: shown, levels: view.levels })}</span>
     <button
       type="button"
-      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+      class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-normal disabled:opacity-40"
       aria-label={t("tooltip.levelAfter")}
       disabled={shown >= view.levels}
       onclick={() => (level = shown + 1)}

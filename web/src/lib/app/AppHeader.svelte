@@ -64,8 +64,8 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   <button
     type="button"
     class="tool-button {shows
-      ? 'text-accent-hi'
-      : 'text-muted hover:text-fg disabled:opacity-50 disabled:hover:text-muted'}"
+      ? 'text-accent-text'
+      : 'text-muted hover:text-normal disabled:opacity-50 disabled:hover:text-muted'}"
     {title}
     aria-label={name}
     aria-pressed={shows}
@@ -110,7 +110,7 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   {/if}
   <button
     type="button"
-    class="dropdown tool-button ml-auto shrink-0 text-muted hover:text-fg"
+    class="dropdown tool-button ml-auto shrink-0 text-muted hover:text-normal"
     title={t("header.menu")}
     aria-label={t("header.menu")}
     aria-haspopup="menu"

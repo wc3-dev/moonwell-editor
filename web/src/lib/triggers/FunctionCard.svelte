@@ -36,10 +36,10 @@ const here = $derived(`${owner}:${function_.path}`);
 </script>
 
 <div
-  class="rounded-[7px] border border-black bg-bg"
+  class="rounded-[7px] border border-black bg-deep"
   class:opacity-50={!function_.enabled}
-  class:shadow-[0_-2px_0_var(--accent)]={dropKey === `${here}:before`}
-  class:shadow-[0_2px_0_var(--accent)]={dropKey === `${here}:after`}
+  class:shadow-[0_-2px_0_var(--accent-normal)]={dropKey === `${here}:before`}
+  class:shadow-[0_2px_0_var(--accent-normal)]={dropKey === `${here}:after`}
   role="group"
   aria-label={function_.title}
   data-function={function_.path}
@@ -84,13 +84,13 @@ const here = $derived(`${owner}:${function_.path}`);
   </div>
 
   {#if showsSentence(function_)}
-    <div class="px-2 pt-[3px] pb-[5px] leading-5 text-fg">
+    <div class="px-2 pt-[3px] pb-[5px] leading-5 text-normal">
       {#each function_.sentence as part, index (index)}{#if part.parameter}{@const parameter = part.parameter}<button
             type="button"
             class="mx-px max-w-full rounded-[4px] border bg-raised px-[5px] text-left text-[11.5px] leading-[16px] hover:border-accent disabled:hover:border-line {parameter.kind ===
             'none'
-              ? 'border-warn text-warn'
-              : 'border-line text-fg'}"
+              ? 'border-warning text-warning'
+              : 'border-line text-normal'}"
             disabled={readOnly}
             onclick={() => actions.parameter(owner, parameter)}>{part.text}</button
           >{:else}{part.text}{/if}{/each}
@@ -100,7 +100,7 @@ const here = $derived(`${owner}:${function_.path}`);
   {#each function_.blocks as block (block.branch)}
     <div
       class="group flex items-center gap-1 px-2 py-[2px] text-[11px] text-muted"
-      class:bg-accent-lo={dropKey === `${here}:block${block.branch}`}
+      class:bg-accent-background={dropKey === `${here}:block${block.branch}`}
       role="presentation"
       oncontextmenu={(event) => {
         event.preventDefault();
@@ -118,7 +118,7 @@ const here = $derived(`${owner}:${function_.path}`);
     >
       <button
         type="button"
-        class="flex items-center gap-0.5 hover:text-fg"
+        class="flex items-center gap-0.5 hover:text-normal"
         aria-expanded={!closed[block.branch]}
         onclick={() => (closed[block.branch] = !closed[block.branch])}
       >
@@ -128,7 +128,7 @@ const here = $derived(`${owner}:${function_.path}`);
       {#if !readOnly}
         <button
           type="button"
-          class="ml-auto rounded-[4px] bg-raised p-px text-fg hover:bg-accent hover:text-bg"
+          class="ml-auto rounded-[4px] bg-raised p-px text-normal hover:bg-accent hover:text-deep"
           title={block.kind === "condition" ? t("triggers.addCondition") : t("triggers.addAction")}
           aria-label={block.kind === "condition" ? t("triggers.addCondition") : t("triggers.addAction")}
           onclick={() => actions.addToBlock(owner, function_, block)}

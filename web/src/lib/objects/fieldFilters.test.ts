@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { FakeApp } from "../../test/fakeApp.ts";
+import { loadState } from "../home/state.svelte.ts";
 import { FieldFilters } from "./fieldFilters.svelte.ts";
 
-const key = "moonwell-editor.field-filters";
+beforeEach(() => loadState(null));
 
-beforeEach(() => localStorage.clear());
+afterEach(() => {
+  delete window.chrome;
+  loadState(null);
+});
 
 describe("favourites", () => {
   test("go on and off", () => {
@@ -25,21 +30,53 @@ describe("favourites", () => {
     new FieldFilters().toggleFavourite("unit", "ugol");
     expect(new FieldFilters().isFavourite("unit", "ugol")).toBe(true);
   });
+
+  test("go to state.json as a list for each kind", async () => {
+    const app = new FakeApp();
+    const filters = new FieldFilters();
+    filters.toggleFavourite("unit", "ugol");
+    filters.toggleFavourite("unit", "uhpm");
+    filters.toggleFavourite("item", "ides");
+    filters.toggleFavourite("unit", "ugol");
+    await app.idle();
+    expect(app.log.map((each) => each.args)).toEqual([
+      { key: "favourites", value: { unit: ["ugol"] } },
+      { key: "favourites", value: { unit: ["ugol", "uhpm"] } },
+      { key: "favourites", value: { unit: ["ugol", "uhpm"], item: ["ides"] } },
+      { key: "favourites", value: { unit: ["uhpm"], item: ["ides"] } },
+    ]);
+  });
 });
 
-describe("what storage holds", () => {
-  test("something that is not JSON gives nothing", () => {
-    localStorage.setItem(key, "{nope");
+describe("what the state holds", () => {
+  test("favourites from the file are there at start", () => {
+    loadState('{"favourites": {"unit": ["ugol"], "ability": ["Aamk"]}}');
+    const filters = new FieldFilters();
+    expect(filters.isFavourite("unit", "ugol")).toBe(true);
+    expect(filters.isFavourite("ability", "Aamk")).toBe(true);
+    expect(filters.isFavourite("item", "ugol")).toBe(false);
+  });
+
+  test("something that is not an object gives nothing", () => {
+    loadState('{"favourites": "nope"}');
+    expect(new FieldFilters().isFavourite("unit", "ugol")).toBe(false);
+    loadState('{"favourites": ["ugol"]}');
     expect(new FieldFilters().isFavourite("unit", "ugol")).toBe(false);
   });
 
   test("a wrong shape is left out, and the rest kept", () => {
-    localStorage.setItem(
-      key,
-      JSON.stringify({ unit: { favourites: ["ugol", 3], presets: [] }, item: "nonsense" }),
-    );
+    loadState('{"favourites": {"unit": ["ugol", 3], "item": "nonsense", "ability": ["Aamk"]}}');
     const filters = new FieldFilters();
     expect(filters.isFavourite("unit", "ugol")).toBe(true);
     expect(filters.isFavourite("item", "ugol")).toBe(false);
+    expect(filters.isFavourite("ability", "Aamk")).toBe(true);
+  });
+
+  test("a kind the editor does not have is not kept again", async () => {
+    const app = new FakeApp();
+    loadState('{"favourites": {"hero": ["ugol"]}}');
+    new FieldFilters().toggleFavourite("unit", "ugol");
+    await app.idle();
+    expect(app.args("setState")).toEqual({ key: "favourites", value: { unit: ["ugol"] } });
   });
 });

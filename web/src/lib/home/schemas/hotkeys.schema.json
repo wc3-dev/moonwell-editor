@@ -1,0 +1,309 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Moonwell Editor hotkeys",
+  "description": "Only the commands whose keys differ from the defaults, by the command's id. Each takes a list of keys, written as the modifiers and the key (Ctrl+Shift+N, F2, Alt+ArrowLeft); an empty list takes the command's default key away.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Where this schema is, for suggestions in the editor you write the file in."
+    },
+    "save": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+S"],
+      "description": "Save the map"
+    },
+    "undo": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+Z"],
+      "description": "Undo"
+    },
+    "redo": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+Y", "Ctrl+Shift+Z"],
+      "description": "Redo"
+    },
+    "newObject": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+Shift+N"],
+      "description": "New object based on this one"
+    },
+    "copyObject": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+Shift+D"],
+      "description": "Copy this custom object"
+    },
+    "copy": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+C"],
+      "description": "Copy (the field selected, else the object)"
+    },
+    "paste": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+V"],
+      "description": "Paste"
+    },
+    "rename": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["F2"],
+      "description": "Rename (the name field)"
+    },
+    "deleteObject": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Delete"],
+      "description": "Delete the custom object"
+    },
+    "filterFields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+F"],
+      "description": "Filter the fields"
+    },
+    "fieldIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+D"],
+      "description": "Show field ids"
+    },
+    "back": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Alt+ArrowLeft"],
+      "description": "Back"
+    },
+    "forward": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Alt+ArrowRight"],
+      "description": "Forward"
+    },
+    "settings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["F10"],
+      "description": "Open the settings"
+    },
+    "commandPalette": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+Shift+P"],
+      "description": "Open the command palette"
+    },
+    "terminal": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["Ctrl+`", "Ctrl+Ö"],
+      "description": "Show or hide the terminal"
+    },
+    "openFolder": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Open a map folder"
+    },
+    "openArchive": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Open a map archive (.w3x, .w3m)"
+    },
+    "reload": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Reload the map from disk"
+    },
+    "about": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "About Moonwell Editor"
+    },
+    "showTerrain": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the Terrain Editor"
+    },
+    "showTriggers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the Trigger Editor"
+    },
+    "showObjects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the Object Editor"
+    },
+    "showScripts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the Script Editor"
+    },
+    "showDetails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the details view"
+    },
+    "showTable": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show the table view"
+    },
+    "kindUnit": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show units"
+    },
+    "kindItem": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show items"
+    },
+    "kindDestructable": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show destructibles"
+    },
+    "kindDoodad": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show doodads"
+    },
+    "kindAbility": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show abilities"
+    },
+    "kindBuff": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show buffs/effects"
+    },
+    "kindUpgrade": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show upgrades"
+    },
+    "changedOnly": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Show changed fields only"
+    },
+    "clearFilters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Clear the field filters"
+    },
+    "collapseAll": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Collapse all categories"
+    },
+    "expandAll": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Expand all categories"
+    }
+  }
+}

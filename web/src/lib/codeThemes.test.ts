@@ -8,12 +8,9 @@ import {
   codeThemes,
   codeTokens,
 } from "./codeThemes.ts";
-import { defaultTheme, themeOf, themes } from "./themes.ts";
 
 const css = readFileSync(new URL("../app.css", import.meta.url), "utf8").toLowerCase();
 
-const dracula = themeOf("dracula");
-const nord = themeOf("nord");
 const named = (id: string) => codeThemes.find((each) => each.id === id) as CodeTheme;
 
 describe("the code themes", () => {
@@ -53,7 +50,7 @@ describe("the code themes", () => {
   });
 
   it("start as app.css has them", () => {
-    const colors = codeColors(codeThemeOf("", themeOf(defaultTheme)));
+    const colors = codeColors(codeThemeOf("", "dark"));
     for (const [token, value] of Object.entries(colors)) {
       expect(css).toContain(`--${token}: ${value.toLowerCase()};`);
     }
@@ -61,36 +58,30 @@ describe("the code themes", () => {
 });
 
 describe("the theme scripts are drawn in", () => {
-  it("has a code theme for every interface theme", () => {
-    for (const each of themes) {
-      expect(codeThemeOf("", each).name.toLowerCase(), each.id).toContain(
-        each.name.split(" ")[0]?.toLowerCase(),
-      );
-    }
+  it("is Dark Plus, or Light Plus for a light editor theme, when none is chosen", () => {
+    expect(codeThemeOf("", "dark").id).toBe("dark-plus");
+    expect(codeThemeOf("", "light").id).toBe("light-plus");
   });
 
-  it("follows the interface's theme when none is chosen", () => {
-    expect(codeThemeOf("", dracula)).toBe(named("dracula"));
+  it("is the one chosen, whatever the editor theme", () => {
+    expect(codeThemeOf("nord", "light").id).toBe("nord");
+    expect(codeThemeOf("monokai", "dark")).toBe(named("monokai"));
   });
 
-  it("stays its own when one is chosen, whatever the interface's theme", () => {
-    expect(codeThemeOf("monokai", dracula)).toBe(named("monokai"));
+  it("keeps a choice saved under a palette from before", () => {
+    expect(codeThemeOf("one-dark", "dark")).toBe(named("one-dark-pro"));
   });
 
-  it("keeps a choice saved under an interface theme's id", () => {
-    expect(codeThemeOf("one-dark", dracula)).toBe(named("one-dark-pro"));
-  });
-
-  it("follows the interface's theme for an id no theme has", () => {
-    expect(codeThemeOf("no-such-theme", dracula)).toBe(named("dracula"));
+  it("is the default for an id no theme has", () => {
+    expect(codeThemeOf("no-such-theme", "dark").id).toBe("dark-plus");
   });
 
   it("puts its colours on the page and leaves the interface's alone", () => {
     const set: Record<string, string> = {};
     const root = { style: { setProperty: (name: string, value: string) => (set[name] = value) } };
-    const theme = codeThemeOf("", nord);
+    const theme = codeThemeOf("nord", "dark");
     applyCodeTheme(theme, root as unknown as HTMLElement);
     expect(set["--code-keyword"]).toBe(codeColors(theme)["code-keyword"]);
-    expect(set["--bg"]).toBeUndefined();
+    expect(Object.keys(set).every((name) => name.startsWith("--code-"))).toBe(true);
   });
 });

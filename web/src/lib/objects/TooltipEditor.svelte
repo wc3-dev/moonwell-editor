@@ -20,6 +20,7 @@ import { onDestroy } from "svelte";
 import { type FieldView, iconUrl, type ObjectView, object } from "../api.ts";
 import { uiIcons } from "../gameIcons.ts";
 import { graphics } from "../graphics.svelte.ts";
+import { setState, stateOf } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
 import { typing } from "../typing.ts";
 import ContextMenu from "../ui/ContextMenu.svelte";
@@ -184,36 +185,22 @@ const presets = [
 
 // The user's own colours, after the divider: + picks a new one (until there are `maxOwn`), a click on one colours the
 // selection, and its context menu changes it in the picker or removes it (Sven, 2026-11-02). The picker is the editor's
-// own: WebView2's could not pick a colour. They are remembered in the window's storage.
+// own: WebView2's could not pick a colour. They are remembered in `state.json`.
 const maxOwn = 8;
-const ownKey = "moonwell-editor.tooltip-colours";
 let own = $state<string[]>(savedOwn());
 let colourMenu = $state<{ x: number; y: number; index: number; anchor: HTMLElement } | null>(null);
 // The picker, open under + (index null, a new colour) or under one of the user's colours.
 let picking = $state<{ index: number | null; anchor: HTMLElement } | null>(null);
 
 function savedOwn(): string[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(ownKey) ?? "[]") as unknown;
-    return Array.isArray(saved)
-      ? saved
-          .filter(
-            (each): each is string => typeof each === "string" && /^#[0-9a-f]{6}$/i.test(each),
-          )
-          .slice(0, maxOwn)
-      : [];
-  } catch {
-    return [];
-  }
+  return stateOf("tooltipColours", [], (value): value is unknown[] => Array.isArray(value))
+    .filter((each): each is string => typeof each === "string" && /^#[0-9a-f]{6}$/i.test(each))
+    .slice(0, maxOwn);
 }
 
 function setOwn(next: string[]): void {
   own = next;
-  try {
-    localStorage.setItem(ownKey, JSON.stringify(next));
-  } catch {
-    // Not remembered: the next start has none.
-  }
+  setState("tooltipColours", next);
 }
 
 const keyNames: Record<string, string> = {
@@ -444,7 +431,7 @@ onDestroy(() => {
     {#each presets as preset (preset.css)}
       <button
         type="button"
-        class="size-5 rounded-ui border border-line hover:border-fg"
+        class="size-5 rounded-ui border border-line hover:border-normal"
         style:background-color={preset.css}
         title={t("tooltipEditor.presetTitle", { name: preset.name, colour: preset.css })}
         aria-label={t("tooltipEditor.colourTitle", { colour: preset.name })}
@@ -454,7 +441,7 @@ onDestroy(() => {
     {/each}
     <button
       type="button"
-      class="flex size-5 items-center justify-center rounded-ui border border-transparent bg-raised text-muted hover:border-fg hover:text-fg"
+      class="flex size-5 items-center justify-center rounded-ui border border-transparent bg-raised text-muted hover:border-normal hover:text-normal"
       title={t("tooltipEditor.noColourTitle")}
       aria-label={t("tooltipEditor.noColourTitle")}
       onpointerdown={(event) => event.preventDefault()}
@@ -467,7 +454,7 @@ onDestroy(() => {
     {#each own as colour, index (index)}
       <button
         type="button"
-        class="size-5 rounded-ui border hover:border-fg {picking?.index === index ? 'border-fg' : 'border-line'}"
+        class="size-5 rounded-ui border hover:border-normal {picking?.index === index ? 'border-normal' : 'border-line'}"
         style:background-color={colour}
         title={t("tooltipEditor.ownTitle", { colour })}
         aria-label={t("tooltipEditor.ownTitle", { colour })}
@@ -483,7 +470,7 @@ onDestroy(() => {
     {#if own.length < maxOwn}
       <button
         type="button"
-        class="flex size-5 items-center justify-center rounded-ui border border-dashed text-muted hover:border-accent hover:text-fg {picking?.index ===
+        class="flex size-5 items-center justify-center rounded-ui border border-dashed text-muted hover:border-accent hover:text-normal {picking?.index ===
         null
           ? 'border-accent'
           : 'border-line'}"
@@ -500,7 +487,7 @@ onDestroy(() => {
       <span class="mx-1 h-4 w-px bg-line" aria-hidden="true"></span>
       <button
         type="button"
-        class="flex items-center gap-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-fg hover:border-accent"
+        class="flex items-center gap-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-normal hover:border-accent"
         aria-haspopup="dialog"
         aria-expanded={inserting}
         bind:this={insertButton}
@@ -515,7 +502,7 @@ onDestroy(() => {
       <div class="ml-auto flex items-center gap-1 text-muted">
         <button
           type="button"
-          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-normal disabled:opacity-40"
           aria-label={t("tooltip.levelBefore")}
           disabled={shownLevel <= 1}
           onclick={() => (level = shownLevel - 1)}
@@ -525,7 +512,7 @@ onDestroy(() => {
         <span class="min-w-16 text-center">{t("tooltip.level", { level: shownLevel, levels: view.levels })}</span>
         <button
           type="button"
-          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-fg disabled:opacity-40"
+          class="rounded-ui p-0.5 text-faint hover:bg-hover hover:text-normal disabled:opacity-40"
           aria-label={t("tooltip.levelAfter")}
           disabled={shownLevel >= view.levels}
           onclick={() => (level = shownLevel + 1)}
@@ -585,7 +572,7 @@ onDestroy(() => {
           <button
             type="button"
             role="menuitem"
-            class="flex items-center gap-3 rounded-ui px-2 py-1 text-left hover:bg-hover hover:text-fg"
+            class="flex items-center gap-3 rounded-ui px-2 py-1 text-left hover:bg-hover hover:text-normal"
             onpointerdown={(event) => event.preventDefault()}
             onclick={() => insert(each)}
           >
@@ -611,8 +598,8 @@ onDestroy(() => {
               aria-checked={form === each.form}
               title={each.title}
               class="rounded-ui border border-transparent px-2 py-0.5 {form === each.form
-                ? 'bg-select text-fg'
-                : 'bg-raised text-muted hover:text-fg'}"
+                ? 'bg-selection text-normal'
+                : 'bg-raised text-muted hover:text-normal'}"
               onpointerdown={(event) => event.preventDefault()}
               onclick={() => (form = each.form)}
             >
@@ -680,11 +667,11 @@ onDestroy(() => {
   {/each}
 
   {#if buffComma}
-    <p class="mt-3 mb-0 text-warn">
+    <p class="mt-3 mb-0 text-warning">
       {t("tooltipEditor.buffComma")}
       <button
         type="button"
-        class="ml-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-body hover:border-muted"
+        class="ml-1 rounded-ui border border-transparent bg-raised px-2 py-0.5 text-soft hover:border-muted"
         title={t("tooltipEditor.swapCommasTitle")}
         onclick={swapCommas}
       >
@@ -694,7 +681,7 @@ onDestroy(() => {
   {/if}
 
   {#if error}
-    <p class="mt-3 mb-0 text-warn" role="alert">{error}</p>
+    <p class="mt-3 mb-0 text-warning" role="alert">{error}</p>
   {/if}
 
   {#snippet actions()}
@@ -705,7 +692,7 @@ onDestroy(() => {
           · {t("tooltipEditor.levelTag", { level: named.field.level })}{/if}
         {#if named.field.maxLength}
           {@const length = (drafts[keyOf(named.field)] ?? named.field.value).length}
-          · <span class="font-mono text-mono {length >= named.field.maxLength ? 'text-warn' : ''}"
+          · <span class="font-mono text-mono {length >= named.field.maxLength ? 'text-warning' : ''}"
             >{t("tooltipEditor.length", { length, max: named.field.maxLength })}</span
           >
         {/if}

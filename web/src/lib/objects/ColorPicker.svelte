@@ -133,9 +133,9 @@ function type(text: string): void {
   <div class="flex items-center gap-1.5">
     <span class="size-6 shrink-0 rounded-ui border border-line" style:background-color={hex}></span>
     <input
-      class="w-0 min-w-0 flex-1 rounded-ui border px-1.5 py-[3px] font-mono text-mono text-fg outline-none focus:border-accent {typed !==
+      class="w-0 min-w-0 flex-1 rounded-ui border px-1.5 py-[3px] font-mono text-mono text-normal outline-none focus:border-accent {typed !==
         null && !parseHex(typed)
-        ? 'border-warn'
+        ? 'border-warning'
         : 'border-transparent'} bg-field"
       value={typed ?? hex}
       spellcheck="false"
@@ -150,7 +150,7 @@ function type(text: string): void {
     />
     <button
       type="button"
-      class="rounded-ui bg-primary px-2.5 py-[3px] text-fg hover:brightness-110"
+      class="rounded-ui bg-button px-2.5 py-[3px] text-normal hover:brightness-110"
       onpointerdown={(event) => event.preventDefault()}
       onclick={() => onpick(hex)}
     >

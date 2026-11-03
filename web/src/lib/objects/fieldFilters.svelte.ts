@@ -1,51 +1,42 @@
 /**
- * The favourite fields per kind of object (Sven, 2026-11-01). They are kept in the window's storage, so they are this
- * PC's and the same in every map.
+ * The favourite fields per kind of object (Sven, 2026-11-01). They are kept in `state.json`, so they are this PC's and
+ * the same in every map.
  */
 import { type Kind, kinds } from "../api.ts";
+import { isRecord } from "../home/jsonc.ts";
+import { setState, stateOf } from "../home/state.svelte.ts";
 
-type OfKind = { favourites: string[] };
+type Favourites = Partial<Record<Kind, string[]>>;
 
-const storageKey = "moonwell-editor.field-filters";
-
-const isText = (value: unknown): value is string => typeof value === "string";
-
-// What can be read of what was kept: an entry that does not fit is left out, and the rest stays.
-function ofKind(value: unknown): OfKind {
-  const { favourites } = (value ?? {}) as Partial<Record<keyof OfKind, unknown>>;
-  return { favourites: Array.isArray(favourites) ? favourites.filter(isText) : [] };
-}
-
-function saved(): Partial<Record<Kind, OfKind>> {
-  try {
-    const stored = JSON.parse(localStorage.getItem(storageKey) ?? "{}") as Partial<
-      Record<Kind, unknown>
-    >;
-    return Object.fromEntries(kinds.map((kind) => [kind, ofKind(stored[kind])]));
-  } catch {
-    return {};
-  }
+// What can be read of what was kept: a kind that does not fit is left out, and the rest stays.
+function saved(): Favourites {
+  const stored = stateOf("favourites", {}, isRecord);
+  return Object.fromEntries(
+    kinds.flatMap((kind): [Kind, string[]][] => {
+      const ids = stored[kind];
+      return Array.isArray(ids)
+        ? [[kind, ids.filter((id): id is string => typeof id === "string")]]
+        : [];
+    }),
+  );
 }
 
 export class FieldFilters {
-  #kinds = $state(saved());
+  #kinds = $state.raw<Favourites>(saved());
 
   isFavourite(kind: Kind, id: string): boolean {
-    return this.#kinds[kind]?.favourites.includes(id) ?? false;
+    return this.#kinds[kind]?.includes(id) ?? false;
   }
 
   /** Adds a field to the favourites, or takes it off. */
   toggleFavourite(kind: Kind, id: string): void {
-    const favourites = this.#kinds[kind]?.favourites ?? [];
-    this.#kinds[kind] = {
-      favourites: favourites.includes(id)
+    const favourites = this.#kinds[kind] ?? [];
+    this.#kinds = {
+      ...this.#kinds,
+      [kind]: favourites.includes(id)
         ? favourites.filter((each) => each !== id)
         : [...favourites, id],
     };
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(this.#kinds));
-    } catch {
-      // Not remembered: the next start does not have it.
-    }
+    setState("favourites", this.#kinds);
   }
 }

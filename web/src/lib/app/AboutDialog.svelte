@@ -47,7 +47,7 @@ const libraries: [string, string][] = [
 {#snippet row(label: string, value: string)}
   <div class="flex gap-3 py-0.5">
     <span class="w-32 shrink-0 text-muted">{label}</span>
-    <span class="min-w-0 font-mono text-mono break-words text-fg">{value}</span>
+    <span class="min-w-0 font-mono text-mono break-words text-normal">{value}</span>
   </div>
 {/snippet}
 
@@ -55,7 +55,7 @@ const libraries: [string, string][] = [
   <div class="mb-3 flex items-center gap-3">
     <img src={logo} alt="" class="size-10 shrink-0" />
     <div>
-      <p class="m-0 text-title font-semibold text-fg">
+      <p class="m-0 text-title font-semibold text-normal">
         {t("noMap.title", { version: about?.version ?? "" }).trim()}
       </p>
       <p class="m-0 text-muted">{t("about.text")}</p>
@@ -74,11 +74,11 @@ const libraries: [string, string][] = [
     {@render row(t("about.webView"), about.webView2 ?? t("about.unknown"))}
   {/if}
 
-  <h3 class="m-0 mt-2.5 mb-[3px] font-semibold text-fg">{t("about.builtWith")}</h3>
+  <h3 class="m-0 mt-2.5 mb-[3px] font-semibold text-normal">{t("about.builtWith")}</h3>
   <ul class="m-0 grid list-none grid-cols-2 gap-x-6 gap-y-0.5 p-0">
     {#each libraries as [name, licence] (name)}
       <li class="flex justify-between gap-2">
-        <span class="text-body">{name}</span>
+        <span class="text-soft">{name}</span>
         <span class="font-mono text-mono text-faint">{licence}</span>
       </li>
     {/each}

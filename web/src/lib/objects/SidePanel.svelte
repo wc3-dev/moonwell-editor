@@ -104,7 +104,7 @@ $effect(() => {
   <h3 class="{top} -mx-1.5 mb-1">
     <button
       type="button"
-      class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-fg"
+      class="flex h-5 w-full items-center gap-1 bg-raised px-1.5 text-left font-semibold text-normal"
       aria-expanded={!closed[key]}
       onclick={() => (closed[key] = !closed[key])}
     >
@@ -144,7 +144,7 @@ $effect(() => {
     <!-- Flush with the heading's end, in its square corners (Sven, 2026-11-01). -->
     <button
       type="button"
-      class="absolute top-0 -right-1.5 flex h-5 items-center gap-1 px-1.5 text-muted hover:bg-line hover:text-fg"
+      class="absolute top-0 -right-1.5 flex h-5 items-center gap-1 px-1.5 text-muted hover:bg-line hover:text-normal"
       title={t("side.editTooltip")}
       onclick={onedittooltip}
     >
@@ -170,7 +170,7 @@ $effect(() => {
 {#if closed.usedBy}
   <!-- Closed. -->
 {:else if problem}
-  <p class="text-warn">{problem}</p>
+  <p class="text-warning">{problem}</p>
 {:else if users === null}
   <p class="text-faint">{t("side.looking")}</p>
 {:else if users.length === 0}

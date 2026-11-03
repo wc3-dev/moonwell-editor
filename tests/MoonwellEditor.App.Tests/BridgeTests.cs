@@ -10,7 +10,7 @@ public sealed class BridgeTests
     // Commands that never touch the settings or the game data: only ping and the unknown-command error are used.
     private static Commands PingOnly() =>
         new(
-            new Settings(Path.Combine(Path.GetTempPath(), "MoonwellEditor.App.Tests", "bridge")),
+            new Home(Path.Combine(Path.GetTempPath(), "MoonwellEditor.App.Tests", "bridge")),
             _ => null,
             _ => throw new InvalidOperationException());
 

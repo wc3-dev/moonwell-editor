@@ -21,7 +21,7 @@ let { value, onpick }: Props = $props();
     <button
       type="button"
       class="aspect-square rounded-ui border {chosen
-        ? 'relative z-10 border-bg outline-2 outline-fg'
+        ? 'relative z-10 border-deep outline-2 outline-normal'
         : 'border-line hover:border-muted'}"
       style="background-color: {colour.hex}"
       title={t("model.playerTitle", { player: index + 1, colour: colour.name })}

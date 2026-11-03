@@ -21,7 +21,7 @@ public sealed class MapSceneCommandTests : IDisposable
     public async Task mapScene_without_a_map_is_noMap()
     {
         var commands = new Commands(
-            new Settings(Path.Combine(_root, "settings")),
+            new Home(Path.Combine(_root, "settings")),
             _ => throw new InvalidOperationException("no dialog"),
             _ => throw new InvalidOperationException());
         var bridge = new Bridge(commands.Run);

@@ -3,27 +3,31 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Kanagawa Dragon, the default theme (Sven, 2026-10-29), as themes.ts works it out from its VS Code file. */
+/* Kanagawa Dragon, the default theme (Sven, 2026-10-29), as its file in themes/ has it: the page is in it until
+   themes.ts puts the chosen theme on. The terminal's colours go to the terminal, not here. */
 :root {
   /* The number boxes' arrows and the scroll bars follow it: a light theme sets it to light. */
   color-scheme: dark;
-  --bg: #0d0c0c;
-  --surface: #181616;
-  --raised: #282727;
-  --hover: #282727;
-  --border: #373636;
-  --fg: #c5c9c5;
-  --text: #b4b7b4;
-  --muted: #a6a9a6;
-  --faint: #737c73;
-  --accent: #8ba4b0;
-  --accent-hi: #8ea4a2;
-  --accent-lo: #2d3032;
-  --changed: #c4b28a;
-  --warn: #c4746e;
-  --warn-lo: #372726;
-  --cyan: #8ea4a2;
-  --purple: #938aa9;
+  --background-base: #0d0c0c;
+  --background-panel: #181616;
+  --background-gutter: #0a0909;
+  --background-raised: #282727;
+  --background-hover: #282727;
+  --background-field: #090808;
+  --background-selection: #3a3f42;
+  --background-button: #4c5459;
+  --border-normal: #373636;
+  --border-faint: #2e2c2c;
+  --text-normal: #c5c9c5;
+  --text-soft: #b4b7b4;
+  --text-muted: #a6a9a6;
+  --text-faint: #737c73;
+  --accent-normal: #8ba4b0;
+  --accent-text: #8ea4a2;
+  --accent-background: #2d3032;
+  --state-changed: #c4b28a;
+  --state-warning: #c4746e;
+  --state-warning-background: #372726;
   /* One colour per kind of object, for its icon and its name. */
   --kind-unit: #8ba4b0;
   --kind-item: #c4937c;
@@ -32,19 +36,20 @@
   --kind-ability: #8ea4a2;
   --kind-buff: #a292a3;
   --kind-upgrade: #c4746e;
-  /* A script's colours, which the settings' code theme sets on its own (Sven, 2026-10-31). */
-  --code-bg: #181616;
-  --code-fg: #c5c9c5;
-  --code-gutter: #625e5a;
-  --code-selection: #223249;
-  --code-keyword: #8992a7;
-  --code-type: #8ea4a2;
-  --code-string: #8a9a7b;
-  --code-number: #a292a3;
-  --code-comment: #737c73;
-  --code-function: #8ba4b0;
-  --code-special: #c5c9c5;
-  --code-operator: #c4b28a;
+  /* A script's colours, which the settings' code theme sets on its own (Sven, 2026-10-31): Dark Plus until one is
+     chosen (Sven, 2026-11-02). */
+  --code-bg: #1e1e1e;
+  --code-fg: #d4d4d4;
+  --code-gutter: #858585;
+  --code-selection: #264f78;
+  --code-keyword: #c586c0;
+  --code-type: #4ec9b0;
+  --code-string: #ce9178;
+  --code-number: #b5cea8;
+  --code-comment: #6a9955;
+  --code-function: #dcdcaa;
+  --code-special: #4fc1ff;
+  --code-operator: #d4d4d4;
   /* Google Sans (Sven, 2026-11-01). The game's tooltips are in Inter everywhere, ids and values in JetBrains Mono. The
      trigger canvas keeps Apple's New York where Windows has it installed, and Inter where not. */
   --font-ui: "Google Sans Variable", system-ui, sans-serif;
@@ -54,13 +59,6 @@
   --font-tooltip: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --radius-ui: 3px;
-  /* Worked out from each theme's colours, so every theme gets them. The cap on lightness keeps --fg readable on them
-     where a theme's accent or background is light. */
-  --gutter: color-mix(in srgb, var(--bg), black 22%);
-  --field: color-mix(in srgb, var(--bg), black 30%);
-  --select: oklch(from color-mix(in oklab, var(--accent) 32%, var(--surface)) min(l, 0.44) c h);
-  --primary: oklch(from color-mix(in oklab, var(--accent) 40%, var(--raised)) min(l, 0.44) c h);
-  --hairline: color-mix(in srgb, var(--border) 70%, transparent);
   /* How deep the header bar's edge and a pressed button go. */
   --toolbar-depth: 45%;
   --pressed-top: 42%;
@@ -68,12 +66,8 @@
   --pressed-shadow: rgb(0 0 0 / 0.45);
 }
 
-/* A light theme's panels stand on a base a little darker than them, and what is selected stays light under dark text. */
+/* A light theme's header bar and pressed buttons are shaded less. */
 :root[data-scheme="light"] {
-  --gutter: color-mix(in srgb, var(--bg), black 7%);
-  --field: color-mix(in srgb, var(--bg), black 3%);
-  --select: oklch(from color-mix(in oklab, var(--accent) 28%, var(--surface)) max(l, 0.84) c h);
-  --primary: oklch(from color-mix(in oklab, var(--accent) 34%, var(--raised)) max(l, 0.8) c h);
   --toolbar-depth: 16%;
   --pressed-top: 14%;
   --pressed-bottom: 7%;
@@ -89,15 +83,15 @@ body,
 
 /* Only what is typed in can be selected: the names, values, panels and status bar cannot (Sven, 2026-10-29). */
 body {
-  background: var(--gutter);
-  color: var(--text);
+  background: var(--background-gutter);
+  color: var(--text-soft);
   font: 12px / 16px var(--font-ui);
   overflow: hidden;
   user-select: none;
 }
 
 /*
- * Checkboxes and selects in the page's colours (Sven, 2026-10-27). In the base layer, so a class on the element still
+ * Checkboxes in the page's colours (Sven, 2026-10-27). In the base layer, so a class on the element still
  * wins: the reset already gives buttons and fields the inherited font and colour, and a rule outside a layer
  * would beat every class.
  */
@@ -110,7 +104,7 @@ body {
 
   /* A focus ring, when one shows, is the accent's, not the browser's black (Sven, 2026-10-29). */
   :focus-visible {
-    outline-color: var(--accent);
+    outline-color: var(--accent-normal);
   }
 
   /* Every page is panels on the gutter. */
@@ -127,34 +121,25 @@ body {
     margin: 0;
     border: 1px solid transparent;
     border-radius: var(--radius-ui);
-    background: var(--field) center / 10px 10px no-repeat;
+    background: var(--background-field);
     cursor: pointer;
   }
   input[type="checkbox"]:hover {
-    border-color: var(--muted);
+    border-color: var(--text-muted);
   }
-  input[type="checkbox"]:checked {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d0d0d0' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
-  }
-  :root[data-scheme="light"] input[type="checkbox"]:checked {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  /* The tick is the text's colour cut out by its shape, so it follows the theme. */
+  input[type="checkbox"]:checked::before {
+    display: block;
+    height: 100%;
+    background: var(--text-normal);
+    mask:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+      center / 10px 10px no-repeat;
+    content: "";
   }
   input[type="checkbox"]:focus-visible {
-    outline: 1px solid var(--accent-hi);
+    outline: 1px solid var(--accent-text);
     outline-offset: 1px;
-  }
-
-  select {
-    appearance: none;
-    padding-right: 22px;
-    background:
-      var(--field)
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-      right 6px center / 12px 12px no-repeat;
-  }
-  select option {
-    background: var(--raised);
-    color: var(--fg);
   }
 
   /* A number box's own arrows are hidden: the field editor draws its own (Sven, 2026-10-29). */
@@ -167,13 +152,13 @@ body {
 @layer components {
   /* The header bar is the one shaded thing in the page (Sven, 2026-11-01). */
   .toolbar {
-    --toolbar-light: color-mix(in srgb, var(--raised), white 12%);
-    --toolbar-dark: color-mix(in srgb, var(--bg), black var(--toolbar-depth));
+    --toolbar-light: color-mix(in srgb, var(--background-raised), white 12%);
+    --toolbar-dark: color-mix(in srgb, var(--background-base), black var(--toolbar-depth));
     border-bottom: 1px solid var(--toolbar-dark);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--raised), white 8%),
-      color-mix(in srgb, var(--raised), black 10%)
+      color-mix(in srgb, var(--background-raised), white 8%),
+      color-mix(in srgb, var(--background-raised), black 10%)
     );
     box-shadow: inset 0 1px 0 var(--toolbar-light);
   }
@@ -190,8 +175,8 @@ body {
     border-color: var(--toolbar-dark);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--raised), white 11%),
-      color-mix(in srgb, var(--raised), black 6%)
+      color-mix(in srgb, var(--background-raised), white 11%),
+      color-mix(in srgb, var(--background-raised), black 6%)
     );
   }
   .tool-button[aria-pressed="true"],
@@ -200,8 +185,8 @@ body {
     border-color: var(--toolbar-dark);
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--raised), black var(--pressed-top)),
-      color-mix(in srgb, var(--raised), black var(--pressed-bottom))
+      color-mix(in srgb, var(--background-raised), black var(--pressed-top)),
+      color-mix(in srgb, var(--background-raised), black var(--pressed-bottom))
     );
     box-shadow:
       inset 0 1px 2px var(--pressed-shadow),
@@ -219,10 +204,10 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--fg) 16%, transparent);
+  background: color-mix(in srgb, var(--text-normal) 16%, transparent);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--fg) 32%, transparent);
+  background: color-mix(in srgb, var(--text-normal) 32%, transparent);
 }
 
 /*
@@ -232,11 +217,11 @@ body {
  */
 .dropdown[aria-expanded="true"] {
   border-style: solid;
-  border-color: var(--border);
+  border-color: var(--border-normal);
   border-bottom-color: transparent;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
-  background: var(--surface);
+  background: var(--background-panel);
 }
 /* In the header it reaches the bottom edge, where its list starts, and keeps its icon where it was. */
 .toolbar .dropdown[aria-expanded="true"] {
@@ -263,7 +248,7 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
   border-top-color: transparent;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  border-bottom-color: var(--border);
+  border-bottom-color: var(--border-normal);
   border-bottom-right-radius: var(--radius-ui);
   border-bottom-left-radius: var(--radius-ui);
 }
@@ -283,7 +268,7 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
   right: 0;
   width: calc(var(--bits-floating-anchor-width) - 2px);
   height: 1px;
-  background: var(--surface);
+  background: var(--background-panel);
   content: "";
 }
 .dropdown-list [data-select-viewport] {

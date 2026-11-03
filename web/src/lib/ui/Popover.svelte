@@ -39,7 +39,7 @@ let { anchor, onclose, children, large = false, dropdown = false }: Props = $pro
         if (event.target instanceof Node && anchor.contains(event.target)) event.preventDefault();
       }}
       data-popup
-      class="z-40 w-max overflow-auto rounded-ui border border-line bg-surface p-0.5 text-body outline-none {dropdown
+      class="z-40 w-max overflow-auto rounded-ui border border-line bg-panel p-0.5 text-soft outline-none {dropdown
         ? 'dropdown-list'
         : 'min-w-[200px]'} {large
         ? 'max-h-[calc(100vh-16px)] max-w-[calc(100vw-16px)]'

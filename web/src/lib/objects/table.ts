@@ -123,12 +123,12 @@ export function fitColumns(columns: unknown, fields: FieldInfo[]): Column[] {
   return result;
 }
 
-/** Where a kind's columns are kept in the window's storage. */
+/** Where a kind's columns are kept in the editor's state (`state.json`). */
 export function storageKey(kind: Kind): string {
   return `objectEditor.columns.${kind}`;
 }
 
-/** The window's storage, as far as the columns use it. */
+/** The storage the columns are kept in, as far as they use it: the editor's state is one (`stateStore`). */
 export type Store = Pick<Storage, "getItem" | "setItem">;
 
 /**

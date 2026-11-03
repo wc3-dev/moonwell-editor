@@ -7,8 +7,16 @@ public sealed class CommandsTests : IDisposable
 {
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "MoonwellEditor.App.Tests", Guid.NewGuid().ToString("N"));
 
+    private readonly List<Home> _homes = [];
+
     public void Dispose()
     {
+        // A watcher holds its folder, so the homes go first.
+        foreach (var home in _homes)
+        {
+            home.Dispose();
+        }
+
         if (Directory.Exists(_folder))
         {
             Directory.Delete(_folder, true);
@@ -17,27 +25,42 @@ public sealed class CommandsTests : IDisposable
 
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement;
 
-    private static async Task<JsonElement> Ask(Commands commands, string command)
+    private static async Task<JsonElement> Ask(Commands commands, string command, object? args = null)
     {
         var bridge = new Bridge(commands.Run);
-        return Parse(await bridge.Handle("{\"id\":1,\"command\":\"" + command + "\",\"args\":{}}"));
+        var request = JsonSerializer.Serialize(new { id = 1, command, args = args ?? new { } });
+        return Parse(await bridge.Handle(request));
+    }
+
+    // The home folder, with a settings.json that names the game folder when one is given.
+    private Home HomeWith(string? gameFolder = null)
+    {
+        if (gameFolder != null)
+        {
+            Directory.CreateDirectory(_folder);
+            File.WriteAllText(
+                Path.Combine(_folder, "settings.json"),
+                JsonSerializer.Serialize(new Dictionary<string, string?> { ["game.folder"] = gameFolder }));
+        }
+
+        var home = new Home(_folder);
+        _homes.Add(home);
+        return home;
     }
 
     private Commands Make(
         Func<string, MoonwellEditor.GameData.GameData> load,
         Func<string?>? ask = null,
-        string? savedFolder = null)
-    {
-        var settings = new Settings(_folder) { GameFolder = savedFolder };
-        return new Commands(settings, _ => ask == null ? null : ask(), load);
-    }
+        string? savedFolder = null,
+        Action<string>? open = null) =>
+        new(HomeWith(savedFolder), _ => ask == null ? null : ask(), load, open: open);
 
     [Fact]
     public async Task Without_a_chosen_folder_the_install_found_is_loaded()
     {
         string? loaded = null;
         var commands = new Commands(
-            new Settings(_folder),
+            HomeWith(),
             _ => null,
             folder =>
             {
@@ -49,7 +72,7 @@ public sealed class CommandsTests : IDisposable
         await commands.StartLoading();
 
         Assert.Equal(@"C:\Games\Warcraft III", loaded);
-        Assert.Null(new Settings(_folder).GameFolder);
+        Assert.Null(new Home(_folder).GameFolder);
     }
 
     [Fact]
@@ -57,7 +80,7 @@ public sealed class CommandsTests : IDisposable
     {
         string? loaded = null;
         var commands = new Commands(
-            new Settings(_folder) { GameFolder = @"C:\Chosen" },
+            HomeWith(@"C:\Chosen"),
             _ => null,
             folder =>
             {
@@ -75,7 +98,7 @@ public sealed class CommandsTests : IDisposable
     public async Task Without_a_chosen_folder_or_an_install_the_page_asks_for_one()
     {
         var commands = new Commands(
-            new Settings(_folder),
+            HomeWith(),
             _ => null,
             _ => throw new InvalidOperationException("must not load"),
             findGame: () => null);
@@ -106,7 +129,8 @@ public sealed class CommandsTests : IDisposable
 
         Assert.True(after.GetProperty("loaded").GetBoolean());
         Assert.Equal(Moonwell.GameData.GameInstall.Build(install).Version, after.GetProperty("game").GetString());
-        Assert.Equal(install, new Settings(_folder).GameFolder);
+        Assert.False(File.Exists(Path.Combine(_folder, "settings.json")));   // the page writes game.folder, not the app
+        Assert.Null(new Home(_folder).GameFolder);
     }
 
     [Fact]
@@ -124,9 +148,8 @@ public sealed class CommandsTests : IDisposable
     [Fact]
     public async Task The_startup_map_is_given_once_then_cleared()
     {
-        var settings = new Settings(_folder);
         var commands = new Commands(
-            settings,
+            HomeWith(),
             _ => null,
             _ => throw new InvalidOperationException("must not load"),
             @"C:\Maps\Arena");
@@ -216,12 +239,11 @@ public sealed class CommandsTests : IDisposable
     public async Task Choosing_a_folder_that_fails_keeps_the_old_setting()
     {
         var commands = Make(_ => throw new DirectoryNotFoundException("bad"), () => @"C:\bad", savedFolder: @"C:\old");
-        new Settings(_folder) { GameFolder = @"C:\old" }.Save();
 
         await Ask(commands, "chooseGameData");
         await commands.Loading;
 
-        Assert.Equal(@"C:\old", new Settings(_folder).GameFolder);
+        Assert.Equal(@"C:\old", new Home(_folder).GameFolder);
     }
 
     [Fact]
@@ -233,7 +255,7 @@ public sealed class CommandsTests : IDisposable
 
         Assert.True(reply.GetProperty("ok").GetBoolean());
         Assert.Equal(JsonValueKind.Null, reply.GetProperty("result").GetProperty("source").ValueKind);
-        Assert.Null(new Settings(_folder).GameFolder);
+        Assert.False(File.Exists(Path.Combine(_folder, "settings.json")));
     }
 
     [Fact]
@@ -323,5 +345,197 @@ public sealed class CommandsTests : IDisposable
         var commands = Make(_ => throw new InvalidOperationException());
 
         Assert.False(commands.Dirty);
+    }
+
+    [Fact]
+    public async Task writeHome_writes_a_file_in_the_home_folder()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+
+        var reply = await Ask(commands, "writeHome", new { file = "themes/mine.json", text = "{ \"name\": \"Mine\" }" });
+        var empty = await Ask(commands, "writeHome", new { file = "hotkeys.json", text = "" });
+
+        Assert.True(reply.GetProperty("ok").GetBoolean());
+        Assert.True(empty.GetProperty("ok").GetBoolean());
+        Assert.Equal("{ \"name\": \"Mine\" }", File.ReadAllText(Path.Combine(_folder, "themes", "mine.json")));
+        Assert.Equal("", File.ReadAllText(Path.Combine(_folder, "hotkeys.json")));
+    }
+
+    [Theory]
+    [InlineData("../x.json")]
+    [InlineData("state.json")]
+    [InlineData("themes/a/b.json")]
+    public async Task writeHome_refuses_a_name_it_may_not_write(string file)
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+
+        var reply = await Ask(commands, "writeHome", new { file, text = "{}" });
+
+        Assert.False(reply.GetProperty("ok").GetBoolean());
+        Assert.Equal("badRequest", reply.GetProperty("error").GetProperty("code").GetString());
+        Assert.Contains(file, reply.GetProperty("error").GetProperty("message").GetString());
+        Assert.DoesNotContain("Parameter", reply.GetProperty("error").GetProperty("message").GetString());
+        Assert.False(File.Exists(Path.Combine(_folder, "..", "x.json")));
+        Assert.False(File.Exists(Path.Combine(_folder, "state.json")));
+    }
+
+    [Fact]
+    public async Task writeHome_needs_a_file_and_a_text()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+
+        var noText = await Ask(commands, "writeHome", new { file = "settings.json" });
+        var noFile = await Ask(commands, "writeHome", new { text = "{}" });
+
+        Assert.Equal("badRequest", noText.GetProperty("error").GetProperty("code").GetString());
+        Assert.Equal("badRequest", noFile.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task setState_merges_into_state_json()
+    {
+        var commands = Make(_ => throw new InvalidOperationException());
+
+        var first = await Ask(commands, "setState", new { key = "terminalHeight", value = 300 });
+        var second = await Ask(commands, "setState", new { key = "favourites", value = new { unit = new[] { "uhpm" } } });
+        var third = await Ask(commands, "setState", new { key = "terminalHeight", value = 320 });
+        var noValue = await Ask(commands, "setState", new { key = "x" });
+        var noKey = await Ask(commands, "setState", new { key = "", value = 1 });
+
+        Assert.True(first.GetProperty("ok").GetBoolean());
+        Assert.True(second.GetProperty("ok").GetBoolean());
+        Assert.True(third.GetProperty("ok").GetBoolean());
+        Assert.Equal("badRequest", noValue.GetProperty("error").GetProperty("code").GetString());
+        Assert.Equal("badRequest", noKey.GetProperty("error").GetProperty("code").GetString());
+        var state = Parse(File.ReadAllText(Path.Combine(_folder, "state.json")));
+        Assert.Equal(320, state.GetProperty("terminalHeight").GetInt32());
+        Assert.Equal("uhpm", state.GetProperty("favourites").GetProperty("unit")[0].GetString());
+        Assert.False(state.TryGetProperty("x", out _));
+    }
+
+    [Fact]
+    public async Task openHome_opens_the_folder_the_themes_folder_or_a_file()
+    {
+        var opened = new List<string>();
+        var commands = Make(_ => throw new InvalidOperationException(), open: opened.Add);
+
+        await Ask(commands, "openHome", new { });
+        await Ask(commands, "openHome", new { file = "themes" });
+        await Ask(commands, "openHome", new { file = "themes/mine.json" });
+        await Ask(commands, "openHome", new { file = "settings.json" });
+
+        Assert.Equal(
+            [
+                _folder,
+                Path.Combine(_folder, "themes"),
+                Path.Combine(_folder, "themes", "mine.json"),
+                Path.Combine(_folder, "settings.json"),
+            ],
+            opened);
+        Assert.True(Directory.Exists(Path.Combine(_folder, "themes")));   // a folder the shell opens is there
+    }
+
+    [Theory]
+    [InlineData("../x")]
+    [InlineData("state.json")]
+    [InlineData("schemas")]
+    [InlineData("themes/a/b.json")]
+    public async Task openHome_refuses_anything_else(string file)
+    {
+        var opened = new List<string>();
+        var commands = Make(_ => throw new InvalidOperationException(), open: opened.Add);
+
+        var reply = await Ask(commands, "openHome", new { file });
+
+        Assert.Equal("badRequest", reply.GetProperty("error").GetProperty("code").GetString());
+        Assert.Empty(opened);
+    }
+
+    [Fact]
+    public async Task homeChanged_passes_on_what_the_folder_watcher_hears()
+    {
+        var home = HomeWith();
+        var commands = new Commands(home, _ => null, _ => throw new InvalidOperationException());
+        var heard = new TaskCompletionSource<HomeChange>(TaskCreationOptions.RunContinuationsAsynchronously);
+        commands.HomeChanged += change => heard.TrySetResult(change);
+        home.Watch();
+
+        File.WriteAllText(Path.Combine(_folder, "hotkeys.json"), "{}");
+
+        Assert.Equal(new HomeChange("hotkeys.json", "{}"), await heard.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    // Starts the game data at the folder in settings.json, then watches the folder. The loads are listed; one of
+    // them ends the wait when it is for the folder named.
+    private async Task<(Home Home, Commands Commands, List<string> Loaded, Task Reached)> Watching(
+        string? first, string? reaches, Func<string?>? ask = null, Func<string?>? findGame = null)
+    {
+        var home = HomeWith(first);
+        var loaded = new List<string>();
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var commands = new Commands(
+            home,
+            _ => ask == null ? null : ask(),
+            folder =>
+            {
+                lock (loaded)
+                {
+                    loaded.Add(folder);
+                }
+
+                if (folder == reaches)
+                {
+                    reached.TrySetResult();
+                }
+
+                throw new IOException("stop here");
+            },
+            findGame: findGame);
+        await commands.StartLoading();
+        home.Watch();
+        return (home, commands, loaded, reached.Task);
+    }
+
+    [Fact]
+    public async Task A_game_folder_written_to_settings_starts_loading_it()
+    {
+        var (_, commands, loaded, reached) = await Watching(@"C:\A", @"C:\B");
+
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), """{ "game.folder": "C:\\B" }""");
+        await reached.WaitAsync(TimeSpan.FromSeconds(5));
+        await commands.Loading;
+
+        Assert.Equal([@"C:\A", @"C:\B"], loaded);
+        var state = (await Ask(commands, "gameData")).GetProperty("result");
+        Assert.Equal(@"C:\B", state.GetProperty("source").GetString());
+    }
+
+    [Fact]
+    public async Task Taking_the_game_folder_out_of_settings_loads_the_install_found()
+    {
+        var (_, commands, loaded, reached) = await Watching(@"C:\A", @"C:\Found", findGame: () => @"C:\Found");
+
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), "{}");
+        await reached.WaitAsync(TimeSpan.FromSeconds(5));
+        await commands.Loading;
+
+        Assert.Equal([@"C:\A", @"C:\Found"], loaded);
+    }
+
+    [Fact]
+    public async Task The_game_folder_already_in_use_is_not_loaded_again()
+    {
+        // The page writes game.folder once a folder chosen with chooseGameData has loaded.
+        var (home, commands, loaded, _) = await Watching(null, null, () => @"C:\B");
+        await Ask(commands, "chooseGameData");
+        await commands.Loading;
+        var written = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        home.GameFolderChanged += _ => written.TrySetResult();   // after the commands' own handler has run
+
+        File.WriteAllText(Path.Combine(_folder, "settings.json"), """{ "game.folder": "C:\\b" }""");
+        await written.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await commands.Loading;
+
+        Assert.Equal([@"C:\B"], loaded);
     }
 }

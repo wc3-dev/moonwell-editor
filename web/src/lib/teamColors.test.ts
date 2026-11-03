@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ownerRgb, playerIndex, teamColors, teamRgb } from "./teamColors.ts";
+import { ownerRgb, playerIndex, teamColorIds, teamColors, teamRgb } from "./teamColors.ts";
+import { t } from "./text.ts";
 
 describe("teamColors", () => {
   it("has the game's 24 player colours in player order", () => {
@@ -13,6 +14,21 @@ describe("teamColors", () => {
   it("gives every colour a name of its own and a 6-digit hex code", () => {
     expect(new Set(teamColors.map((c) => c.name)).size).toBe(24);
     for (const { hex } of teamColors) expect(hex).toMatch(/^#[0-9a-f]{6}$/);
+  });
+});
+
+describe("teamColorIds", () => {
+  it("name the 24 colours in player order, as the page's text keys them", () => {
+    expect(teamColorIds).toHaveLength(24);
+    expect(teamColorIds.map((id) => t(`teamColour.${id}`))).toEqual(
+      teamColors.map((color) => color.name),
+    );
+  });
+
+  it("start the way settings.json documents them", () => {
+    expect(teamColorIds.slice(0, 3)).toEqual(["red", "blue", "teal"]);
+    expect(teamColorIds[9]).toBe("lightBlue");
+    expect(teamColorIds[23]).toBe("peanut");
   });
 });
 

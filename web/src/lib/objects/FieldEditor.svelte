@@ -138,8 +138,8 @@ const title = $derived(
 // arrow (Sven, 2026-10-29). The selected field's boxes show as a field, as they do with the cursor in them (Sven,
 // 2026-10-29).
 const quiet = $derived(
-  `${error || field.warning ? "border-warn bg-warn-lo" : selected ? "border-transparent bg-field" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
-    field.changed ? "text-changed" : "text-fg"
+  `${error || field.warning ? "border-warning bg-warning-background" : selected ? "border-transparent bg-field" : "border-transparent bg-transparent hover:border-dashed hover:border-muted"} ${
+    field.changed ? "text-changed" : "text-normal"
   }`,
 );
 // True and False, both kept in the box so it is as wide for either (Sven, 2026-10-29).
@@ -259,10 +259,10 @@ function oninput(event: Event): void {
       type="button"
       class="inline-grid cursor-pointer rounded-ui border border-transparent px-1.5 py-px text-left font-mono text-mono outline-none focus-visible:border-accent {error ||
       field.warning
-        ? 'text-warn'
+        ? 'text-warning'
         : field.changed
           ? 'text-changed'
-          : 'text-fg'}"
+          : 'text-normal'}"
       aria-pressed={field.value === "1"}
       aria-label={field.label}
       data-field="{field.id}:{field.level}"
@@ -318,7 +318,7 @@ function oninput(event: Event): void {
         <button
           type="button"
           tabindex="-1"
-          class="flex min-h-0 flex-1 cursor-pointer items-center justify-center text-faint hover:text-fg"
+          class="flex min-h-0 flex-1 cursor-pointer items-center justify-center text-faint hover:text-normal"
           aria-label={arrow.name}
           onmousedown={(event) => event.preventDefault()}
           onclick={() => step(arrow.by)}

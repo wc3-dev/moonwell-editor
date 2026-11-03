@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor, within } from "@testing-library/svelte";
 import { describe, expect, test, vi } from "vitest";
-import { codeThemes } from "./lib/codeThemes.ts";
-import { prefs, setPref } from "./lib/prefs.svelte.ts";
+import { loadState } from "./lib/home/state.svelte.ts";
+import { setPref } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
-import { type TerminalColors, terminalColors } from "./lib/themeColors.ts";
+import { shippedThemes } from "./lib/themes/shipped.ts";
+import { type TerminalColors, terminalTheme, themeOf } from "./lib/themes.ts";
 import { appTests, arena, later, openApp, press, Refusal, showObject } from "./test/fakeApp.ts";
 
 type FakeView = {
@@ -334,11 +335,25 @@ describe("its top edge", () => {
     await fireEvent.pointerUp(handle, { clientY: 400, pointerId: 1 });
   }
 
-  test("changes the panel's height and remembers it", async () => {
-    await openWithTerminal();
+  test("changes the panel's height and remembers it in state.json", async () => {
+    const app = await openWithTerminal();
     await drag();
     expect(panel()?.style.height).toBe("340px");
-    expect(prefs.terminalHeight).toBe(340);
+    await waitFor(() =>
+      expect(app.args("setState")).toEqual({ key: "terminalHeight", value: 340 }),
+    );
+  });
+
+  test("starts at the height state.json remembers", async () => {
+    loadState('{"terminalHeight": 300}');
+    await openWithTerminal();
+    expect(panel()?.style.height).toBe("300px");
+  });
+
+  test("starts at the usual height when state.json holds none that fits", async () => {
+    loadState('{"terminalHeight": "tall"}');
+    await openWithTerminal();
+    expect(panel()?.style.height).toBe("240px");
   });
 
   test("leaves the cursor in the terminal", async () => {
@@ -351,12 +366,12 @@ describe("its top edge", () => {
 
 test("the terminal follows the theme", async () => {
   const app = await openWithTerminal();
-  const dracula = codeThemes.find((each) => each.id === "dracula");
+  const dracula = themeOf("dracula", shippedThemes);
   await press("F10");
   await fireEvent.keyDown(await screen.findByRole("combobox", { name: t("settings.theme") }), {
     key: "Enter",
   });
-  await fireEvent.pointerUp(await screen.findByRole("option", { name: dracula?.name }));
+  await fireEvent.pointerUp(await screen.findByRole("option", { name: dracula.name }));
   await waitFor(() => expect(app.count("frameColors")).toBeGreaterThan(1));
-  await waitFor(() => expect(fake.views[0]?.colors).toEqual(terminalColors(dracula as never)));
+  await waitFor(() => expect(fake.views[0]?.colors).toEqual(terminalTheme(dracula)));
 });

@@ -29,6 +29,7 @@ import {
   table,
 } from "../api.ts";
 import { errorText } from "../errors.ts";
+import { stateStore } from "../home/state.svelte.ts";
 import { t, tCount } from "../text.ts";
 import ColumnPicker from "./ColumnPicker.svelte";
 import { type Lookup, listKinds } from "./fields.ts";
@@ -61,7 +62,6 @@ import {
   removeColumn,
   rowIds,
   rowsReadiness,
-  type Store,
   sortTable,
   type TableState,
   toggleGroup,
@@ -142,7 +142,7 @@ let rowsFor = $state.raw<{ session: SessionState | null } | null>(null);
 // How long a bulk change waits for the rows before it gives up.
 const waitLimit = 10000;
 
-const store = (): Store | null => globalThis.localStorage ?? null;
+const store = () => stateStore;
 
 const kindFields = $derived(fieldLists[kind] ?? null);
 const chips = $derived(tableState.chips[kind] ?? null);
@@ -569,11 +569,11 @@ function bulkKeys(event: KeyboardEvent): void {
 const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
 </script>
 
-<div class="flex h-full min-h-0 flex-col overflow-hidden rounded-ui bg-surface">
+<div class="flex h-full min-h-0 flex-col overflow-hidden rounded-ui bg-panel">
   <div class="flex flex-col gap-1 px-1.5 py-1">
     <div class="flex flex-wrap items-center gap-2">
       <input
-        class="w-60 rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-60 rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
         placeholder={t("table.filterPlaceholder")}
         aria-label={t("table.filterLabel")}
         bind:this={filterInput}
@@ -592,7 +592,7 @@ const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
         {@const on = chips?.groups.includes(group.key) ?? false}
         <button
           type="button"
-          class="{chip} border-transparent {on ? 'bg-select text-fg' : 'bg-raised text-muted hover:text-body'}"
+          class="{chip} border-transparent {on ? 'bg-selection text-normal' : 'bg-raised text-muted hover:text-soft'}"
           aria-pressed={on}
           onclick={() => toggle(group.key)}
         >
@@ -605,7 +605,7 @@ const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
         type="button"
         class="{chip} {chips?.changed
           ? 'border-changed bg-raised text-changed'
-          : 'border-transparent bg-raised text-muted hover:text-body'}"
+          : 'border-transparent bg-raised text-muted hover:text-soft'}"
         aria-pressed={chips?.changed ?? false}
         title={t("table.changedTitle")}
         onclick={toggleChanged}
@@ -621,8 +621,8 @@ const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
       <label class="flex items-center gap-2 text-muted">
         {t("table.setTo")}
         <input
-          class="w-36 rounded-ui border bg-field px-2 py-0.5 font-mono text-mono text-fg outline-none focus:border-accent {bulkError
-            ? 'border-warn'
+          class="w-36 rounded-ui border bg-field px-2 py-0.5 font-mono text-mono text-normal outline-none focus:border-accent {bulkError
+            ? 'border-warning'
             : 'border-transparent'}"
           placeholder={t("table.bulkPlaceholder")}
           spellcheck="false"
@@ -634,20 +634,20 @@ const chip = "rounded-ui border px-2 py-px whitespace-nowrap";
       </label>
       <button
         type="button"
-        class="rounded-ui border border-transparent bg-raised px-2.5 py-0.5 text-fg hover:border-accent disabled:opacity-40 disabled:hover:border-transparent"
+        class="rounded-ui border border-transparent bg-raised px-2.5 py-0.5 text-normal hover:border-accent disabled:opacity-40 disabled:hover:border-transparent"
         disabled={!selection || bulkText.trim() === ""}
         onclick={apply}
       >
         {t("table.apply")}
       </button>
       {#if bulkError}
-        <span class="text-warn" role="alert">{bulkError}</span>
+        <span class="text-warning" role="alert">{bulkError}</span>
       {:else}
         <span class="text-faint">{t("table.bulkHelp")}</span>
       {/if}
     </div>
     {#if treeError || fieldsError || rowsError || pickerError}
-      <p class="m-0 text-warn" role="alert">
+      <p class="m-0 text-warning" role="alert">
         {treeError || fieldsError || rowsError || pickerError}
       </p>
     {/if}

@@ -9,7 +9,7 @@ public sealed class TerminalCommandTests : IDisposable
     private const string Home = @"C:\Users\Someone";
 
     private readonly Commands _commands = new(
-        new Settings(Path.Combine(Path.GetTempPath(), "MoonwellEditor.App.Tests", "terminal")),
+        new Home(Path.Combine(Path.GetTempPath(), "MoonwellEditor.App.Tests", "terminal")),
         _ => null,
         _ => throw new InvalidOperationException());
 

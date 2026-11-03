@@ -58,12 +58,12 @@ function toggleCategory(key: string): void {
 }
 
 const iconButton = "shrink-0 rounded-ui p-[3px]";
-const unpressed = "text-muted hover:bg-hover hover:text-fg";
+const unpressed = "text-muted hover:bg-hover hover:text-normal";
 </script>
 
 <div class="mt-1 flex items-center gap-1">
   <input
-    class="w-full min-w-0 flex-1 rounded-ui border border-transparent bg-field px-2 py-px text-fg outline-none focus:border-accent"
+    class="w-full min-w-0 flex-1 rounded-ui border border-transparent bg-field px-2 py-px text-normal outline-none focus:border-accent"
     placeholder={t("details.filterPlaceholder")}
     aria-label={t("details.filterLabel")}
     bind:this={box}
@@ -72,7 +72,7 @@ const unpressed = "text-muted hover:bg-hover hover:text-fg";
   />
   <button
     type="button"
-    class="{iconButton} {changedOnly ? 'bg-accent-lo text-accent-hi' : unpressed}"
+    class="{iconButton} {changedOnly ? 'bg-accent-background text-accent-text' : unpressed}"
     title={t("details.changedOnly")}
     aria-label={t("details.changedOnly")}
     aria-pressed={changedOnly}
@@ -82,7 +82,7 @@ const unpressed = "text-muted hover:bg-hover hover:text-fg";
   </button>
   <button
     type="button"
-    class="dropdown flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-ui border border-transparent bg-field px-1.5 text-body hover:border-muted"
+    class="dropdown flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-ui border border-transparent bg-field px-1.5 text-soft hover:border-muted"
     aria-label={t("details.categories")}
     aria-expanded={open}
     bind:this={categoryButton}

@@ -79,11 +79,11 @@ function focusFirst(event: Event): void {
         ? 'top-[60px] max-h-[calc(100%-90px)] w-[760px] overflow-auto'
         : wide
           ? 'top-[60px] max-h-[calc(100%-90px)] w-[620px] overflow-auto'
-          : 'top-[120px] w-[460px]'} max-w-[calc(100%-32px)] rounded-ui border border-line bg-surface px-2.5 pb-2.5 outline-none"
+          : 'top-[120px] w-[460px]'} max-w-[calc(100%-32px)] rounded-ui border border-line bg-panel px-2.5 pb-2.5 outline-none"
     >
       <div class="sticky top-0 z-10 -mx-2.5 mb-2 flex bg-raised">
         <Dialog.Title
-          class="m-0 flex min-w-0 flex-1 gap-2 px-2 py-[3px] font-semibold text-fg {Icon ? 'items-center' : 'items-baseline'}"
+          class="m-0 flex min-w-0 flex-1 gap-2 px-2 py-[3px] font-semibold text-normal {Icon ? 'items-center' : 'items-baseline'}"
         >
           {#if Icon}<Icon size={14} class="shrink-0 text-changed" />{/if}
           {title}
@@ -92,7 +92,7 @@ function focusFirst(event: Event): void {
         <!-- Like the window's own, it takes no keyboard focus. -->
         <button
           type="button"
-          class="flex w-8 shrink-0 items-center justify-center text-muted outline-none hover:bg-line hover:text-fg"
+          class="flex w-8 shrink-0 items-center justify-center text-muted outline-none hover:bg-line hover:text-normal"
           tabindex="-1"
           title={t("dialog.close")}
           aria-label={t("dialog.close")}
@@ -101,7 +101,7 @@ function focusFirst(event: Event): void {
           <X size={15} strokeWidth={1.5} />
         </button>
       </div>
-      <div class="text-body">{@render children()}</div>
+      <div class="text-soft">{@render children()}</div>
       {#if actions}
         <div class="mt-2.5 flex justify-end gap-1.5">{@render actions()}</div>
       {/if}

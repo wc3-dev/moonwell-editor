@@ -6,6 +6,7 @@ import { setPref } from "./lib/prefs.svelte.ts";
 import { t } from "./lib/text.ts";
 import {
   appTests,
+  bootWith,
   FakeApp,
   gameReady,
   openApp,
@@ -324,7 +325,7 @@ describe("what it lists", () => {
 
 describe("keys set in the settings", () => {
   test("a command's key runs it and shows in the list", async () => {
-    localStorage.setItem("moonwell-editor.hotkeys", JSON.stringify({ showTriggers: ["Ctrl+1"] }));
+    bootWith({ hotkeys: JSON.stringify({ showTriggers: ["Ctrl+1"] }) });
     await openApp(triggerAnswers);
     await openPalette();
     expect(listed()).toContainEqual(expect.stringMatching(/Show the Trigger Editor.*Ctrl 1/));
@@ -334,7 +335,7 @@ describe("keys set in the settings", () => {
   });
 
   test("a key for a page that cannot show does nothing", async () => {
-    localStorage.setItem("moonwell-editor.hotkeys", JSON.stringify({ showScripts: ["Ctrl+1"] }));
+    bootWith({ hotkeys: JSON.stringify({ showScripts: ["Ctrl+1"] }) });
     await openApp(scriptAnswers);
     await press("1", { ctrlKey: true });
     expect(pressed(t("header.objectEditor"))).toBe(true);

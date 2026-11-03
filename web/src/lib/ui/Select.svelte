@@ -92,7 +92,7 @@ const width = $derived(
       sideOffset={0}
       collisionPadding={8}
       data-popup
-      class="dropdown-list z-40 w-max max-w-[360px] rounded-ui border border-line bg-surface p-0.5 text-body outline-none"
+      class="dropdown-list z-40 w-max max-w-[360px] rounded-ui border border-line bg-panel p-0.5 text-soft outline-none"
     >
       <Select.Viewport class="max-h-[306px]">
         {#each options as option, index (index)}
@@ -104,7 +104,7 @@ const width = $derived(
           <Select.Item
             value={option.value}
             label={option.label}
-            class="flex cursor-pointer items-center gap-1 py-0.5 pr-2 outline-none data-highlighted:bg-select data-highlighted:text-fg data-selected:text-accent-hi {option.group
+            class="flex cursor-pointer items-center gap-1 py-0.5 pr-2 outline-none data-highlighted:bg-selection data-highlighted:text-normal data-selected:text-accent-text {option.group
               ? 'pl-3'
               : 'pl-1'}"
           >

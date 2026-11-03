@@ -1,0 +1,159 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Moonwell Editor settings",
+  "description": "What Settings shows, and the theme, the code theme and the Warcraft III folder. Only what differs from the default needs to be here.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Where this schema is, for suggestions in the editor you write the file in."
+    },
+    "appearance.theme": {
+      "type": "string",
+      "default": "kanagawa-dragon",
+      "description": "The editor theme, by id: the name of a theme file without .json, from the editor's own themes or the themes folder."
+    },
+    "appearance.codeTheme": {
+      "enum": [
+        null,
+        "andromeeda",
+        "ayu-dark",
+        "ayu-mirage",
+        "catppuccin-frappe",
+        "catppuccin-macchiato",
+        "catppuccin-mocha",
+        "dark-plus",
+        "dracula",
+        "dracula-soft",
+        "everforest-dark",
+        "github-dark",
+        "github-dark-default",
+        "github-dark-dimmed",
+        "github-dark-high-contrast",
+        "gruvbox-dark-hard",
+        "gruvbox-dark-medium",
+        "gruvbox-dark-soft",
+        "horizon",
+        "houston",
+        "kanagawa-dragon",
+        "kanagawa-wave",
+        "laserwave",
+        "material-theme",
+        "material-theme-darker",
+        "material-theme-ocean",
+        "material-theme-palenight",
+        "min-dark",
+        "monokai",
+        "night-owl",
+        "nord",
+        "one-dark-pro",
+        "plastic",
+        "poimandres",
+        "red",
+        "rose-pine",
+        "rose-pine-moon",
+        "slack-dark",
+        "solarized-dark",
+        "synthwave-84",
+        "tokyo-night",
+        "vesper",
+        "vitesse-black",
+        "vitesse-dark",
+        "ayu-light",
+        "catppuccin-latte",
+        "everforest-light",
+        "github-light",
+        "github-light-default",
+        "github-light-high-contrast",
+        "gruvbox-light-hard",
+        "gruvbox-light-medium",
+        "gruvbox-light-soft",
+        "horizon-bright",
+        "kanagawa-lotus",
+        "light-plus",
+        "material-theme-lighter",
+        "min-light",
+        "night-owl-light",
+        "one-light",
+        "rose-pine-dawn",
+        "slack-ochin",
+        "snazzy-light",
+        "solarized-light",
+        "vitesse-light"
+      ],
+      "default": null,
+      "description": "The theme scripts are drawn in, one of the VS Code themes. null is Dark Plus, or Light Plus when the editor theme is light."
+    },
+    "appearance.uiScale": {
+      "enum": [80, 100, 120],
+      "default": 100,
+      "description": "The size of the whole interface, in percent."
+    },
+    "game.folder": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "The folder Warcraft III is installed in (the one with .build.info). null is the install the editor finds."
+    },
+    "game.graphicsMode": {
+      "enum": ["sd", "hd", "de"],
+      "default": "de",
+      "description": "Which graphics the icons and models are shown in: sd is Classic, hd is Reforged, de is Definitive Edition."
+    },
+    "objects.teamColor": {
+      "enum": [
+        "red",
+        "blue",
+        "teal",
+        "purple",
+        "yellow",
+        "orange",
+        "green",
+        "pink",
+        "gray",
+        "lightBlue",
+        "darkGreen",
+        "brown",
+        "maroon",
+        "navy",
+        "turquoise",
+        "violet",
+        "wheat",
+        "peach",
+        "mint",
+        "lavender",
+        "coal",
+        "snow",
+        "emerald",
+        "peanut"
+      ],
+      "default": "red",
+      "description": "The team colour models are shown in, by the player colour's name."
+    },
+    "objects.showHidden": {
+      "type": "boolean",
+      "default": false,
+      "description": "List the objects World Editor does not show."
+    },
+    "editor.confirm": {
+      "type": "boolean",
+      "default": true,
+      "description": "Ask before reloading the map, deleting an object or dropping unsaved changes. When false, nothing is asked and unsaved changes are lost."
+    },
+    "editor.alphaNotice": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show the alpha notice when the editor starts."
+    },
+    "editor.experimental": {
+      "type": "boolean",
+      "default": false,
+      "description": "Turn on the experimental features."
+    },
+    "terminal.shell": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "The shell a new terminal runs, by its id (such as pwsh, bash or cmd). null is the first one found."
+    }
+  }
+}

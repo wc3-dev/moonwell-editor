@@ -5,7 +5,7 @@
 import "@xterm/xterm/css/xterm.css";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import type { TerminalColors } from "../themeColors.ts";
+import type { TerminalColors } from "../themes.ts";
 
 export type XtermView = {
   write(text: string): void;

@@ -4,7 +4,10 @@ import { afterEach, beforeEach, expect } from "vitest";
 import App from "../App.svelte";
 import type { CurrentMap, FieldView, MapInfo, ObjectView, TreeEntry } from "../lib/api.ts";
 import type { GameDataState } from "../lib/app/gameData.ts";
-import { prefs, setPref } from "../lib/prefs.svelte.ts";
+import { loadHotkeys } from "../lib/app/keymap.ts";
+import { homeNotice } from "../lib/home/notice.svelte.ts";
+import { loadState } from "../lib/home/state.svelte.ts";
+import { loadSettings, prefs } from "../lib/prefs.svelte.ts";
 import { t } from "../lib/text.ts";
 
 type Args = Record<string, unknown>;
@@ -127,6 +130,9 @@ const started = {
   terminalShells: [],
   about: { version: "1.2.3", moonwell: "0.4.0", dotNet: "10.0", webView2: null },
   currentMap: null,
+  writeHome: null,
+  setState: null,
+  openHome: null,
 };
 
 let latest: FakeApp | undefined;
@@ -202,8 +208,6 @@ class NoResizeObserver {
 
 /** Prepares the tests of a file for mounting `App`, in what the test browser lacks and a clean set of switches. */
 export function appTests(): void {
-  const pristine = { ...prefs };
-
   beforeEach(() => {
     globalThis.ResizeObserver = NoResizeObserver;
     Element.prototype.scrollIntoView = () => {};
@@ -213,16 +217,49 @@ export function appTests(): void {
     });
     HTMLCanvasElement.prototype.getContext = (() => null) as never;
     localStorage.clear();
-    setPref("alphaNotice", false);
+    loadSettings(null);
+    loadHotkeys(null);
+    loadState(null);
+    homeNotice.text = "";
+    prefs.alphaNotice = false;
   });
 
   afterEach(async () => {
     cleanup();
     await latest?.idle();
     delete window.chrome;
-    for (const [key, value] of Object.entries(pristine)) {
-      setPref(key as keyof typeof pristine, value as never);
-    }
+    loadSettings(null);
+    loadHotkeys(null);
+    loadState(null);
+    homeNotice.text = "";
+  });
+}
+
+/**
+ * Loads the hotkeys the way `main.ts` does from the app's boot, before the test mounts `App`: the text of
+ * `hotkeys.json`, or `unreadable: ["hotkeys.json"]` for a file the app could not read. `appTests` clears it after.
+ * (It leaves the settings alone: loading them resets every pref, `alphaNotice` too.)
+ */
+export function bootWith(files: { hotkeys?: string | null; unreadable?: string[] } = {}): void {
+  loadHotkeys(files.hotkeys ?? null, files.unreadable?.includes("hotkeys.json") ?? false);
+}
+
+/** The text of a theme file that sets only the four required colours, and `extra` at the top level. */
+export function themeFileText(
+  name: string,
+  base = "#101010",
+  extra: Record<string, unknown> = {},
+): string {
+  return JSON.stringify({
+    name,
+    type: "dark",
+    colors: {
+      "background.base": base,
+      "background.panel": "#202020",
+      "text.normal": "#eeeeee",
+      "accent.normal": "#3399ff",
+    },
+    ...extra,
   });
 }
 

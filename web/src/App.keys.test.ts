@@ -6,6 +6,7 @@ import { t, tCount } from "./lib/text.ts";
 import {
   appTests,
   arena,
+  bootWith,
   footmanEntry,
   openApp,
   openSpell,
@@ -422,5 +423,130 @@ describe("the context menu", () => {
     await openApp();
     expect(await fireEvent.contextMenu(document.body)).toBe(false);
     expect(await fireEvent.contextMenu(treeFilter())).toBe(true);
+  });
+});
+
+describe("hotkeys.json", () => {
+  const settingsDialog = () => screen.queryByRole("dialog", { name: t("header.settings") });
+  const written = (app: Awaited<ReturnType<typeof openApp>>) =>
+    app.log
+      .filter((each) => each.command === "writeHome")
+      .map((each) => each.args as { file: string; text: string });
+
+  async function setKeyInSettings(name: string, key: string): Promise<void> {
+    const row = (await screen.findByText(name)).parentElement as HTMLElement;
+    const keyButton = row.querySelector<HTMLButtonElement>("button.font-mono") as HTMLButtonElement;
+    await fireEvent.click(keyButton);
+    await press(key, { altKey: true });
+  }
+
+  test("the file at start gives the keys", async () => {
+    bootWith({ hotkeys: '{"settings": ["F9"], "save": []}' });
+    const app = await openApp({ save: { written: [], backup: "", note: "" } });
+    await press("F10");
+    await press("s", { ctrlKey: true });
+    await settled();
+    expect(settingsDialog()).toBeNull();
+    expect(app.count("save")).toBe(0);
+    await press("F9");
+    await screen.findByRole("dialog", { name: t("header.settings") });
+  });
+
+  test("the keys are the ones the page loaded, not what the app's boot script says", async () => {
+    window.moonwellHome = {
+      folder: "C:/Users/me/.moonwell",
+      settings: null,
+      hotkeys: '{"settings": ["F8"]}',
+      state: null,
+      themes: [],
+      legacy: null,
+      unreadable: [],
+    };
+    try {
+      bootWith({ hotkeys: '{"settings": ["F9"]}' });
+      await openApp();
+      await press("F8");
+      await settled();
+      expect(settingsDialog()).toBeNull();
+      await press("F9");
+      await screen.findByRole("dialog", { name: t("header.settings") });
+    } finally {
+      delete window.moonwellHome;
+    }
+  });
+
+  test("a save of the file changes which key runs a command", async () => {
+    const app = await openApp();
+    await app.emit("homeChanged", { file: "hotkeys.json", text: '{"settings": ["F9"]}' });
+    await press("F10");
+    await settled();
+    expect(settingsDialog()).toBeNull();
+    await press("F9");
+    await screen.findByRole("dialog", { name: t("header.settings") });
+  });
+
+  test("a file taken away gives the usual keys back", async () => {
+    bootWith({ hotkeys: '{"settings": ["F9"]}' });
+    const app = await openApp();
+    await app.emit("homeChanged", { file: "hotkeys.json", text: null });
+    await press("F10");
+    await screen.findByRole("dialog", { name: t("header.settings") });
+  });
+
+  test("a save that is not JSON keeps the keys, and the Hotkeys tab says why", async () => {
+    const app = await openApp();
+    await app.emit("homeChanged", { file: "hotkeys.json", text: '{"settings": ["F9"]' });
+    await press("F10");
+    await screen.findByRole("dialog", { name: t("header.settings") });
+    await fireEvent.click(screen.getByRole("tab", { name: t("settings.tab.hotkeys") }));
+    expect((await screen.findByTestId("hotkey-problems")).textContent).toContain(
+      t("hotkeys.problem.notJson"),
+    );
+  });
+
+  test("a command the file names wrongly and a value it can't use are said in the Hotkeys tab", async () => {
+    const app = await openApp();
+    await app.emit("homeChanged", {
+      file: "hotkeys.json",
+      text: '{\n  "nope": ["F1"],\n  "save": "F5"\n}',
+    });
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("tab", { name: t("settings.tab.hotkeys") }));
+    const problems = (await screen.findByTestId("hotkey-problems")).textContent ?? "";
+    expect(problems).toContain(
+      t("settings.problem.at", {
+        line: 2,
+        text: t("hotkeys.problem.unknownKey", { key: "nope" }),
+      }),
+    );
+    expect(problems).toContain(
+      t("settings.problem.at", { line: 3, text: t("hotkeys.problem.badValue", { key: "save" }) }),
+    );
+  });
+
+  test("a file the app could not read at start is not written to", async () => {
+    bootWith({ unreadable: ["hotkeys.json"] });
+    const app = await openApp();
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("tab", { name: t("settings.tab.hotkeys") }));
+    expect((await screen.findByTestId("hotkey-problems")).textContent).toContain(
+      t("hotkeys.problem.unreadable"),
+    );
+    await setKeyInSettings(t("hotkey.kindUnit"), "1");
+    await settled();
+    expect(written(app)).toEqual([]);
+  });
+
+  test("a key set in Settings is edited into the file, with its comments", async () => {
+    bootWith({ hotkeys: '{\n  // mine\n  "save": ["F5"]\n}' });
+    const app = await openApp();
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("tab", { name: t("settings.tab.hotkeys") }));
+    await setKeyInSettings(t("hotkey.kindUnit"), "1");
+    await waitFor(() => expect(written(app)).toHaveLength(1));
+    expect(written(app)[0]).toEqual({
+      file: "hotkeys.json",
+      text: '{\n  // mine\n  "save": ["F5"],\n  "kindUnit": ["Alt+1"]\n}',
+    });
   });
 });

@@ -13,9 +13,37 @@ async function withTheme(classes: string): Promise<string> {
 }
 
 test("a theme colour is its variable, so a theme change reaches it", async () => {
-  expect(await css("bg-surface")).toMatch(/background-color:\s*var\(--surface\);/);
-  expect(await css("text-body")).toMatch(/color:\s*var\(--text\);/);
-  expect(await css("border-line")).toMatch(/border-color:\s*var\(--border\);/);
+  expect(await css("bg-panel")).toMatch(/background-color:\s*var\(--background-panel\);/);
+  expect(await css("text-soft")).toMatch(/color:\s*var\(--text-soft\);/);
+  expect(await css("border-line")).toMatch(/border-color:\s*var\(--border-normal\);/);
+});
+
+test("each class colour is the theme colour it names", async () => {
+  const table = {
+    "bg-deep": "--background-base",
+    "bg-gutter": "--background-gutter",
+    "bg-raised": "--background-raised",
+    "bg-hover": "--background-hover",
+    "bg-field": "--background-field",
+    "bg-selection": "--background-selection",
+    "bg-button": "--background-button",
+    "bg-accent-background": "--accent-background",
+    "bg-warning-background": "--state-warning-background",
+    "border-line-faint": "--border-faint",
+    "text-normal": "--text-normal",
+    "text-muted": "--text-muted",
+    "text-faint": "--text-faint",
+    "text-accent": "--accent-normal",
+    "text-accent-text": "--accent-text",
+    "text-changed": "--state-changed",
+    "text-warning": "--state-warning",
+    "text-kind-unit": "--kind-unit",
+    "text-kind-upgrade": "--kind-upgrade",
+  };
+  for (const [name, variable] of Object.entries(table)) {
+    expect(await css(name), name).toContain(`var(${variable})`);
+  }
+  expect(await css("text-cyan text-purple")).not.toMatch(/var\(--(cyan|purple)\)/);
 });
 
 test("a fixed colour is itself", async () => {
@@ -24,8 +52,8 @@ test("a fixed colour is itself", async () => {
 });
 
 test("a theme colour takes an opacity", async () => {
-  expect(await css("bg-surface/70")).toContain(
-    "color-mix(in oklab, var(--surface) 70%, transparent)",
+  expect(await css("bg-panel/70")).toContain(
+    "color-mix(in oklab, var(--background-panel) 70%, transparent)",
   );
 });
 
@@ -61,10 +89,10 @@ test("Bits UI's states work as bare data variants", async () => {
 
 test("Svelte's class: directives are read", async () => {
   const uno = await createGenerator(config);
-  const source = `<div class:z-[5]={on} class:shadow-[0_2px_0_var(--accent)]={on}></div>`;
+  const source = `<div class:z-[5]={on} class:shadow-[0_2px_0_var(--accent-normal)]={on}></div>`;
   const { matched } = await uno.generate(source, { id: "Row.svelte", preflights: false });
   expect(matched).toContain("z-[5]");
-  expect(matched).toContain("shadow-[0_2px_0_var(--accent)]");
+  expect(matched).toContain("shadow-[0_2px_0_var(--accent-normal)]");
 });
 
 test("the utilities sit in the cascade layers app.css orders, so its rules keep their place", async () => {

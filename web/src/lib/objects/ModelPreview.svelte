@@ -103,7 +103,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
       <p class="absolute inset-0 m-0 flex items-center justify-center text-faint">{t("model.loading")}</p>
     {:else if view.status === "error"}
       <p
-        class="absolute inset-0 m-0 flex items-center justify-center p-3 text-center text-warn"
+        class="absolute inset-0 m-0 flex items-center justify-center p-3 text-center text-warning"
         role="alert"
       >
         {view.error}
@@ -137,7 +137,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
       value={String(view.playing)}
       label={t("model.animation")}
       missing={view.status === "loading" ? t("model.animationsLoading") : t("model.noAnimations")}
-      tone="border-transparent bg-field text-fg hover:border-muted"
+      tone="border-transparent bg-field text-normal hover:border-muted"
       compact
       disabled={view.sequences.length === 0}
       onpick={(value) => current?.play(Number(value))}
@@ -176,7 +176,7 @@ let coloursButton: HTMLButtonElement | undefined = $state();
 {#snippet overlayButton(label: string, Icon: typeof RotateCw, onclick: () => void)}
   <button
     type="button"
-    class="cursor-pointer rounded-ui bg-surface/70 p-1.5 text-muted opacity-70 hover:text-fg hover:opacity-100"
+    class="cursor-pointer rounded-ui bg-panel/70 p-1.5 text-muted opacity-70 hover:text-normal hover:opacity-100"
     title={label}
     aria-label={label}
     {onclick}

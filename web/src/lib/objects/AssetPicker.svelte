@@ -77,7 +77,7 @@ function focusOnMount(element: HTMLInputElement): void {
 
 <button
   type="button"
-  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-fg {open ? 'text-accent-hi' : ''}"
+  class="shrink-0 rounded-ui p-1 text-faint hover:bg-hover hover:text-normal {open ? 'text-accent-text' : ''}"
   title={kind === "icon" ? t("assetPicker.pickIcon") : t("assetPicker.pickModel")}
   aria-label={t("assetPicker.pickThe", { field: label })}
   aria-haspopup="dialog"
@@ -91,20 +91,20 @@ function focusOnMount(element: HTMLInputElement): void {
   <Popover anchor={button} onclose={() => (open = false)} large>
     <div class="flex flex-col gap-2 {kind === 'icon' ? 'w-[430px]' : 'w-[640px]'}">
       <input
-        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-fg outline-none focus:border-accent"
+        class="w-full rounded-ui border border-transparent bg-field px-2 py-1 text-normal outline-none focus:border-accent"
         placeholder={kind === "icon" ? t("assetPicker.searchIcons") : t("assetPicker.searchModels")}
         aria-label={t("assetPicker.search")}
         bind:value={query}
         use:focusOnMount
       />
       {#if problem}
-        <p class="m-0 text-warn">{problem}</p>
+        <p class="m-0 text-warning">{problem}</p>
       {:else if !list}
         <p class="m-0 text-muted">
           {kind === "icon" ? t("assetPicker.readingIcons") : t("assetPicker.readingModels")}
         </p>
       {:else if !list.ready}
-        <p class="m-0 text-warn">
+        <p class="m-0 text-warning">
           {list.error ?? t("assetPicker.notReady")}
         </p>
       {:else if shown.length === 0}
@@ -117,7 +117,7 @@ function focusOnMount(element: HTMLInputElement): void {
             <button
               type="button"
               class="rounded-ui border p-0.5 hover:border-accent {path.toLowerCase() === value.trim().toLowerCase()
-                ? 'border-accent bg-accent-lo'
+                ? 'border-accent bg-accent-background'
                 : 'border-transparent'}"
               title={path}
               onclick={() => pick(path)}
@@ -136,8 +136,8 @@ function focusOnMount(element: HTMLInputElement): void {
                 aria-selected={path.toLowerCase() === value.trim().toLowerCase()}
                 class="shrink-0 truncate rounded-ui px-1.5 py-0.5 text-left font-mono text-mono hover:bg-hover {path.toLowerCase() ===
                 value.trim().toLowerCase()
-                  ? 'text-accent-hi'
-                  : 'text-body'}"
+                  ? 'text-accent-text'
+                  : 'text-soft'}"
                 title={path}
                 onmouseenter={() => (hovered = path)}
                 onclick={() => pick(path)}

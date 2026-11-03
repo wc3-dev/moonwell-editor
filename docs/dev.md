@@ -85,6 +85,77 @@ The tests that need the game read the install the same way and check nothing whe
 map-archive test that opens Blizzard's `(4)losttemple.w3m` takes it from a folder, `maps` in the folder in
 `MOONWELL_EDITOR_GAME_DATA`.
 
+## The .moonwell folder
+
+Settings, hotkeys and the user's themes are files in `C:\Users\<name>\.moonwell\`, not in the page's storage:
+
+```
+settings.json   what Settings shows, the theme, the code theme, the Warcraft III folder
+hotkeys.json    only the hotkeys that differ from the defaults
+state.json      what the editor remembers on its own: recent maps, panel sizes, table columns, favourites
+themes\         the user's own themes
+schemas\        the JSON schemas for the files above, written by the editor
+```
+
+The page cannot touch the disk, so `Home.cs` owns the folder. `https://game.moonwelleditor/home.js` is a script made
+from the files (`Home.BootScript`), which the page runs before it paints as `window.moonwellHome`; it is answered
+before the game data is ready, and `index.html` has it in `<head>`. The page's own script runs only after the first
+paint can happen, so `public/first-paint.js`, a plain script right after it, puts on the theme the page showed last
+(`lastTheme` in `state.json`, which `Appearance.show` keeps), so a start paints first in the theme shown last. That is
+the chosen one unless the choice or the theme's file changed while the editor was closed, when the page switches as
+soon as its script runs; only a start with no `lastTheme` (the first) paints in app.css's defaults. The window starts in
+that theme's colours too (`Home.LastPageColors`), so a light theme does not open on dark grey.
+The `writeHome` and `setState` commands change the files (`writeHome` takes only `settings.json`, `hotkeys.json`,
+`themes/<name>.json` and `schemas/<name>.schema.json`), and `openHome` opens the folder or one of its files in the
+shell. A file watcher sends the `homeChanged` event when one of `settings.json`, `hotkeys.json` and `themes\*.json` is
+saved or deleted, by another program or by the editor's own `writeHome`, so the page has to tell its own write coming
+back from a change made elsewhere. A `game.folder` in `settings.json` that differs from the folder in use loads the new
+one. While there is no `settings.json`, the old `%LOCALAPPDATA%\MoonwellEditor\settings.json` gives the Warcraft III
+folder and the recent maps (`legacy` in the boot script), and the page moves what it kept in its storage. A file that is
+there but stays held by another program is named in `unreadable` in the boot script, with no text, so the page does not
+take it for a missing file and write over it. The game-data cache and WebView2's own data stay in
+`%LOCALAPPDATA%\MoonwellEditor`.
+
+`main.ts` gives the page what the boot script holds before it mounts: `loadSettings`, `loadHotkeys` (both honour
+`unreadable`), `loadState` and `loadUserThemes`. The two files people edit, `settings.json` and `hotkeys.json`, follow
+the same rules, which `home/homeFile.svelte.ts` keeps (`HomeFile`): the file's latest text, no write to a file that
+could not be read until a text that reads arrives, the page's own writes coming back from the watcher taken for nothing
+(each text written is remembered until its echo arrives, so a late echo of an older write cannot undo a newer one), and
+a change edited into the latest text so the comments stay. `prefs.svelte.ts` and `app/keymap.ts` each have one. The
+edits are `setKey` in `home/jsonc.ts`, which changes, adds or removes one property and leaves the rest of the text as it
+was; `jsonc-parser` only reads.
+
+In `app/keymap.ts`, `readKeymap` turns a text into a keymap and its problems, `loadHotkeys` gives the keymap a text
+makes (none for a file that can't be read), and `saveKeymap` edits only the commands that changed into the latest text.
+`Editor` starts from `loadedKeymap()`, what the file made when `main.ts` loaded it, and follows `homeChanged`; it never
+reads the boot itself. `state.json` is `home/state.svelte.ts`: `loadState` takes the text at start, `stateOf` reads a
+key (with a fallback for one that is missing or does not fit), and `setState` keeps the value in memory and sends
+`setState`, which the app merges into the file. The page never writes `recentMaps`. The keys are `terminalHeight`,
+`favourites` (a list of field ids for each kind), `tooltipColours`, `objectEditor.columns.<kind>` and `lastTheme` (the
+theme shown last: its id, `dark` or `light`, and its CSS variables); `stateStore`
+gives the Table view's columns the `getItem` and `setItem` they had in the window's storage. A write or an open that
+fails (`writeHome`, `keepState`, `openHome`) answers `false`, never rejects, and sets `homeNotice` for Settings once.
+The move to the folder (`home/move.ts`) writes `settings.json`, and so marks itself done, only when every write before
+it went through.
+
+The user's themes are `themes/user.svelte.ts`, which `themes.ts` re-exports: `loadUserThemes` takes the boot's
+`themes` (and the `unreadable` ones, listed as refused), `themeChanged` a theme file saved or deleted, and
+`watchThemes` follows `homeChanged`. `allThemes()` is the shipped themes with a user theme of the same id in each
+one's place, then the other user themes, and `Appearance` reads the theme in use from it, so a saved file changes the
+page at once. A file that can't be loaded keeps the last version of that theme that did load; `themeFiles` is what
+Settings lists, with the problems. `copyTheme` is Settings' **Copy as new theme**. The file format is in
+`docs/themes.md`.
+
+`MOONWELL_EDITOR_HOME` names another folder to use instead of `.moonwell`. A test editor sets it and
+`WEBVIEW2_USER_DATA_FOLDER` to scratch folders, so it never changes the files of an editor that is open (which picks a
+change up at once) and never runs the move from today's storage in someone's place:
+
+```
+# PowerShell
+$env:MOONWELL_EDITOR_HOME = "$env:TEMP\moonwell-test\home"
+$env:WEBVIEW2_USER_DATA_FOLDER = "$env:TEMP\moonwell-test\webview"
+```
+
 ## The map view
 
 The Terrain Editor is the page a map opens on, and its button shows the whole map, read only (design: wc3-cs
@@ -160,13 +231,20 @@ and never both. Nothing picks C# yet, as no script in a map's triggers is in C#.
 a click lands on the right character at every zoom, and it draws only the lines in view: 150 scripts of 300 lines open in
 1.3 s, where textareas took 2.2 s. The caret and the selection stay the browser's.
 
-The themes (`codeThemes.ts`) are VS Code's own theme files, from Shiki's `tm-themes` package, whose `NOTICE` has each
-one's licence; Aurora X is left out for its GPL. Monaco reads a file as it is. A script box reads one colour per kind of
-word from it, as VS Code would pick it for that scope, into the `--code-*` tokens in `app.css`. The rest of the page reads
-it through `themeColors.ts`, which works out `app.css`'s other tokens: which of a file's colours each one takes was
-measured against the palettes the editor had before, and a colour that would not read on the panels is moved until it
-does (`themeColors.test.ts` checks every theme). Settings has a code theme of its own, which follows the interface's theme
-until one is chosen (`prefs.codeTheme`).
+The editor's own themes are files of the same kind as the user's: `web/src/themes/<id>.json`, 64 of them, one for
+each code theme, with its id and name, loaded by `themes/shipped.ts`. `npm run themes` (`scripts/make-themes.ts`) writes
+a file for each code theme that has none, from `node_modules/tm-themes`, with every colour written
+(`scripts/vscodeColors.ts` picks which of a VS Code file's colours each key takes), and never overwrites a file: the
+shipped themes can be tuned by hand, and a code theme added later gets its twin. `themes/format.ts` reads and checks a
+theme file, `themes/fill.ts` works out the colours a file leaves out, and `themes.ts` puts the chosen theme's colours
+on the page as CSS variables (`--background-panel` and so on). `app.css` starts them in Kanagawa Dragon, and
+`uno.config.ts` turns them into the classes (`bg-panel`, `text-normal`, `border-line`; `deep` is `background.base`).
+
+The code themes (`codeThemes.ts`) are VS Code's own theme files, from Shiki's `tm-themes` package, whose `NOTICE` has
+each one's licence; Aurora X is left out for its GPL. Monaco reads a file as it is. A script box reads one colour per
+kind of word from it, as VS Code would pick it for that scope, into the `--code-*` tokens in `app.css`. Settings has a
+code theme of its own (`appearance.codeTheme`); until one is chosen scripts are drawn in Dark Plus, or in Light Plus
+under a light editor theme (`codeThemeOf`).
 
 The Script Editor (`ScriptEditor.svelte`) is a page of its own, with the scripts opened from the Trigger Editor down the
 side (`openScripts.ts`). It stays in the page for as long as the map is open, and so does the trigger editor once shown:
@@ -232,7 +310,7 @@ of the box, and `#canRun` when it can only run in some places.
 
 The filter bar over an object's fields is `objects/FilterBar.svelte`. What it narrows by now is in `Objects`, with the
 categories hidden kept per kind, as each kind has its own; `Details` applies them to what `groupFields` gives. The
-favourites are in `objects/fieldFilters.svelte.ts`, per kind and in the window's storage, so they are this PC's and the
+favourites are in `objects/fieldFilters.svelte.ts`, per kind and in `state.json`, so they are this PC's and the
 same in every map. A field is a favourite by its id, so one only some abilities have counts wherever that field exists.
 A total of dice is one favourite, by its base. `Details` puts the favourites in a category of their own at the top, and
 shows each disabled where it usually is; hiding that category puts them back.
@@ -241,9 +319,10 @@ An `$effect` here is for following something outside the state classes: the them
 a pick asked of the map, a setting turned off. What the classes do to each other they do by calling each other.
 
 The look is in `app.css`. The interface has one size, the body's, so most text has no size class; the others are
-`text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. `bg-gutter`, `bg-field`, `bg-select`,
-`bg-primary` and `border-hairline` are worked out from each theme's colours, so a new theme gets them. A light theme sets
-`data-scheme="light"` on the page, and what cannot follow by itself goes under `:root[data-scheme="light"]`. The game's
+`text-title`, `text-small` and `text-mono`. There is one corner, `rounded-ui`. The colours are the theme's keys
+(`bg-gutter`, `bg-field`, `bg-selection`, `bg-button`, `border-line`), each a CSS variable `themes.ts` sets, so a new
+theme needs no CSS. A light theme sets `data-scheme="light"` on the page, and what cannot follow by itself goes under
+`:root[data-scheme="light"]`. The game's
 tooltips and the map stay as the game draws them, whatever the theme. The header bar's shading is `.toolbar` and
 `.tool-button`, the only shading there is. A dropdown's button and list are one shape, `.dropdown`
 and `.dropdown-list`: use `ui/Select.svelte` for one choice, or `ui/Popover.svelte`'s `dropdown` for anything else. The trigger canvas stays out of all of it: its files

@@ -1,22 +1,31 @@
 import extractorSvelte from "@unocss/extractor-svelte";
 import { defineConfig, presetWind4 } from "unocss";
 
-// The colours and fonts as utilities: bg-surface, text-fg, border-line, font-mono and so on. The values stay in app.css.
+// The theme colours and fonts as utilities: bg-panel, text-normal, border-line, font-mono and so on. The values are
+// CSS variables, which app.css starts with and themes.ts sets from the theme in use. `line` is border.normal, `deep` is
+// background.base (text-base is a font size), and `normal` and `soft` are text colours, so border-normal draws in the
+// text colour.
 const colors = {
-  bg: "var(--bg)",
-  surface: "var(--surface)",
-  raised: "var(--raised)",
-  hover: "var(--hover)",
-  line: "var(--border)",
-  fg: "var(--fg)",
-  body: "var(--text)",
-  muted: "var(--muted)",
-  faint: "var(--faint)",
-  accent: { DEFAULT: "var(--accent)", hi: "var(--accent-hi)", lo: "var(--accent-lo)" },
-  changed: "var(--changed)",
-  warn: { DEFAULT: "var(--warn)", lo: "var(--warn-lo)" },
-  cyan: "var(--cyan)",
-  purple: "var(--purple)",
+  deep: "var(--background-base)",
+  panel: "var(--background-panel)",
+  gutter: "var(--background-gutter)",
+  raised: "var(--background-raised)",
+  hover: "var(--background-hover)",
+  field: "var(--background-field)",
+  selection: "var(--background-selection)",
+  button: "var(--background-button)",
+  line: { DEFAULT: "var(--border-normal)", faint: "var(--border-faint)" },
+  normal: "var(--text-normal)",
+  soft: "var(--text-soft)",
+  muted: "var(--text-muted)",
+  faint: "var(--text-faint)",
+  accent: {
+    DEFAULT: "var(--accent-normal)",
+    text: "var(--accent-text)",
+    background: "var(--accent-background)",
+  },
+  changed: "var(--state-changed)",
+  warning: { DEFAULT: "var(--state-warning)", background: "var(--state-warning-background)" },
   kind: {
     unit: "var(--kind-unit)",
     item: "var(--kind-item)",
@@ -26,11 +35,6 @@ const colors = {
     buff: "var(--kind-buff)",
     upgrade: "var(--kind-upgrade)",
   },
-  gutter: "var(--gutter)",
-  field: "var(--field)",
-  select: "var(--select)",
-  primary: "var(--primary)",
-  hairline: "var(--hairline)",
 };
 
 // Wind4 mixes every colour for its opacity, even at full strength. Without an opacity, the colour itself is enough.
