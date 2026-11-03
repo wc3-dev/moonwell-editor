@@ -3,13 +3,7 @@
  * an element is watched, the scale of a CSS transform, and media queries, none of which match.
  */
 export function fakeLayout(width = 340, height = 100): void {
-  window.matchMedia = (query: string) =>
-    ({
-      matches: false,
-      media: query,
-      addEventListener() {},
-      removeEventListener() {},
-    }) as unknown as MediaQueryList;
+  fakeMediaQueries();
   globalThis.ResizeObserver = class {
     readonly #report: ResizeObserverCallback;
 
@@ -37,4 +31,15 @@ export function fakeLayout(width = 340, height = 100): void {
     configurable: true,
     value: height,
   });
+}
+
+/** Media queries for jsdom, which has none: every one is false and never changes. */
+export function fakeMediaQueries(): void {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }) as unknown as MediaQueryList;
 }
