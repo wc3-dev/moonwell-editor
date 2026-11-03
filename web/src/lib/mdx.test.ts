@@ -7,6 +7,7 @@ import {
   type Shape,
   type Skinnable,
   skinGeosets,
+  skinned,
   solidExtent,
   standSequence,
   stripChunks,
@@ -171,6 +172,30 @@ describe("posed", () => {
     expect(out[0]).toBeCloseTo(10);
     expect(out[3]).toBeCloseTo(18);
     expect(out[4]).toBeCloseTo(5);
+  });
+});
+
+describe("skinned", () => {
+  const moveX = (by: number) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, by, 0, 0, 1];
+  const bones = (bone: number) => (bone === 0 ? moveX(10) : undefined);
+
+  it("moves a point by its bones' matrices, weighted", () => {
+    const skin = new Uint8Array([0, 1, 0, 0, 100, 100, 0, 0]);
+    expect(skinned(skin, 0, bones, [1, 2, 3, 1])).toEqual([6, 2, 3]);
+  });
+
+  it("turns a direction without moving it", () => {
+    const skin = new Uint8Array([0, 0, 0, 0, 255, 0, 0, 0]);
+    expect(skinned(skin, 0, bones, [1, 2, 3, 0])).toEqual([1, 2, 3]);
+  });
+
+  it("finds each vertex's bones by its place", () => {
+    const skin = new Uint8Array([1, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0]);
+    expect(skinned(skin, 1, bones, [1, 2, 3, 1])).toEqual([11, 2, 3]);
+  });
+
+  it("is null for a vertex without weights", () => {
+    expect(skinned(new Uint8Array(8), 0, bones, [1, 2, 3, 1])).toBeNull();
   });
 });
 

@@ -56,3 +56,22 @@ test("idle waits for what was asked so far", async () => {
   await waited;
   expect(done).toBe(true);
 });
+
+test("two quick changes each work from the value the other left", async () => {
+  // Two +10% changes, each reading the value, waiting for the app, then writing: one at a time they make 121.
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  let value = 100;
+  const plusTenPercent = async () => {
+    const read = value;
+    await tick();
+    value = Math.round(read * 1.1);
+  };
+  const queue = new CommandQueue();
+  await Promise.all([queue.run(plusTenPercent), queue.run(plusTenPercent)]);
+  expect(value).toBe(121);
+
+  // Without the queue, both read 100.
+  value = 100;
+  await Promise.all([plusTenPercent(), plusTenPercent()]);
+  expect(value).toBe(110);
+});

@@ -14,6 +14,7 @@ import {
   readSkins,
   type Skinnable,
   skinGeosets,
+  skinned,
   standSequence,
   stripChunks,
   unreadChunks,
@@ -233,36 +234,22 @@ export function settle(model: MapModel): MapModel {
   const pose = poseAt(animation, 0);
   const geosets = model.geosets.map((geoset) => {
     const count = geoset.positions.length / 3;
-    const positions = new Float32Array(geoset.positions.length);
-    const normals = new Float32Array(geoset.normals.length);
+    const positions = Float32Array.from(geoset.positions);
+    const normals = Float32Array.from(geoset.normals);
     const tangents = geoset.tangents ? Float32Array.from(geoset.tangents) : null;
     for (let v = 0; v < count; v++) {
-      // The vertex's bones' matrices, weighted; a vertex without weights stays where it is.
-      const m = new Array<number>(16).fill(0);
-      let total = 0;
-      for (let j = 0; j < 4; j++) {
-        const weight = (geoset.skin[v * 8 + 4 + j] ?? 0) / 255;
-        if (weight === 0) continue;
-        const bone = pose(geoset.skin[v * 8 + j] ?? 0);
-        for (let k = 0; k < 16; k++) m[k] = (m[k] ?? 0) + (bone[k] ?? 0) * weight;
-        total += weight;
-      }
-      const moved = (from: ArrayLike<number>, to: Float32Array, at: number, w: number) => {
-        const [x, y, z] = [from[at] ?? 0, from[at + 1] ?? 0, from[at + 2] ?? 0];
-        for (let axis = 0; axis < 3; axis++) {
-          to[at + axis] =
-            total > 0
-              ? ((m[axis] ?? 0) * x +
-                  (m[4 + axis] ?? 0) * y +
-                  (m[8 + axis] ?? 0) * z +
-                  (m[12 + axis] ?? 0) * w) /
-                total
-              : (from[at + axis] ?? 0);
-        }
+      const move = (to: Float32Array, at: number, w: number) => {
+        const moved = skinned(geoset.skin, v, pose, [
+          to[at] ?? 0,
+          to[at + 1] ?? 0,
+          to[at + 2] ?? 0,
+          w,
+        ]);
+        if (moved) to.set(moved, at);
       };
-      moved(geoset.positions, positions, v * 3, 1);
-      moved(geoset.normals, normals, v * 3, 0);
-      if (tangents && geoset.tangents) moved(geoset.tangents, tangents, v * 4, 0);
+      move(positions, v * 3, 1);
+      move(normals, v * 3, 0);
+      if (tangents) move(tangents, v * 4, 0);
     }
     return { ...geoset, positions, normals, tangents };
   });

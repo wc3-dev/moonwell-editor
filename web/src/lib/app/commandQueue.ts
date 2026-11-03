@@ -1,4 +1,7 @@
-/** The app's commands that change the map run one after another, so a save asked after an edit waits for it. */
+/**
+ * Work that runs one after another, in the order asked: a save asked after an edit waits for it, and a bulk change in
+ * the table works from what the one before it left.
+ */
 export class CommandQueue {
   #last: Promise<unknown> = Promise.resolve();
 
