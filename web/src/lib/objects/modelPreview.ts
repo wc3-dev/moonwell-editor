@@ -8,13 +8,10 @@ import {
   frame,
   hdTextureUse,
   posed,
-  readSkins,
   type Skinnable,
   skinGeosets,
   solidExtent,
   standSequence,
-  stripChunks,
-  unreadChunks,
 } from "../mdx.ts";
 import { teamRgb } from "../teamColors.ts";
 import { t } from "../text.ts";
@@ -372,17 +369,15 @@ export function showModel(
 }
 
 /**
- * The model from an MDX file (without the chunks war3-model cannot read, and with the HD skins it misreads read again),
- * or from MDL text.
+ * The model from an MDX file or from MDL text.
  */
 function parse(bytes: ArrayBuffer): Model {
   const head = new TextDecoder("latin1").decode(
     new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength)),
   );
   if (head !== "MDLX") return parseMDL(new TextDecoder().decode(bytes));
-  const kept = stripChunks(bytes, unreadChunks);
-  const model = parseMDX(kept);
-  skinGeosets(model.Geosets as Skinnable[], readSkins(kept));
+  const model = parseMDX(bytes);
+  skinGeosets(model.Geosets as Skinnable[]);
   return model;
 }
 

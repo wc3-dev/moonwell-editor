@@ -9,16 +9,7 @@
  */
 import { mat4 } from "gl-matrix";
 import { ModelRenderer, parseMDX } from "war3-model";
-import {
-  groupSkin,
-  readSkins,
-  type Skinnable,
-  skinGeosets,
-  skinned,
-  standSequence,
-  stripChunks,
-  unreadChunks,
-} from "../mdx.ts";
+import { groupSkin, type Skinnable, skinGeosets, skinned, standSequence } from "../mdx.ts";
 import { type Animation, isStill, poseAt, sampleAnimation } from "./animation.ts";
 import type { PlacedThing } from "./scene.ts";
 
@@ -261,9 +252,8 @@ export async function loadModel(url: string): Promise<MapModel | null> {
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
-    const buffer = stripChunks(await response.arrayBuffer(), unreadChunks);
-    const model = parseMDX(buffer);
-    skinGeosets(model.Geosets as unknown as Skinnable[], readSkins(buffer));
+    const model = parseMDX(await response.arrayBuffer());
+    skinGeosets(model.Geosets as unknown as Skinnable[]);
     const animation = animationOf(model);
     return settle({ ...mapModel(model, shownIn(animation)), animation });
   } catch {

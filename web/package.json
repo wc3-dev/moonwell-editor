@@ -56,7 +56,7 @@
     "vite": "8.3.5",
     "vitest": "5.1.0",
     "vscode": "npm:@codingame/monaco-vscode-extension-api@37.6.1",
-    "war3-model": "4.0.1"
+    "war3-model": "github:wc3-dev/war3-model#v4.0.1-moonwell.1"
   },
   "overrides": {
     "dompurify": "3.4.17"

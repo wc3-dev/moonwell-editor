@@ -4,7 +4,7 @@
  * it by hand. war3-model parses and draws the model with WebGL. Each model gets its own canvas and GL context, and
  * both go when the path changes or the preview closes. Particles and ribbons are drawn as war3-model draws them. The
  * Reforged (HD) and Definitive Edition models are drawn with war3-model's HD shader (the diffuse, normal and ORM maps,
- * lit, with the team colour), once their skins are read again (see `readSkins`); their emissive maps, reflections and
+ * lit, with the team colour), with their skins readied by `skinGeosets`; their emissive maps, reflections and
  * popcorn particles are not drawn. The team colour and hero glow take a player's colour, and a row of the 24 colours
  * can pick it (Sven, 2026-10-27). The side panel's preview can play any of the model's animations, picked from a list
  * (Sven, 2026-10-27).
