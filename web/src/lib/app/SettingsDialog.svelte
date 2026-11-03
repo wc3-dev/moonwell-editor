@@ -148,6 +148,7 @@ const customKinds = $derived(map ? kinds.filter((kind: Kind) => (map.counts[kind
 const switches = [
   { key: "confirm", text: t("settings.confirm") },
   { key: "alphaNotice", text: t("settings.alphaNotice") },
+  { key: "reopenLastMap", text: t("settings.reopenLastMap") },
   { key: "experimental", text: t("settings.experimental") },
   { key: "showHidden", text: t("settings.showHidden") },
 ] as const;

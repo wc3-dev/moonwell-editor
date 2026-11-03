@@ -4,8 +4,9 @@
  * shown in at first (Sven, 2026-10-29: player 1, Red), whether the objects World Editor does not show are listed (Sven,
  * 2026-11-02: off at first), whether the editor asks before reloading, deleting or dropping unsaved changes (Sven,
  * 2026-10-29: off asks nothing at all), whether the alpha notice opens at start (Sven, 2026-10-28: only Settings turns
- * it off), whether the experimental features are on (Sven, 2026-10-29: the table view; off at first) and the shell a
- * new terminal runs (Sven, 2026-11-01).
+ * it off), whether the experimental features are on (Sven, 2026-10-29: the table view; off at first), whether the
+ * last map opens at start (Sven, 2026-11-03: off at first; the app reads it) and the shell a new terminal runs (Sven,
+ * 2026-11-01).
  *
  * The file is edited by hand too, so a change made here is edited into its text, which keeps its comments and order
  * (Sven, 2026-11-02), and only what differs from the default is in it. A change made in the file reaches the page at
@@ -35,6 +36,7 @@ export type Prefs = {
   confirm: boolean;
   alphaNotice: boolean;
   experimental: boolean;
+  reopenLastMap: boolean;
   /** The shell a new terminal runs, by id; "" for the first found (Sven, 2026-11-01). */
   terminalShell: string;
 };
@@ -100,6 +102,7 @@ const settings: { [K in keyof Prefs]: Setting<K> } = {
   confirm: { key: "editor.confirm", fallback: true, read: flag, write: asWritten },
   alphaNotice: { key: "editor.alphaNotice", fallback: true, read: flag, write: asWritten },
   experimental: { key: "editor.experimental", fallback: false, read: flag, write: asWritten },
+  reopenLastMap: { key: "editor.reopenLastMap", fallback: false, read: flag, write: asWritten },
   terminalShell: {
     key: "terminal.shell",
     fallback: "",

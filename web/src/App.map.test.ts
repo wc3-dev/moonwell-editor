@@ -36,8 +36,9 @@ describe("opening a map", () => {
   test("from the start screen", async () => {
     const app = new FakeApp({ openMap: other, tree: [footmanEntry] });
     render(App);
-    await fireEvent.click(await screen.findByRole("button", { name: t("noMap.open") }));
-    await fireEvent.click(await screen.findByRole("menuitem", { name: t("openMenu.folder") }));
+    const button = await screen.findByRole("button", { name: t("welcome.openFolder") });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    await fireEvent.click(button);
     await screen.findByRole("treeitem", { name: /Footman/ });
     expect(document.title).toContain("C:/Maps/Other");
     expect(app.args("openMap")).toEqual({});

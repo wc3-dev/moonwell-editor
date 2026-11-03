@@ -313,7 +313,8 @@ describe("what it lists", () => {
   test("with no map, what needs none", async () => {
     new FakeApp({ gameData: gameReady, currentMap: null });
     render(App);
-    await screen.findByText(t("noMap.text"));
+    const open = await screen.findByRole("button", { name: t("welcome.openFolder") });
+    await waitFor(() => expect((open as HTMLButtonElement).disabled).toBe(false));
     await openPalette();
     expect(isListed(t("hotkey.settings"))).toBe(true);
     expect(isListed(t("hotkey.openFolder"))).toBe(true);

@@ -64,6 +64,7 @@ and VS Code suggestions and checks for every key below; keep it.
 | `editor.confirm` | Ask before reloading the map, deleting an object or dropping unsaved changes. When `false` nothing is asked and unsaved changes are lost. | `true`, `false` | `true` |
 | `editor.alphaNotice` | Show the alpha notice when the editor starts. | `true`, `false` | `true` |
 | `editor.experimental` | Turn on the experimental features. | `true`, `false` | `false` |
+| `editor.reopenLastMap` | Open the last map again when the editor starts, if it is still there. | `true`, `false` | `false` |
 | `terminal.shell` | The shell a new terminal runs. | A shell's id (`"pwsh"`, `"bash"`, `"cmd"`), or `null`. | `null`: the first one found |
 
 `game.folder` is written by the editor when you choose a folder in Settings and the game data in it has loaded. You can

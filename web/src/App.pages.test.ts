@@ -99,7 +99,7 @@ describe("the header", () => {
   test("with no map the editors are off", async () => {
     new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     for (const name of [
       t("header.objectEditor"),
       t("header.terrainEditor"),
@@ -407,10 +407,10 @@ describe("a pick on the map", () => {
   test("with no map it stays where it is", async () => {
     new FakeApp();
     render(App);
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     const picked = pickOnMap("unit");
     await settled();
-    await screen.findByTestId("no-map");
+    await screen.findByTestId("welcome");
     answer(null);
     await picked;
   });

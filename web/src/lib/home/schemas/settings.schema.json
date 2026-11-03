@@ -150,6 +150,11 @@
       "default": false,
       "description": "Turn on the experimental features."
     },
+    "editor.reopenLastMap": {
+      "type": "boolean",
+      "default": false,
+      "description": "Open the last map again when the editor starts, if it is still there."
+    },
     "terminal.shell": {
       "type": ["string", "null"],
       "default": null,

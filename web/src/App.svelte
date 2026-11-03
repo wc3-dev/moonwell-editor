@@ -9,7 +9,6 @@ import DiskChangedDialog from "./lib/app/DiskChangedDialog.svelte";
 import EditorPages from "./lib/app/EditorPages.svelte";
 import { Editor, setEditor } from "./lib/app/editor.svelte.ts";
 import type { Place } from "./lib/app/history.svelte.ts";
-import NoMapScreen from "./lib/app/NoMapScreen.svelte";
 import ReloadDialog from "./lib/app/ReloadDialog.svelte";
 import SettingsDialog from "./lib/app/SettingsDialog.svelte";
 import StatusBar from "./lib/app/StatusBar.svelte";
@@ -86,10 +85,8 @@ onMount(() => {
   />
   <AppHeader />
 
-  {#if startup.view === "missing" || startup.view === "failed"}
+  {#if startup.view === "missing" || startup.view === "failed" || !session.map}
     <WelcomeScreen />
-  {:else if !session.map}
-    <NoMapScreen />
   {:else}
     <EditorPages />
   {/if}

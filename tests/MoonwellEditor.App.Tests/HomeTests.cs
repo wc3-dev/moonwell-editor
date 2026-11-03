@@ -198,6 +198,45 @@ public sealed class HomeTests : IDisposable
     }
 
     [Fact]
+    public void A_forgotten_map_leaves_the_others_in_their_order()
+    {
+        var home = Open();
+        home.RememberMap(@"C:\Maps\a");
+        home.RememberMap(@"C:\Maps\b");
+        home.RememberMap(@"C:\Maps\c");
+
+        home.ForgetMap(@"c:\maps\B");   // the same folder, spelled differently
+
+        Assert.Equal([@"C:\Maps\c", @"C:\Maps\a"], home.RecentMaps);
+        Assert.Equal(home.RecentMaps, new Home(Folder).RecentMaps);   // saved
+    }
+
+    [Theory]
+    [InlineData("""{ "editor.reopenLastMap": true }""", true)]
+    [InlineData("""{ "editor.reopenLastMap": true, /* a comment */ }""", true)]
+    [InlineData("""{ "editor.reopenLastMap": false }""", false)]
+    [InlineData("""{ "editor.reopenLastMap": "yes" }""", false)]
+    [InlineData("""{ }""", false)]
+    [InlineData("""{ "editor.reopenLastMap": tru""", false)]
+    public void Reopening_the_last_map_is_read_from_settings(string text, bool reopens)
+    {
+        PutHome("settings.json", text);
+
+        Assert.Equal(reopens, Open().ReopenLastMap);
+    }
+
+    [Fact]
+    public void Reopening_the_last_map_follows_the_file_as_it_is_now()
+    {
+        var home = Open();
+        Assert.False(home.ReopenLastMap);
+
+        PutHome("settings.json", """{ "editor.reopenLastMap": true }""");
+
+        Assert.True(home.ReopenLastMap);
+    }
+
+    [Fact]
     public void Remembered_maps_start_from_the_legacy_file()
     {
         PutLegacy("""{ "gameFolder": null, "recentMaps": ["C:\\Maps\\a", "C:\\Maps\\b"] }""");

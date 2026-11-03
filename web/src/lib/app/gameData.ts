@@ -13,7 +13,7 @@ export type GameDataState = {
   game?: string | null;
 };
 
-/** What the first-start screen or the status bar should say about the game data. */
+/** What the welcome screen or the status bar should say about the game data. */
 export type GameDataView = "missing" | "loading" | "failed" | "ready";
 
 /** Asks the app where the game data stands. */

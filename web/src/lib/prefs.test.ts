@@ -28,6 +28,7 @@ const defaults = {
   confirm: true,
   alphaNotice: true,
   experimental: false,
+  reopenLastMap: false,
   terminalShell: "",
 };
 
@@ -76,6 +77,7 @@ describe("reading settings.json", () => {
       "editor.confirm": false,
       "editor.alphaNotice": false,
       "editor.experimental": true,
+      "editor.reopenLastMap": true,
       "terminal.shell": "bash",
     }`);
     expect(prefs).toMatchObject({
@@ -89,6 +91,7 @@ describe("reading settings.json", () => {
       confirm: false,
       alphaNotice: false,
       experimental: true,
+      reopenLastMap: true,
       terminalShell: "bash",
     });
     expect(settingsProblems).toEqual([]);
@@ -129,6 +132,7 @@ describe("reading settings.json", () => {
     ["editor.confirm", 1],
     ["editor.alphaNotice", null],
     ["editor.experimental", "yes"],
+    ["editor.reopenLastMap", "true"],
     ["terminal.shell", ""],
     ["terminal.shell", false],
   ])("%s of %j is a bad value", (key, value) => {

@@ -133,6 +133,8 @@ const started = {
   writeHome: null,
   setState: null,
   openHome: null,
+  recentMaps: [],
+  forgetMap: [],
 };
 
 let latest: FakeApp | undefined;
