@@ -32,7 +32,7 @@ public sealed record TreeEntry(
     IReadOnlyDictionary<string, string>? IconModes = null);
 
 /// <summary>One object with every field that applies to it, resolved against the map and the standard data.</summary>
-/// <param name="Kind">The kind's key (<c>unit</c>), as <see cref="Kinds.Key"/> names it.</param>
+/// <param name="Kind">The kind.</param>
 /// <param name="Id">The object's id.</param>
 /// <param name="BaseId">For a custom object, the standard object it is based on; null for a standard object.</param>
 /// <param name="Name">The name: the map's when it changes the name, else the standard one.</param>
@@ -47,7 +47,7 @@ public sealed record TreeEntry(
 /// <param name="ReadOnly">Why the object cannot be edited; null when it can.</param>
 /// <param name="Fields">The fields, in the kind's field order; a per-level field once for each level.</param>
 public sealed record ObjectView(
-    string Kind,
+    ObjectKind Kind,
     string Id,
     string? BaseId,
     string Name,
@@ -95,7 +95,7 @@ public sealed record ChainLink(string Name, string Id);
 /// <param name="Modes">
 /// The standard values per graphics mode (<c>sd</c>, <c>hd</c>, <c>de</c>) when they differ; null when they do not.
 /// </param>
-/// <param name="Asset">What game file the field names (<c>icon</c>, <c>model</c>, <c>texture</c>); null for none.</param>
+/// <param name="Asset">What game file the field names; null for none.</param>
 /// <param name="Meta">
 /// The metadata's type as written (<c>model</c>, <c>soundLabel</c>), which says how World Editor shows the field; null
 /// when not known.
@@ -123,7 +123,7 @@ public sealed record FieldView(
     bool Skin,
     string? Warning,
     IReadOnlyDictionary<string, string>? Modes,
-    string? Asset = null,
+    AssetKind? Asset = null,
     string? Meta = null,
     int Data = 0,
     int? MaxLength = null);

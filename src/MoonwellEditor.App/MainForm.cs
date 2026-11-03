@@ -88,9 +88,9 @@ public sealed class MainForm : Form
         _bridge = new Bridge(_commands.Run);
         _terminalLine = new OrderedLine(Reply);
         _commands.Assets = assets;
-        _commands.GameDataChanged += state => Notify("gameData", state);
-        _commands.SessionChanged += state => Notify("sessionChanged", state);
-        _commands.HomeChanged += change => Notify("homeChanged", change);
+        _commands.GameDataChanged += state => Notify(BridgeEvents.GameData, state);
+        _commands.SessionChanged += state => Notify(BridgeEvents.SessionChanged, state);
+        _commands.HomeChanged += change => Notify(BridgeEvents.HomeChanged, change);
         _commands.CloseAsking += () => OnWindowThread(_closeGuard.PageAsking);
         _commands.CloseApproved += () => OnWindowThread(() =>
         {
@@ -116,8 +116,8 @@ public sealed class MainForm : Form
             BackColor = ColorTranslator.FromHtml(surface);
             TitleBar.SetBorder(Handle, ColorTranslator.FromHtml(border));
         });
-        _commands.Terminals.Output += (id, text) => Notify("terminalOutput", new TerminalOutput(id, text));
-        _commands.Terminals.Exited += (id, code) => Notify("terminalExit", new TerminalExit(id, code));
+        _commands.Terminals.Output += (id, text) => Notify(BridgeEvents.TerminalOutput, new TerminalOutput(id, text));
+        _commands.Terminals.Exited += (id, code) => Notify(BridgeEvents.TerminalExit, new TerminalExit(id, code));
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
 
@@ -186,7 +186,7 @@ public sealed class MainForm : Form
         if (maximized != _maximized)
         {
             _maximized = maximized;
-            Notify("windowState", new WindowState(maximized));
+            Notify(BridgeEvents.WindowState, new WindowState(maximized));
         }
     }
 
@@ -272,7 +272,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        Post(Bridge.Event("closeRequested", new { dirty = _commands.Dirty }));
+        Post(Bridge.Event(BridgeEvents.CloseRequested, new CloseRequest(_commands.Dirty)));
         _pageWait.Stop();
         _pageWait.Start();
     }
@@ -321,7 +321,7 @@ public sealed class MainForm : Form
     }
 
     // Tells the page about something that happened on a background thread.
-    private void Notify(string name, object payload)
+    private void Notify<T>(BridgeEvent<T> @event, T payload)
     {
         if (IsDisposed || !IsHandleCreated)
         {
@@ -332,7 +332,7 @@ public sealed class MainForm : Form
         {
             if (_web.CoreWebView2 != null)
             {
-                Post(Bridge.Event(name, payload));
+                Post(Bridge.Event(@event, payload));
             }
         });
     }

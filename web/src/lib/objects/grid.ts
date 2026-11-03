@@ -8,7 +8,7 @@ import type {
   CellEdit,
   ChoiceList,
   Column,
-  FieldInfo,
+  FieldDescription,
   FieldView,
   Kind,
   TableCell,
@@ -179,7 +179,7 @@ export function copyBlock(s: Selection, rows: TableRow[]): string[][] {
 }
 
 /** A cell as the details view's editor takes it: the column's field at its level, with the cell's value. */
-export function cellField(info: FieldInfo, column: Column, cell: TableCell): FieldView {
+export function cellField(info: FieldDescription, column: Column, cell: TableCell): FieldView {
   return {
     id: info.id,
     label: info.label,
@@ -195,6 +195,10 @@ export function cellField(info: FieldInfo, column: Column, cell: TableCell): Fie
     skin: false,
     warning: cell.warning,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
   };
 }
 
@@ -203,7 +207,7 @@ export function editRefusal(
   row: TableRow,
   cell: TableCell,
   column: Column,
-  fields: FieldInfo[],
+  fields: FieldDescription[],
 ): string | null {
   if (row.readOnly !== null) return t("grid.readOnly", { reason: row.readOnly });
   if (!cell.applies)
@@ -223,18 +227,18 @@ function targetOf(at: Cell, rows: TableRow[], columns: Column[]): Target | null 
 }
 
 /** A cell as a message names it: its row's name and its column (`Footman · Gold cost`). */
-function whereOf(target: Target, fields: FieldInfo[]): string {
+function whereOf(target: Target, fields: FieldDescription[]): string {
   return `${target.row.name} · ${columnName(target.column, fields)}`;
 }
 
 /** The refusal of a change of a cell whose row is read only, naming the cell; null when its row can be changed. */
-function readOnlyRefusal(target: Target, fields: FieldInfo[]): { error: string } | null {
+function readOnlyRefusal(target: Target, fields: FieldDescription[]): { error: string } | null {
   if (target.row.readOnly === null) return null;
   return { error: `${whereOf(target, fields)}: ${target.row.readOnly}` };
 }
 
 /** The field a column shows; undefined when the kind's fields do not have it. */
-function fieldOf(column: Column, fields: FieldInfo[]): FieldInfo | undefined {
+function fieldOf(column: Column, fields: FieldDescription[]): FieldDescription | undefined {
   return fields.find((field) => field.id === column.field);
 }
 
@@ -271,7 +275,7 @@ export function sortRows(rows: TableRow[], col: number, descending: boolean): Ta
 const emptyTypes = ["string", "objectList", "objectRef"];
 
 /** True when an empty pasted cell is a value for the field (text and lists), not a gap. */
-function takesEmpty(field: FieldInfo | undefined): boolean {
+function takesEmpty(field: FieldDescription | undefined): boolean {
   return field !== undefined && emptyTypes.includes(field.type);
 }
 
@@ -292,7 +296,7 @@ type Plain = { value: string } | { error: string };
  * whose list is not known (the app checks those).
  */
 function plainValue(
-  field: FieldInfo | undefined,
+  field: FieldDescription | undefined,
   text: string,
   choices: Record<string, ChoiceList> | null,
 ): Plain {
@@ -327,7 +331,7 @@ function decimalComma(value: string): string {
 
 /** A pasted cell's value for a field: a number with a decimal comma read, yes/no and choices as `plainValue`. */
 function pastedValue(
-  field: FieldInfo | undefined,
+  field: FieldDescription | undefined,
   value: string,
   choices: Record<string, ChoiceList> | null,
 ): Plain {
@@ -348,7 +352,7 @@ export function pasteEdits(
   block: string[][],
   rows: TableRow[],
   columns: Column[],
-  fields: FieldInfo[],
+  fields: FieldDescription[],
   choices: Record<string, ChoiceList> | null,
 ): CellEdit[] | { error: string } {
   const edits: CellEdit[] = [];
@@ -378,7 +382,7 @@ export function fillDownEdits(
   s: Selection,
   rows: TableRow[],
   columns: Column[],
-  fields: FieldInfo[],
+  fields: FieldDescription[],
 ): CellEdit[] | { error: string } {
   const top = Math.min(s.anchor.row, s.focus.row);
   const edits: CellEdit[] = [];
@@ -401,7 +405,7 @@ export function resetEdits(
   s: Selection,
   rows: TableRow[],
   columns: Column[],
-  fields: FieldInfo[],
+  fields: FieldDescription[],
 ): CellEdit[] | { error: string } {
   const edits: CellEdit[] = [];
   for (const at of cellsOf(s)) {
@@ -415,7 +419,7 @@ export function resetEdits(
 }
 
 /** A column as a message names it: the field's label (its id when unknown), with the level for a per-level column. */
-function columnName(column: Column, fields: FieldInfo[]): string {
+function columnName(column: Column, fields: FieldDescription[]): string {
   const label = fieldOf(column, fields)?.label ?? column.field;
   return column.level > 0 ? `${label} · ${column.level}` : label;
 }
@@ -439,7 +443,7 @@ export function bulkEdits(
   s: Selection,
   rows: TableRow[],
   columns: Column[],
-  fields: FieldInfo[],
+  fields: FieldDescription[],
   text: string,
   choices: Record<string, ChoiceList> | null,
 ): CellEdit[] | { error: string } {

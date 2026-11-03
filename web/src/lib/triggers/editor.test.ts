@@ -13,10 +13,21 @@ import { FakeApp, Refusal } from "../../test/fakeApp.ts";
 import { fakeLayout } from "../../test/fakeLayout.ts";
 import { CommandQueue } from "../app/commandQueue.ts";
 import { t } from "../text.ts";
-import type { CardView, FunctionView, TreeItem, TriggerTree, TriggerView } from "./api.ts";
+import type {
+  CardView,
+  FunctionView,
+  TriggerTreeItem,
+  TriggerTreeView,
+  TriggerView,
+} from "./api.ts";
 import TriggerEditor from "./TriggerEditor.svelte";
 
-const item = (id: number, parent: number, kind: TreeItem["kind"], name: string): TreeItem => ({
+const item = (
+  id: number,
+  parent: number,
+  kind: TriggerTreeItem["kind"],
+  name: string,
+): TriggerTreeItem => ({
   id,
   parent,
   kind,
@@ -26,7 +37,7 @@ const item = (id: number, parent: number, kind: TreeItem["kind"], name: string):
   ref: "",
 });
 
-const tree: TriggerTree = {
+const tree: TriggerTreeView = {
   items: [
     item(0, -1, "root", "Arena"),
     item(1, 0, "category", "Setup"),

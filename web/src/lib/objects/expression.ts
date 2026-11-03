@@ -2,7 +2,7 @@
  * What the table's bar takes: a plain value or a small calculation (`50`, `+5`, `-10%`, `*1.1`, `/2`), read once
  * and then applied to each selected cell's current value.
  */
-import type { FieldInfo } from "../api.ts";
+import type { FieldDescription } from "../api.ts";
 import { t } from "../text.ts";
 
 /** What to do to a cell: set it to the operand, or change its number by it (`percent` is a change in percent). */
@@ -75,7 +75,7 @@ function roundFour(value: number): number {
 export function applyExpression(
   e: Expression,
   current: string,
-  type: FieldInfo["type"],
+  type: FieldDescription["type"],
 ): string | { error: string } {
   const isInt = type === "int";
   if (!isInt && type !== "float") {

@@ -9,14 +9,14 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Plus from "@lucide/svelte/icons/plus";
 import { iconUrl } from "../api.ts";
 import { t } from "../text.ts";
-import type { Catalog, FunctionView } from "./api.ts";
+import type { FunctionView, TriggerCatalogView } from "./api.ts";
 import { type CardActions, showsSentence, toneOf } from "./cards.ts";
 import FunctionCard from "./FunctionCard.svelte";
 
 type Props = {
   owner: number;
   function_: FunctionView;
-  catalog: Catalog;
+  catalog: TriggerCatalogView;
   mode: string;
   readOnly: boolean;
   /** Where a drag would land: `owner:path:before`, `owner:path:after` or `owner:path:block0`. */

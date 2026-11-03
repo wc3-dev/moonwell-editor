@@ -27,7 +27,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
     }
 
     private static int Initialization(TriggerDocument document) =>
-        document.Tree().Single(item => item.Kind == "category").Id;
+        document.Tree().Single(item => item.Kind == TriggerItemKind.Category).Id;
 
     private static MapTriggers Reread(TriggerDocument document)
     {
@@ -45,8 +45,8 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var second = document.Add("trigger", Initialization(document));
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var second = document.Add(TriggerItemKind.Trigger, Initialization(document));
 
         Assert.Equal(3, id >> 24);
         Assert.NotEqual(id, second);
@@ -66,8 +66,8 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var script = document.Add("script", Initialization(document));
-        document.Add("comment", Initialization(document));
+        var script = document.Add(TriggerItemKind.Script, Initialization(document));
+        document.Add(TriggerItemKind.Comment, Initialization(document));
         document.SetCode(script, "call DoNothing()");
 
         using var reader = new BinaryReader(new MemoryStream(document.CustomTextBytes()!));
@@ -89,11 +89,11 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         var before = document.TriggerBytes()!;
         var snapshot = document.Snapshot();
-        var id = document.Add("trigger", Initialization(document));
-        document.AddFunction(id, null, 0, 0, "event", "TriggerRegisterTimerEventPeriodic");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        document.AddFunction(id, null, 0, 0, FunctionKind.Event, "TriggerRegisterTimerEventPeriodic");
         document.Rename(id, "Tick");
         var melee = document.Tree().Single(item => item.Name == "Melee Initialization").Id;
-        document.AddFunction(melee, null, 0, 0, "action", "DoNothing");
+        document.AddFunction(melee, null, 0, 0, FunctionKind.Action, "DoNothing");
         document.Delete(Initialization(document));
 
         document.Restore(snapshot);
@@ -111,9 +111,9 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        document.AddFunction(id, null, 0, 0, "event", "TriggerRegisterTimerEventPeriodic");
-        document.AddFunction(id, null, 0, 0, "action", "CreateNUnitsAtLoc");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        document.AddFunction(id, null, 0, 0, FunctionKind.Event, "TriggerRegisterTimerEventPeriodic");
+        document.AddFunction(id, null, 0, 0, FunctionKind.Action, "CreateNUnitsAtLoc");
 
         var view = document.Trigger(id, new Names());
 
@@ -136,9 +136,9 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
         var wrong = new List<string>();
-        foreach (var function in document.Catalog.Functions.Where(each => each.Kind != "call"))
+        foreach (var function in document.Catalog.Functions.Where(each => each.Kind != FunctionKind.Call))
         {
             try
             {
@@ -154,7 +154,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         Assert.Empty(wrong);
         var read = Reread(document);
         Assert.Equal(
-            document.Catalog.Functions.Count(each => each.Kind != "call"),
+            document.Catalog.Functions.Count(each => each.Kind != FunctionKind.Call),
             read.TriggerItems.OfType<TriggerDefinition>().Single(each => each.Id == id).Functions.Count);
         Assert.NotEmpty(document.Trigger(id, new Names()).Actions);
     }
@@ -169,11 +169,11 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var ifThen = document.AddFunction(id, null, 0, 0, "action", "IfThenElseMultiple");
-        document.AddFunction(id, ifThen, 1, 0, "action", "DoNothing");
-        document.AddFunction(id, ifThen, 2, 0, "action", "ReturnAction");
-        document.AddFunction(id, ifThen, 0, 0, "condition", "OperatorCompareBoolean");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var ifThen = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "IfThenElseMultiple");
+        document.AddFunction(id, ifThen, 1, 0, FunctionKind.Action, "DoNothing");
+        document.AddFunction(id, ifThen, 2, 0, FunctionKind.Action, "ReturnAction");
+        document.AddFunction(id, ifThen, 0, 0, FunctionKind.Condition, "OperatorCompareBoolean");
 
         var blocks = document.Trigger(id, new Names()).Actions[0].Blocks;
 
@@ -195,10 +195,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        document.AddFunction(id, null, 0, 0, "event", "MapInitializationEvent");
-        document.AddFunction(id, null, 0, int.MaxValue, "action", "DoNothing");
-        document.AddFunction(id, null, 0, int.MaxValue, "action", "ReturnAction");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        document.AddFunction(id, null, 0, 0, FunctionKind.Event, "MapInitializationEvent");
+        document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "DoNothing");
+        document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "ReturnAction");
 
         var view = document.Trigger(id, new Names());
         document.MoveFunction(id, view.Actions[1].Path, id, null, 0, 0);
@@ -218,10 +218,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var first = document.AddFunction(id, null, 0, int.MaxValue, "action", "DoNothing");
-        var ifThen = document.AddFunction(id, null, 0, int.MaxValue, "action", "IfThenElseMultiple");
-        document.AddFunction(id, ifThen, 2, 0, "action", "ReturnAction");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var first = document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "DoNothing");
+        var ifThen = document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "IfThenElseMultiple");
+        document.AddFunction(id, ifThen, 2, 0, FunctionKind.Action, "ReturnAction");
 
         document.MoveFunction(id, first, id, ifThen, 1, 0);
 
@@ -249,10 +249,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var outer = document.AddFunction(id, null, 0, int.MaxValue, "action", "IfThenElseMultiple");
-        var inner = document.AddFunction(id, outer, 1, 0, "action", "IfThenElseMultiple");
-        var plain = document.AddFunction(id, null, 0, int.MaxValue, "action", "DoNothing");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var outer = document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "IfThenElseMultiple");
+        var inner = document.AddFunction(id, outer, 1, 0, FunctionKind.Action, "IfThenElseMultiple");
+        var plain = document.AddFunction(id, null, 0, int.MaxValue, FunctionKind.Action, "DoNothing");
 
         Assert.Throws<TriggerEditException>(() => document.MoveFunction(id, outer, id, inner, 1, 0));
         Assert.Throws<TriggerEditException>(() => document.MoveFunction(id, outer, id, outer, 1, 0));
@@ -271,10 +271,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var from = document.Add("trigger", category);
-        var to = document.Add("trigger", category);
-        var wait = document.AddFunction(from, null, 0, 0, "action", "TriggerSleepAction");
-        document.AddFunction(to, null, 0, 0, "action", "DoNothing");
+        var from = document.Add(TriggerItemKind.Trigger, category);
+        var to = document.Add(TriggerItemKind.Trigger, category);
+        var wait = document.AddFunction(from, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
+        document.AddFunction(to, null, 0, 0, FunctionKind.Action, "DoNothing");
 
         document.MoveFunction(from, wait, to, null, 0, 0);
 
@@ -292,8 +292,8 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        document.AddFunction(id, null, 0, 0, "action", "CreateNUnitsAtLoc");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        document.AddFunction(id, null, 0, 0, FunctionKind.Action, "CreateNUnitsAtLoc");
 
         Assert.Equal("Create Units Facing Angle", document.Trigger(id, new Names()).Actions[0].Title);
     }
@@ -309,16 +309,16 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var trigger = document.Add("trigger", category);
-        var comment = document.Add("comment", category);
-        var script = document.Add("script", category);
+        var trigger = document.Add(TriggerItemKind.Trigger, category);
+        var comment = document.Add(TriggerItemKind.Comment, category);
+        var script = document.Add(TriggerItemKind.Script, category);
         var variable = document.AddVariable(new VariableInput("Count", "integer", false, 1, ""), category);
-        var inner = document.Add("category", category);
-        document.Add("trigger", inner);
+        var inner = document.Add(TriggerItemKind.Category, category);
+        document.Add(TriggerItemKind.Trigger, inner);
 
         var cards = document.Cards(category, new Names());
 
-        Assert.Equal(["trigger", "trigger", "comment", "script", "variable", "category"], cards.Select(card => card.Kind));
+        Assert.Equal([TriggerItemKind.Trigger, TriggerItemKind.Trigger, TriggerItemKind.Comment, TriggerItemKind.Script, TriggerItemKind.Variable, TriggerItemKind.Category], cards.Select(card => card.Kind));
         Assert.NotNull(cards.Single(card => card.Id == trigger).Trigger);
         Assert.NotNull(cards.Single(card => card.Id == comment).Trigger);
         Assert.NotNull(cards.Single(card => card.Id == script).Trigger);
@@ -337,7 +337,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
+        var id = document.Add(TriggerItemKind.Trigger, category);
         Assert.Null(document.LayoutBytes());
         var before = document.Snapshot();
 
@@ -385,14 +385,14 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var root = document.Tree()[0].Id;
-        var other = document.Add("category", root);
-        var trigger = document.Add("trigger", other);
+        var other = document.Add(TriggerItemKind.Category, root);
+        var trigger = document.Add(TriggerItemKind.Trigger, other);
 
         document.Move(trigger, root, 0);
 
         var tree = document.Tree();
         Assert.NotEqual(root, tree.Single(item => item.Id == trigger).Parent);
-        Assert.Equal("category", tree.Single(item => item.Id == tree.Single(each => each.Id == trigger).Parent).Kind);
+        Assert.Equal(TriggerItemKind.Category, tree.Single(item => item.Id == tree.Single(each => each.Id == trigger).Parent).Kind);
     }
 
     [Fact]
@@ -405,14 +405,14 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var path = document.AddFunction(id, null, 0, 0, "action", "CreateNUnitsAtLoc");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "CreateNUnitsAtLoc");
         document.AddVariable(new VariableInput("Spawned", "integer", false, 1, ""), Initialization(document));
 
-        document.SetParameter(id, path + "/p0", new ParamInput("variable", "Spawned"));
-        document.SetParameter(id, path + "/p1", new ParamInput("value", "hfoo"));
-        document.SetParameter(id, path + "/p2", new ParamInput("preset", "Player01"));
-        document.SetParameter(id, path + "/p3", new ParamInput("function", "GetUnitLoc"));
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Spawned"));
+        document.SetParameter(id, path + "/p1", new ParamInput(ParameterKind.Value, "hfoo"));
+        document.SetParameter(id, path + "/p2", new ParamInput(ParameterKind.Preset, "Player01"));
+        document.SetParameter(id, path + "/p3", new ParamInput(ParameterKind.Function, "GetUnitLoc"));
 
         var parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
         Assert.Equal("Spawned", parts[0].Text);
@@ -420,9 +420,9 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         Assert.Equal("Player 2 (Blue)", parts[2].Text);
         Assert.Equal("(Position of (Triggering unit))", parts[3].Text);
         var inner = Assert.Single(parts[3].Parameter!.Function!.Sentence, part => part.Parameter != null);
-        Assert.Equal("function", inner.Parameter!.Kind);
+        Assert.Equal(ParameterKind.Function, inner.Parameter!.Kind);
 
-        document.SetParameter(id, inner.Parameter.Path, new ParamInput("variable", "gg_unit_hfoo_0001"));
+        document.SetParameter(id, inner.Parameter.Path, new ParamInput(ParameterKind.Variable, "gg_unit_hfoo_0001"));
 
         parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
         Assert.Equal("(Position of Footman 0001 <gen>)", parts[3].Text);
@@ -438,12 +438,12 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var path = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         document.AddVariable(new VariableInput("Times", "real", true, 4, ""), Initialization(document));
 
-        document.SetParameter(id, path + "/p0", new ParamInput("variable", "Times"));
-        document.SetParameter(id, path + "/p0/i", new ParamInput("value", "3"));
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Times"));
+        document.SetParameter(id, path + "/p0/i", new ParamInput(ParameterKind.Value, "3"));
 
         var part = document.Trigger(id, new Names()).Actions[0].Sentence.Single(each => each.Parameter != null);
         Assert.Equal("Times[3]", part.Text);
@@ -459,12 +459,12 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
-        var path = document.AddFunction(id, null, 0, 0, "action", "SetVariable");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "SetVariable");
         document.AddVariable(new VariableInput("Delay", "real", false, 1, ""), Initialization(document));
 
-        document.SetParameter(id, path + "/p0", new ParamInput("variable", "Delay"));
-        document.SetParameter(id, path + "/p1", new ParamInput("value", "1.5"));
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
+        document.SetParameter(id, path + "/p1", new ParamInput(ParameterKind.Value, "1.5"));
 
         var parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
         Assert.Equal("real", parts[1].Parameter!.Type);
@@ -482,13 +482,13 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
-        var path = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         var variable = document.AddVariable(new VariableInput("Delay", "real", false, 1, ""), category);
-        document.SetParameter(id, path + "/p0", new ParamInput("variable", "Delay"));
-        var other = document.Add("trigger", category);
-        var run = document.AddFunction(other, null, 0, 0, "action", "ConditionalTriggerExecute");
-        document.SetParameter(other, run + "/p0", new ParamInput("variable", "gg_trg_Untitled_Trigger_001"));
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
+        var other = document.Add(TriggerItemKind.Trigger, category);
+        var run = document.AddFunction(other, null, 0, 0, FunctionKind.Action, "ConditionalTriggerExecute");
+        document.SetParameter(other, run + "/p0", new ParamInput(ParameterKind.Variable, "gg_trg_Untitled_Trigger_001"));
 
         document.SetVariable(variable, new VariableInput("Pause", "real", false, 1, ""));
         document.Rename(id, "Wait Here");
@@ -510,14 +510,14 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
-        var path = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         var variable = document.AddVariable(new VariableInput("Delay", "real", false, 1, ""), category);
-        document.SetParameter(id, path + "/p0", new ParamInput("variable", "Delay"));
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
 
         document.Delete(variable);
 
-        Assert.Equal("none", document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
+        Assert.Equal(ParameterKind.None, document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
         Assert.Empty(document.Variables());
         Assert.Empty(Reread(document).Variables);
     }
@@ -533,26 +533,26 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
-        var wait = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var wait = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         document.AddVariable(new VariableInput("Delay", "real", false, 1, ""), category);
         document.AddVariable(new VariableInput("Pause", "real", false, 1, ""), category);
         document.AddVariable(new VariableInput("Count", "integer", false, 1, ""), category);
 
-        Assert.Throws<TriggerEditException>(() => document.SetParameter(id, wait + "/p0", new ParamInput("value", "soon")));
+        Assert.Throws<TriggerEditException>(() => document.SetParameter(id, wait + "/p0", new ParamInput(ParameterKind.Value, "soon")));
 
-        var set = document.AddFunction(id, null, 0, 0, "action", "SetVariable");
-        document.SetParameter(id, set + "/p0", new ParamInput("variable", "Delay"));
-        document.SetParameter(id, set + "/p1", new ParamInput("value", "1.5"));
-        document.SetParameter(id, set + "/p0", new ParamInput("variable", "Pause"));
+        var set = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "SetVariable");
+        document.SetParameter(id, set + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
+        document.SetParameter(id, set + "/p1", new ParamInput(ParameterKind.Value, "1.5"));
+        document.SetParameter(id, set + "/p0", new ParamInput(ParameterKind.Variable, "Pause"));
 
         var parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
-        Assert.Equal("value", parts[1].Parameter!.Kind);
+        Assert.Equal(ParameterKind.Value, parts[1].Parameter!.Kind);
 
-        document.SetParameter(id, set + "/p0", new ParamInput("variable", "Count"));
+        document.SetParameter(id, set + "/p0", new ParamInput(ParameterKind.Variable, "Count"));
 
         parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
-        Assert.Equal("none", parts[1].Parameter!.Kind);
+        Assert.Equal(ParameterKind.None, parts[1].Parameter!.Kind);
     }
 
     [Fact]
@@ -565,11 +565,11 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var category = document.Add("category", document.Tree()[0].Id);
-        var first = document.Add("trigger", category);
-        var second = document.Add("trigger", category);
-        var run = document.AddFunction(second, null, 0, 0, "action", "ConditionalTriggerExecute");
-        document.SetParameter(second, run + "/p0", new ParamInput("variable", "gg_trg_Untitled_Trigger_001"));
+        var category = document.Add(TriggerItemKind.Category, document.Tree()[0].Id);
+        var first = document.Add(TriggerItemKind.Trigger, category);
+        var second = document.Add(TriggerItemKind.Trigger, category);
+        var run = document.AddFunction(second, null, 0, 0, FunctionKind.Action, "ConditionalTriggerExecute");
+        document.SetParameter(second, run + "/p0", new ParamInput(ParameterKind.Variable, "gg_trg_Untitled_Trigger_001"));
 
         document.Delete(category);
 
@@ -588,18 +588,18 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var trigger = document.Add("trigger", category);
+        var trigger = document.Add(TriggerItemKind.Trigger, category);
         document.Rename(trigger, "A B");
-        Assert.Throws<TriggerEditException>(() => document.Rename(document.Add("trigger", category), "A_B"));
-        var other = document.Add("trigger", category);
-        var run = document.AddFunction(other, null, 0, 0, "action", "ConditionalTriggerExecute");
-        document.SetParameter(other, run + "/p0", new ParamInput("variable", "gg_trg_A_B"));
-        var comment = document.Add("comment", category);
+        Assert.Throws<TriggerEditException>(() => document.Rename(document.Add(TriggerItemKind.Trigger, category), "A_B"));
+        var other = document.Add(TriggerItemKind.Trigger, category);
+        var run = document.AddFunction(other, null, 0, 0, FunctionKind.Action, "ConditionalTriggerExecute");
+        document.SetParameter(other, run + "/p0", new ParamInput(ParameterKind.Variable, "gg_trg_A_B"));
+        var comment = document.Add(TriggerItemKind.Comment, category);
         document.Rename(comment, "A B");
 
         document.Delete(comment);
 
-        Assert.Equal("variable", document.Trigger(other, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
+        Assert.Equal(ParameterKind.Variable, document.Trigger(other, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
     }
 
     [Fact]
@@ -613,10 +613,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
-        var wait = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var wait = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         var variable = document.AddVariable(new VariableInput("Delay", "real", false, 1, ""), category);
-        document.SetParameter(id, wait + "/p0", new ParamInput("variable", "Delay"));
+        document.SetParameter(id, wait + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
 
         document.SetVariable(variable, new VariableInput("Delay", "real", true, 4, ""));
         Assert.Equal("Delay[0]", document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Text);
@@ -625,7 +625,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         Assert.Equal("Delay", document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Text);
 
         document.SetVariable(variable, new VariableInput("Delay", "integer", false, 1, ""));
-        Assert.Equal("none", document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
+        Assert.Equal(ParameterKind.None, document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Parameter!.Kind);
     }
 
     [Fact]
@@ -663,7 +663,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         var document = TriggerDocument.Read(
             store.Read(TriggerDocument.TriggersFile), store.Read(TriggerDocument.CustomTextFile), catalog);
-        var custom = document.Tree().First(item => item.Kind == "custom");
+        var custom = document.Tree().First(item => item.Kind == TriggerItemKind.Custom);
         var before = TriggerJass.Identifier(custom.Name);
         Assert.Contains("InitTrig_" + before, document.CodeOf(custom.Id));
 
@@ -686,7 +686,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         var bytes = store.Read(TriggerDocument.CustomTextFile)!;
         var document = TriggerDocument.Read(store.Read(TriggerDocument.TriggersFile), bytes, catalog);
-        var script = document.Tree().First(item => item.Kind == "script");
+        var script = document.Tree().First(item => item.Kind == TriggerItemKind.Script);
         var text = document.CodeOf(script.Id)!;
         Assert.False(text.EndsWith('\0'));
 
@@ -707,14 +707,14 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
-        var wait = document.AddFunction(id, null, 0, 0, "action", "TriggerSleepAction");
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var wait = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
         document.CopyFunction(id, wait);
-        document.AddFunction(id, null, 0, 0, "event", "MapInitializationEvent");
-        document.AddFunction(id, null, 0, 0, "action", "DoNothing");
+        document.AddFunction(id, null, 0, 0, FunctionKind.Event, "MapInitializationEvent");
+        document.AddFunction(id, null, 0, 0, FunctionKind.Action, "DoNothing");
         document.Delete(id);
 
-        var other = document.Add("trigger", category);
+        var other = document.Add(TriggerItemKind.Trigger, category);
         document.PasteFunction(other, null, 0, 0);
 
         Assert.Equal("TriggerSleepAction", Assert.Single(document.Trigger(other, new Names()).Actions).Name);
@@ -730,7 +730,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", Initialization(document));
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
         document.Rename(id, "Wave-1 Start");
 
         Assert.Equal("gg_trg_Wave_1_Start", document.Tree().Single(item => item.Id == id).Ref);
@@ -747,7 +747,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var category = Initialization(document);
-        var id = document.Add("trigger", category);
+        var id = document.Add(TriggerItemKind.Trigger, category);
 
         Assert.Throws<TriggerEditException>(() => document.Rename(id, "Melee Initialization"));
         Assert.Throws<TriggerEditException>(() => document.Rename(id, "   "));
@@ -766,9 +766,9 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         }
 
         var root = document.Tree()[0].Id;
-        var outer = document.Add("category", root);
-        var inner = document.Add("category", outer);
-        var trigger = document.Add("trigger", inner);
+        var outer = document.Add(TriggerItemKind.Category, root);
+        var inner = document.Add(TriggerItemKind.Category, outer);
+        var trigger = document.Add(TriggerItemKind.Trigger, inner);
 
         Assert.Throws<TriggerEditException>(() => document.Move(outer, inner, 0));
         document.Move(inner, root, 0);
@@ -776,7 +776,7 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         var tree = document.Tree();
         Assert.Equal(root, tree.Single(item => item.Id == inner).Parent);
         Assert.Equal(inner, tree.Single(item => item.Id == trigger).Parent);
-        Assert.True(tree.ToList().FindIndex(item => item.Id == inner) < tree.ToList().FindIndex(item => item.Kind == "category" && item.Name == "Initialization"));
+        Assert.True(tree.ToList().FindIndex(item => item.Id == inner) < tree.ToList().FindIndex(item => item.Kind == TriggerItemKind.Category && item.Name == "Initialization"));
     }
 
     [Fact]
@@ -791,11 +791,11 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         var document = TriggerDocument.Read(null, null, catalog);
 
-        document.Add("trigger", document.Tree()[0].Id);
+        document.Add(TriggerItemKind.Trigger, document.Tree()[0].Id);
         document.AddVariable(new VariableInput("Count", "integer", false, 1, ""), 0);
 
         var tree = document.Tree();
-        Assert.Equal(["root", "category", "trigger", "variable"], tree.Select(item => item.Kind));
+        Assert.Equal([TriggerItemKind.Root, TriggerItemKind.Category, TriggerItemKind.Trigger, TriggerItemKind.Variable], tree.Select(item => item.Kind));
         Assert.Equal(tree[1].Id, tree[2].Parent);
         Assert.Equal(tree[1].Id, tree[3].Parent);
     }
@@ -812,10 +812,10 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         var document = TriggerDocument.Read(null, null, catalog);
 
-        var category = document.Add("category", -1);
-        document.Add("trigger", category);
+        var category = document.Add(TriggerItemKind.Category, -1);
+        document.Add(TriggerItemKind.Trigger, category);
 
-        Assert.Equal(["root", "category", "trigger"], document.Tree().Select(item => item.Kind));
+        Assert.Equal([TriggerItemKind.Root, TriggerItemKind.Category, TriggerItemKind.Trigger], document.Tree().Select(item => item.Kind));
         Assert.Equal(1, Reread(document).TriggerItemCounts[TriggerItemType.Gui]);
         Assert.NotNull(document.CustomTextBytes());
     }

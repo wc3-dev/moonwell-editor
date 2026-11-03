@@ -9,12 +9,11 @@ import {
   type BlockView,
   type CardMove,
   type CardView,
-  type Catalog,
   changeFunction,
   copyFunction,
   deleteItem,
   type FunctionKind,
-  type FunctionPlace,
+  type FunctionSlot,
   type FunctionView,
   type ParameterKind,
   type ParameterView,
@@ -25,10 +24,11 @@ import {
   setParameter,
   setPlaces,
   setVariable,
-  type TreeItem,
   type TreeKind,
+  type TriggerCatalogView,
   type TriggerOptions,
-  type TriggerTree,
+  type TriggerTreeItem,
+  type TriggerTreeView,
   type TriggerView,
   triggerCards,
   triggerCatalog,
@@ -50,7 +50,7 @@ type Needs = {
 /** A place after everything in a list. */
 export const atEnd = 2147483647;
 
-export function blockPlace(parent: FunctionView, block: BlockView): FunctionPlace {
+export function blockPlace(parent: FunctionView, block: BlockView): FunctionSlot {
   return { parent: parent.path, branch: block.branch, index: atEnd };
 }
 
@@ -65,8 +65,8 @@ export function parentOf(function_: FunctionView): string | null {
  * asks again after each edit.
  */
 export class TriggerState {
-  catalog = $state.raw<Catalog | null>(null);
-  tree = $state.raw<TriggerTree | null>(null);
+  catalog = $state.raw<TriggerCatalogView | null>(null);
+  tree = $state.raw<TriggerTreeView | null>(null);
   problem = $state("");
   selected = $state<number | null>(null);
   /** Where the user is. There is one selection: it shows strong there and faintly on the other side, and F2 and Delete act there. */
@@ -84,18 +84,18 @@ export class TriggerState {
     owner: number;
     title: string;
     kind: FunctionKind;
-    place: FunctionPlace;
+    place: FunctionSlot;
   } | null>(null);
   changing = $state<{ owner: number; function_: FunctionView } | null>(null);
   /** The parameters open, each inside the one before it, of the card `owner`. */
   parameters = $state<{ owner: number; paths: string[] }>({ owner: -1, paths: [] });
   picking = $state(false);
-  deleting = $state<TreeItem | null>(null);
+  deleting = $state<TriggerTreeItem | null>(null);
   editingVariable = $state<CardView | null>(null);
   /** The tree item being renamed, in its row or on its card: where the user was, which clicking away does not change. */
   renaming = $state<{ id: number; where: TriggerZone } | null>(null);
 
-  isOpen = (each: TreeItem): boolean => this.toggled[each.id] ?? each.expanded;
+  isOpen = (each: TriggerTreeItem): boolean => this.toggled[each.id] ?? each.expanded;
 
   readonly readOnly = $derived(this.tree?.readOnly ?? true);
   readonly item = $derived(this.tree?.items.find((each) => each.id === this.selected) ?? null);
@@ -127,7 +127,7 @@ export class TriggerState {
     this.#deleted = ondeleted;
   }
 
-  itemOf(id: number | null | undefined): TreeItem | undefined {
+  itemOf(id: number | null | undefined): TriggerTreeItem | undefined {
     return this.tree?.items.find((each) => each.id === id);
   }
 
@@ -263,13 +263,13 @@ export class TriggerState {
     if (each && !this.readOnly) this.deleting = each;
   };
 
-  beginRename(each: TreeItem): void {
+  beginRename(each: TriggerTreeItem): void {
     if (this.zone === "tree") this.#reveal(each.id);
     this.renaming = { id: each.id, where: this.zone };
   }
 
   /** Enter or leaving the rename box renames, Esc gives up. */
-  finishRename = (each: TreeItem, name: string | null): void => {
+  finishRename = (each: TriggerTreeItem, name: string | null): void => {
     if (this.renaming?.id !== each.id) return;
     this.renaming = null;
     const typed = name?.trim();
@@ -283,7 +283,7 @@ export class TriggerState {
     }
   };
 
-  openScript = (each: TreeItem): void => {
+  openScript = (each: TriggerTreeItem): void => {
     this.openScriptOf({
       id: each.id,
       kind: each.kind,
@@ -291,7 +291,7 @@ export class TriggerState {
     });
   };
 
-  addTo = (owner: number, kind: FunctionKind, place: FunctionPlace): void => {
+  addTo = (owner: number, kind: FunctionKind, place: FunctionSlot): void => {
     const title =
       kind === "event"
         ? t("triggers.addEvent")
@@ -345,7 +345,7 @@ export class TriggerState {
     this.edit(() => pasteFunction(owner, place), owner);
   }
 
-  pasteInto(owner: number, kind: FunctionKind, place: FunctionPlace): void {
+  pasteInto(owner: number, kind: FunctionKind, place: FunctionSlot): void {
     if (this.clipboard === kind) this.edit(() => pasteFunction(owner, place), owner);
   }
 

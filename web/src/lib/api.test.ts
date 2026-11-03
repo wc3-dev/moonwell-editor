@@ -155,7 +155,7 @@ describe("onCloseRequested", () => {
     expect(event).toBe("closeRequested");
     handler?.({ dirty: true });
     handler?.({ dirty: false });
-    handler?.({});
+    handler?.(JSON.parse("{}"));
 
     expect(heard).toEqual([true, false, false]);
   });

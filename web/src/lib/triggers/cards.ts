@@ -3,10 +3,10 @@ import { createContext } from "svelte";
 import type {
   BlockView,
   CardView,
-  Catalog,
   FunctionKind,
   FunctionView,
   ParameterView,
+  TriggerCatalogView,
   TriggerOptions,
 } from "./api.ts";
 import type { ScriptLanguage } from "./scriptLanguages.ts";
@@ -37,7 +37,7 @@ export type CardActions = {
 
 /** What every card on a grid is shown with. */
 export type Shared = {
-  catalog: Catalog;
+  catalog: TriggerCatalogView;
   mode: string;
   /** What the map's scripts are in. */
   language: ScriptLanguage;

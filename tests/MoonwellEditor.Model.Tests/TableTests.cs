@@ -1,3 +1,4 @@
+using MoonwellEditor.Model;
 using System.Globalization;
 using MoonwellEditor.Files;
 using Xunit.Abstractions;
@@ -91,7 +92,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("u001", "uhpm", 0, "1235"),
             new CellEdit("H002", "uhpm", 0, "lots"),
         ]));
-        Assert.Equal("notNumber", notNumber.Code);
+        Assert.Equal(ErrorCode.NotNumber, notNumber.Code);
         Named(notNumber, "H002", "uhpm");
         Unchanged(session, map);
 
@@ -100,7 +101,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("H001", "uhpm", 0, "1234"),
             new CellEdit("u001", "ustr", 0, "5"),
         ]));
-        Assert.Equal("noField", noField.Code);
+        Assert.Equal(ErrorCode.NoField, noField.Code);
         Named(noField, "u001", "ustr");
         Unchanged(session, map);
 
@@ -109,7 +110,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("A001", "acdn", 1, "5"),
             new CellEdit("A001", "acdn", 99, "5"),
         ]));
-        Assert.Equal("noField", noLevel.Code);
+        Assert.Equal(ErrorCode.NoField, noLevel.Code);
         Named(noLevel, "A001", "acdn");
         Unchanged(session, map);
 
@@ -122,7 +123,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("u001", "uhpm", 0, "1235"),
             new CellEdit("H001", "unam", 0, "a\n}\nb"),
         ]));
-        Assert.Equal("badText", badText.Code);
+        Assert.Equal(ErrorCode.BadText, badText.Code);
         Named(badText, "H001", "unam");
         Unchanged(strings, named);
 
@@ -133,7 +134,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("A001", "acdn", 1, "5"),
             new CellEdit("A003", "acdn", 1, "5"),
         ]));
-        Assert.Equal("readOnly", kind.Code);
+        Assert.Equal(ErrorCode.ReadOnly, kind.Code);
         Named(kind, "A001", "acdn");
         Unchanged(readOnlyKind, lossy);
 
@@ -148,7 +149,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
             new CellEdit("hfoo", "uhpm", 0, "500"),
             new CellEdit("h000", "uhpm", 0, "5"),
         ]));
-        Assert.Equal("readOnly", readOnly.Code);
+        Assert.Equal(ErrorCode.ReadOnly, readOnly.Code);
         Named(readOnly, "h000", "uhpm");
         Unchanged(sets, twoSets);
     }
@@ -361,7 +362,7 @@ public sealed class TableTests(GameDataFixture fixture, ITestOutputHelper output
         Assert.Empty(session.Table(ObjectKind.Unit, [], [new Column("uhpm", 0)]));
         var noField = Assert.Throws<EditException>(
             () => session.Table(ObjectKind.Unit, ["hfoo"], [new Column("uhpm", 0), new Column("nope", 0)]));
-        Assert.Equal("noField", noField.Code);
+        Assert.Equal(ErrorCode.NoField, noField.Code);
     }
 
     [Fact]

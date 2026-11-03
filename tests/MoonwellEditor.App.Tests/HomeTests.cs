@@ -714,4 +714,34 @@ public sealed class HomeTests : IDisposable
         Assert.False(moved);
         Assert.Equal(@"C:\A", home.GameFolder);
     }
+
+    [Fact]
+    public void The_boot_script_is_written_as_before()
+    {
+        Put(Folder, "settings.json", "{\"a\":1}");
+        Put(Path.Combine(Folder, "themes"), "x.json", "{}");
+        var home = Open();
+
+        var before = new
+        {
+            folder = Folder,
+            settings = (string?)"{\"a\":1}",
+            hotkeys = (string?)null,
+            state = (string?)null,
+            themes = new[] { new { file = "themes/x.json", text = "{}" } },
+            legacy = (object?)null,
+            unreadable = Array.Empty<string>(),
+        };
+        Assert.Equal(
+            "window.moonwellHome = " + JsonSerializer.Serialize(before, new JsonSerializerOptions(JsonSerializerDefaults.Web)) + ";",
+            home.BootScript());
+    }
+
+    [Fact]
+    public void Without_settings_the_boot_script_names_the_legacy_folder_as_before()
+    {
+        var home = Open();
+
+        Assert.Contains(",\"legacy\":{\"gameFolder\":null},", home.BootScript());
+    }
 }

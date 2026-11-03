@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { TreeItem, TreeKind } from "../triggers/api.ts";
+import type { TreeKind, TriggerTreeItem } from "../triggers/api.ts";
 import { closed, isScript, matched, type OpenScript, opened } from "./openScripts.ts";
 
 const script = (id: number, name = `Script ${id}`): OpenScript => ({ id, name, kind: "script" });
 
-function item(id: number, name: string, kind: TreeKind = "script"): TreeItem {
+function item(id: number, name: string, kind: TreeKind = "script"): TriggerTreeItem {
   return { id, parent: 0, kind, name, enabled: true, expanded: true, ref: "" };
 }
 

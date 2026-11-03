@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { Catalog, CatalogFunction, TreeItem, TriggerView, Variable } from "./api.ts";
+import type {
+  CatalogFunction,
+  TriggerCatalogView,
+  TriggerTreeItem,
+  TriggerView,
+  VariableView,
+} from "./api.ts";
 import {
   actedOn,
   callsFor,
@@ -33,7 +39,7 @@ function fn(name: string, more: Partial<CatalogFunction> = {}): CatalogFunction 
   };
 }
 
-const catalog: Catalog = {
+const catalog: TriggerCatalogView = {
   categories: [
     { key: "TC_UNIT", title: "Unit", icon: "", shown: true },
     { key: "TC_NOTHING", title: "General", icon: "", shown: false },
@@ -92,13 +98,13 @@ const catalog: Catalog = {
   ],
 };
 
-const variables: Variable[] = [
+const variables: VariableView[] = [
   { id: 1, name: "Hero", type: "unit", isArray: false, size: 1, initial: "" },
   { id: 2, name: "Count", type: "integer", isArray: false, size: 1, initial: "" },
 ];
 
 describe("actedOn", () => {
-  const root: TreeItem = {
+  const root: TriggerTreeItem = {
     id: 0,
     parent: -1,
     kind: "root",
@@ -107,8 +113,8 @@ describe("actedOn", () => {
     expanded: true,
     ref: "",
   };
-  const category: TreeItem = { ...root, id: 1, parent: 0, kind: "category", name: "Setup" };
-  const trigger: TreeItem = { ...root, id: 2, parent: 1, kind: "trigger", name: "Start" };
+  const category: TriggerTreeItem = { ...root, id: 1, parent: 0, kind: "category", name: "Setup" };
+  const trigger: TriggerTreeItem = { ...root, id: 2, parent: 1, kind: "trigger", name: "Start" };
 
   it("takes what is selected in the tree, a category too", () => {
     expect(actedOn(trigger, "tree", 1)).toBe(trigger);
@@ -134,7 +140,7 @@ describe("actedOn", () => {
 });
 
 describe("treeRows", () => {
-  const items: TreeItem[] = [
+  const items: TriggerTreeItem[] = [
     { id: 0, parent: -1, kind: "root", name: "Map", enabled: true, expanded: true, ref: "" },
     { id: 1, parent: 0, kind: "category", name: "Setup", enabled: true, expanded: true, ref: "" },
     { id: 2, parent: 1, kind: "trigger", name: "Start", enabled: true, expanded: false, ref: "" },
@@ -161,7 +167,7 @@ describe("treeRows", () => {
 });
 
 describe("treeDrop", () => {
-  const item = (id: number, parent: number, kind: TreeItem["kind"]): TreeItem => ({
+  const item = (id: number, parent: number, kind: TriggerTreeItem["kind"]): TriggerTreeItem => ({
     id,
     parent,
     kind,
@@ -180,7 +186,8 @@ describe("treeDrop", () => {
     item(6, 0, "category"),
     item(7, 6, "variable"),
   ];
-  const at = (id: number): TreeItem => items.find((each) => each.id === id) as TreeItem;
+  const at = (id: number): TriggerTreeItem =>
+    items.find((each) => each.id === id) as TriggerTreeItem;
   const closed = (): boolean => false;
   const open = (): boolean => true;
 

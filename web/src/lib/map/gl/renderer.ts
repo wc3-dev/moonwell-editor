@@ -6,7 +6,7 @@
 import { mat4 } from "gl-matrix";
 import { eye, matrices, type View } from "../camera.ts";
 import { colourToNumber } from "../picking.ts";
-import type { MapScene, PlacedThing, Terrain, ThingKind } from "../scene.ts";
+import type { MapSceneView, PlacedThing, Terrain, ThingKind } from "../scene.ts";
 import { type Batch, cliffBatches, thingBatches } from "./batches.ts";
 import { GroundLayer } from "./ground.ts";
 import { type Lighting, lighting, type Shadow } from "./lighting.ts";
@@ -61,7 +61,7 @@ export class MapRenderer {
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
-    readonly scene: MapScene,
+    readonly scene: MapSceneView,
     readonly terrain: Terrain,
     /** The asset host's URL of a game or map file. */
     private readonly url: (path: string) => string,

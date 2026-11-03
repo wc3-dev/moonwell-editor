@@ -11,10 +11,14 @@
   <Folder Name="/tests/">
     <Project Path="tests/MoonwellEditor.App.Tests/MoonwellEditor.App.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.Assets.Tests/MoonwellEditor.Assets.Tests.csproj" />
+    <Project Path="tests/MoonwellEditor.BridgeTypes.Tests/MoonwellEditor.BridgeTypes.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.Files.Tests/MoonwellEditor.Files.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.GameData.Tests/MoonwellEditor.GameData.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.Map.Tests/MoonwellEditor.Map.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.Model.Tests/MoonwellEditor.Model.Tests.csproj" />
     <Project Path="tests/MoonwellEditor.Triggers.Tests/MoonwellEditor.Triggers.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/MoonwellEditor.BridgeTypes/MoonwellEditor.BridgeTypes.csproj" />
   </Folder>
 </Solution>

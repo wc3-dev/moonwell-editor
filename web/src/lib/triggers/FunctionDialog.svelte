@@ -5,11 +5,11 @@ import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
 import DialogButton from "../ui/DialogButton.svelte";
 import Select, { type SelectOption } from "../ui/Select.svelte";
-import type { Catalog, CatalogFunction, FunctionKind } from "./api.ts";
+import type { CatalogFunction, FunctionKind, TriggerCatalogView } from "./api.ts";
 import { functionsOf, functionTitle } from "./lists.ts";
 
 type Props = {
-  catalog: Catalog;
+  catalog: TriggerCatalogView;
   kind: FunctionKind;
   title: string;
   /** The function shown first, when one is being changed. */

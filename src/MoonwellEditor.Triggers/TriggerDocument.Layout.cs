@@ -29,7 +29,7 @@ public sealed record CardMove(int Id, int X, int Y);
 /// <param name="Count">How many items a category holds, at any depth; 0 for the other kinds.</param>
 public sealed record CardView(
     int Id,
-    string Kind,
+    TriggerItemKind Kind,
     string Name,
     CardPlace? Place,
     TriggerView? Trigger,
@@ -58,16 +58,18 @@ public sealed partial class TriggerDocument
     {
         var tree = Tree();
         var cards = new List<CardView>();
-        foreach (var item in tree.Where(each => each.Parent == parent && each.Kind != "root"))
+        foreach (var item in tree.Where(each => each.Parent == parent && each.Kind != TriggerItemKind.Root))
         {
             cards.Add(new CardView(
                 item.Id,
                 item.Kind,
                 item.Name,
                 _places.GetValueOrDefault(item.Id),
-                item.Kind is "trigger" or "custom" or "script" or "comment" ? Trigger(item.Id, names) : null,
-                item.Kind == "variable" ? Variables().FirstOrDefault(variable => variable.Id == item.Id) : null,
-                item.Kind == "category" ? CountIn(tree, item.Id) : 0));
+                item.Kind is TriggerItemKind.Trigger or TriggerItemKind.Custom or TriggerItemKind.Script or TriggerItemKind.Comment
+                    ? Trigger(item.Id, names)
+                    : null,
+                item.Kind == TriggerItemKind.Variable ? Variables().FirstOrDefault(variable => variable.Id == item.Id) : null,
+                item.Kind == TriggerItemKind.Category ? CountIn(tree, item.Id) : 0));
         }
 
         return cards;
@@ -171,7 +173,7 @@ public sealed partial class TriggerDocument
     }
 
     private static int CountIn(IReadOnlyList<TriggerTreeItem> tree, int parent) =>
-        tree.Where(item => item.Parent == parent).Sum(item => 1 + (item.Kind == "category" ? CountIn(tree, item.Id) : 0));
+        tree.Where(item => item.Parent == parent).Sum(item => 1 + (item.Kind == TriggerItemKind.Category ? CountIn(tree, item.Id) : 0));
 
     // A file that cannot be read means no places, as the map works without them.
     private static ImmutableDictionary<int, CardPlace> ReadPlaces(byte[]? bytes)

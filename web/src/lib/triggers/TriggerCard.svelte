@@ -17,7 +17,7 @@ import Power from "@lucide/svelte/icons/power";
 import SquareArrowOutUpRight from "@lucide/svelte/icons/square-arrow-out-up-right";
 import Workflow from "@lucide/svelte/icons/workflow";
 import { t, tCount } from "../text.ts";
-import type { CardView, Catalog, FunctionKind, FunctionView } from "./api.ts";
+import type { CardView, FunctionKind, FunctionView, TriggerCatalogView } from "./api.ts";
 import { type CardActions, cardTone, focusRename } from "./cards.ts";
 import FunctionCard from "./FunctionCard.svelte";
 import ScriptBox from "./ScriptBox.svelte";
@@ -26,7 +26,7 @@ import { typedBox } from "./typedBox.ts";
 
 type Props = {
   card: CardView;
-  catalog: Catalog;
+  catalog: TriggerCatalogView;
   mode: string;
   /** What the map's scripts are in. */
   language: ScriptLanguage;

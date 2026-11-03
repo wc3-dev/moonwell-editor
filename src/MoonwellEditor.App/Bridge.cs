@@ -1,8 +1,9 @@
 using System.Text.Json;
+using MoonwellEditor.Model;
 
 namespace MoonwellEditor.App;
 
-/// <summary>A command the bridge does not know. The bridge answers it with the error code <c>unknownCommand</c>.</summary>
+/// <summary>A command the bridge does not know. The bridge answers it with <see cref="ErrorCode.UnknownCommand"/>.</summary>
 public sealed class UnknownCommandException(string command)
     : Exception($"Unknown command '{command}'.")
 {
@@ -12,12 +13,12 @@ public sealed class UnknownCommandException(string command)
 
 /// <summary>
 /// A command that failed for a reason the page can act on. The bridge answers it with the error <see cref="Code"/>
-/// and the message, so the page can tell it from a bug (for example <c>gameDataLoading</c>).
+/// and the message, so the page can tell it from a bug (for example <see cref="ErrorCode.GameDataLoading"/>).
 /// </summary>
-public sealed class CommandException(string code, string message) : Exception(message)
+public sealed class CommandException(ErrorCode code, string message) : Exception(message)
 {
     /// <summary>The error code the page sees.</summary>
-    public string Code { get; } = code;
+    public ErrorCode Code { get; } = code;
 }
 
 /// <summary>
@@ -27,8 +28,6 @@ public sealed class CommandException(string code, string message) : Exception(me
 /// </summary>
 public sealed class Bridge
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     private readonly Func<string, JsonElement, Task<object?>> _run;
 
     /// <summary>Makes a bridge that runs every command through <paramref name="run"/>.</summary>
@@ -50,7 +49,7 @@ public sealed class Bridge
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
-                throw new CommandException("badRequest", "A request is a JSON object.");
+                throw new CommandException(ErrorCode.BadRequest, "A request is a JSON object.");
             }
 
             if (root.TryGetProperty("id", out var idProperty))
@@ -61,7 +60,7 @@ public sealed class Bridge
             if (!root.TryGetProperty("command", out var commandProperty)
                 || commandProperty.ValueKind != JsonValueKind.String)
             {
-                throw new CommandException("badRequest", "A request needs its command's name as text.");
+                throw new CommandException(ErrorCode.BadRequest, "A request needs its command's name as text.");
             }
 
             var command = commandProperty.GetString()!;
@@ -71,7 +70,7 @@ public sealed class Bridge
         }
         catch (UnknownCommandException exception)
         {
-            return Reply(id, false, "error", new { code = "unknownCommand", message = exception.Message });
+            return Reply(id, false, "error", new { code = ErrorCode.UnknownCommand, message = exception.Message });
         }
         catch (CommandException exception)
         {
@@ -79,11 +78,11 @@ public sealed class Bridge
         }
         catch (JsonException exception)
         {
-            return Reply(id, false, "error", new { code = "badRequest", message = exception.Message });
+            return Reply(id, false, "error", new { code = ErrorCode.BadRequest, message = exception.Message });
         }
         catch (Exception exception)
         {
-            return Reply(id, false, "error", new { code = "failed", message = exception.Message });
+            return Reply(id, false, "error", new { code = ErrorCode.Failed, message = exception.Message });
         }
     }
 
@@ -108,11 +107,12 @@ public sealed class Bridge
     }
 
     /// <summary>Makes a message the app sends to the page on its own: <c>{"event","payload"}</c>.</summary>
-    /// <param name="name">The event's name.</param>
-    /// <param name="payload">What the event carries, serialised as camelCase JSON.</param>
+    /// <typeparam name="T">What the event carries.</typeparam>
+    /// <param name="event">The event.</param>
+    /// <param name="payload">What it carries, serialised as camelCase JSON.</param>
     /// <returns>The message, as JSON text.</returns>
-    public static string Event(string name, object payload) =>
-        JsonSerializer.Serialize(new { @event = name, payload }, Json);
+    public static string Event<T>(BridgeEvent<T> @event, T payload) =>
+        JsonSerializer.Serialize(new { @event = @event.Name, payload }, BridgeJson.Answers);
 
     private static string Reply(JsonElement id, bool ok, string key, object? body)
     {
@@ -122,6 +122,6 @@ public sealed class Bridge
             ["ok"] = ok,
             [key] = body,
         };
-        return JsonSerializer.Serialize(reply, Json);
+        return JsonSerializer.Serialize(reply, BridgeJson.Answers);
     }
 }

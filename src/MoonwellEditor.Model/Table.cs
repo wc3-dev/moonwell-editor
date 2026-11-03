@@ -120,8 +120,7 @@ public sealed partial class Session
         foreach (var column in columns)
         {
             fields.Add(data.Field(column.Field)
-                ?? throw new EditException(
-                    "noField",
+                ?? throw new EditException(ErrorCode.NoField,
                     Texts.Get("app.error.noFieldOfKind", ("kind", Kinds.Key(kind)), ("field", column.Field))));
         }
 

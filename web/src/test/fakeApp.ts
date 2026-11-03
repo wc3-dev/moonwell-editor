@@ -36,6 +36,8 @@ export const arena: MapInfo = {
   problems: [],
   counts: { unit: 1, item: 0, destructable: 0, doodad: 0, ability: 0, buff: 0, upgrade: 0 },
   options: null,
+  title: null,
+  expansion: null,
 };
 
 export const footmanEntry: TreeEntry = {
@@ -45,6 +47,8 @@ export const footmanEntry: TreeEntry = {
   suffix: "",
   path: ["Custom"],
   changed: true,
+  icon: "",
+  iconModes: null,
 };
 
 export const knightEntry: TreeEntry = {
@@ -54,6 +58,8 @@ export const knightEntry: TreeEntry = {
   suffix: "",
   path: ["Custom"],
   changed: false,
+  icon: "",
+  iconModes: null,
 };
 
 export function field(overrides: Partial<FieldView> & { id: string }): FieldView {
@@ -71,6 +77,10 @@ export function field(overrides: Partial<FieldView> & { id: string }): FieldView
     skin: false,
     warning: null,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
     ...overrides,
   };
 }

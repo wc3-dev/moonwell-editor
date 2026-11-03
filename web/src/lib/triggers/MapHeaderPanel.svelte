@@ -1,13 +1,13 @@
 <script lang="ts">
 import SquareArrowOutUpRight from "@lucide/svelte/icons/square-arrow-out-up-right";
 import { t } from "../text.ts";
-import { setHeader, type TreeItem, type TriggerTree } from "./api.ts";
+import { setHeader, type TriggerTreeItem, type TriggerTreeView } from "./api.ts";
 import ScriptBox from "./ScriptBox.svelte";
 import { box, toolButton } from "./styles.ts";
 import type { TriggerState } from "./triggerState.svelte.ts";
 import { typedBox } from "./typedBox.ts";
 
-type Props = { state: TriggerState; tree: TriggerTree; root: TreeItem };
+type Props = { state: TriggerState; tree: TriggerTreeView; root: TriggerTreeItem };
 
 let { state, tree, root }: Props = $props();
 </script>

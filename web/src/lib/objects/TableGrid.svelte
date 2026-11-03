@@ -16,7 +16,7 @@ import ArrowUp from "@lucide/svelte/icons/arrow-up";
 import Plus from "@lucide/svelte/icons/plus";
 import X from "@lucide/svelte/icons/x";
 import { tick } from "svelte";
-import type { ChoiceList, Column, FieldInfo, Kind, TableCell, TableRow } from "../api.ts";
+import type { ChoiceList, Column, FieldDescription, Kind, TableCell, TableRow } from "../api.ts";
 import { t } from "../text.ts";
 import FieldEditor from "./FieldEditor.svelte";
 import { type Lookup, namesOf, shownValue } from "./fields.ts";
@@ -38,7 +38,7 @@ export type BulkAction = "copy" | "paste" | "fill" | "reset";
 type Props = {
   rows: TableRow[];
   columns: Column[];
-  fields: FieldInfo[];
+  fields: FieldDescription[];
   choices: Record<string, ChoiceList> | null;
   lookup: Lookup;
   sort: Sort | null;

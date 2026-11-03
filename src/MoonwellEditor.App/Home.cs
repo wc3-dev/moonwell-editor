@@ -13,6 +13,36 @@ namespace MoonwellEditor.App;
 /// <param name="Text">The file's text now; null when it was deleted.</param>
 public sealed record HomeChange(string File, string? Text);
 
+/// <summary>What the page is given of the .moonwell folder before it paints, as <c>window.moonwellHome</c>.</summary>
+/// <param name="Folder">The folder's path.</param>
+/// <param name="Settings">
+/// The text of <c>settings.json</c>; null when it is not there, or could not be read (see <paramref name="Unreadable"/>).
+/// </param>
+/// <param name="Hotkeys">The text of <c>hotkeys.json</c>; null when it is not there.</param>
+/// <param name="State">The text of <c>state.json</c>; null when it is not there.</param>
+/// <param name="Themes">Every <c>themes/&lt;name&gt;.json</c>, by its place in the folder.</param>
+/// <param name="Legacy">While there is no <c>settings.json</c>: what the old settings kept, for the move; else null.</param>
+/// <param name="Unreadable">
+/// The files that are there but could not be read, so a missing text is not taken for a missing file.
+/// </param>
+public sealed record HomeBoot(
+    string Folder,
+    string? Settings,
+    string? Hotkeys,
+    string? State,
+    IReadOnlyList<HomeTheme> Themes,
+    LegacyHome? Legacy,
+    IReadOnlyList<string> Unreadable);
+
+/// <summary>One of the user's theme files, for the boot script.</summary>
+/// <param name="File">Its place in the folder: <c>themes/name.json</c>.</param>
+/// <param name="Text">Its text.</param>
+public sealed record HomeTheme(string File, string Text);
+
+/// <summary>What the old settings file kept, for the page to move into the .moonwell folder.</summary>
+/// <param name="GameFolder">The Warcraft III folder it named; null for none.</param>
+public sealed record LegacyHome(string? GameFolder);
+
 /// <summary>The window's colours from the theme the page showed last, each <c>#rrggbb</c> (see <see cref="Home.LastPageColors"/>).</summary>
 /// <param name="Gutter">The page's background between its panels, for the window before the page loads.</param>
 /// <param name="Panel">The panels' background, for the title bar.</param>
@@ -319,16 +349,14 @@ public sealed class Home : IDisposable
     public string BootScript()
     {
         var unreadable = new List<string>();
-        var boot = new
-        {
-            folder = Folder,
-            settings = ReadForBoot("settings.json", unreadable),
-            hotkeys = ReadForBoot("hotkeys.json", unreadable),
-            state = ReadForBoot("state.json", unreadable),
-            themes = Themes(unreadable),
-            legacy = File.Exists(At("settings.json")) ? null : new { gameFolder = LegacyGameFolder() },
-            unreadable,
-        };
+        var boot = new HomeBoot(
+            Folder,
+            ReadForBoot("settings.json", unreadable),
+            ReadForBoot("hotkeys.json", unreadable),
+            ReadForBoot("state.json", unreadable),
+            Themes(unreadable),
+            File.Exists(At("settings.json")) ? null : new LegacyHome(LegacyGameFolder()),
+            unreadable);
         return "window.moonwellHome = " + JsonSerializer.Serialize(boot, Json) + ";";
     }
 
@@ -512,9 +540,9 @@ public sealed class Home : IDisposable
         return null;
     }
 
-    private List<BootTheme> Themes(List<string> unreadable)
+    private List<HomeTheme> Themes(List<string> unreadable)
     {
-        var themes = new List<BootTheme>();
+        var themes = new List<HomeTheme>();
         try
         {
             var files = Directory.EnumerateFiles(At("themes"), "*.json")
@@ -529,7 +557,7 @@ public sealed class Home : IDisposable
                 }
                 else if (text != null)
                 {
-                    themes.Add(new BootTheme(file, text));
+                    themes.Add(new HomeTheme(file, text));
                 }
             }
         }
@@ -541,8 +569,6 @@ public sealed class Home : IDisposable
 
         return themes;
     }
-
-    private sealed record BootTheme(string File, string Text);
 
     private string? LegacyGameFolder() => FolderIn(LegacySettings(), "gameFolder");
 

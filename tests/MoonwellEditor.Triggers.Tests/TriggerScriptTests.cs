@@ -52,8 +52,8 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
         }
 
         var document = Read(store, catalog);
-        var category = document.Tree().First(item => item.Kind == "category").Id;
-        var script = document.Add("script", category);
+        var category = document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id;
+        var script = document.Add(TriggerItemKind.Script, category);
         document.SetCode(script, "function Hello takes nothing returns nothing\nendfunction");
         document.SetHeader("", "function Top takes nothing returns nothing\nendfunction");
 
@@ -89,12 +89,12 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
         }
 
         var document = Read(store, catalog);
-        var id = document.Add("trigger", document.Tree().First(item => item.Kind == "category").Id);
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
         var missing = new SortedSet<string>(StringComparer.Ordinal);
         var unparsed = new List<string>();
         var written = 0;
         var unset = 0;
-        foreach (var function in catalog.Functions.Where(each => each.Kind != "call"))
+        foreach (var function in catalog.Functions.Where(each => each.Kind != FunctionKind.Call))
         {
             var before = document.Snapshot();
             document.AddFunction(id, null, 0, 0, function.Kind, function.Name);
@@ -163,9 +163,9 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
         var placed = units.Units.First(each => each.HeroLevel > 0 && script.Contains($"'{each.TypeId.ToRawcode()}'", StringComparison.Ordinal));
         var name = $"gg_unit_{placed.TypeId.ToRawcode()}_{placed.CreationNumber:D4}";
         Assert.DoesNotContain(name, script);
-        var id = document.Add("trigger", document.Tree().First(item => item.Kind == "category").Id);
-        var kill = document.AddFunction(id, null, 0, 0, "action", "KillUnit");
-        document.SetParameter(id, kill + "/p0", new ParamInput("variable", name));
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
+        var kill = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "KillUnit");
+        document.SetParameter(id, kill + "/p0", new ParamInput(ParameterKind.Variable, name));
 
         var written = TriggerScript.Write(script, document, info, units, out var problem);
 
@@ -187,9 +187,9 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", document.Tree().First(item => item.Kind == "category").Id);
-        var kill = document.AddFunction(id, null, 0, 0, "action", "KillDestructable");
-        document.SetParameter(id, kill + "/p0", new ParamInput("variable", "gg_dest_LTlt_9999"));
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
+        var kill = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "KillDestructable");
+        document.SetParameter(id, kill + "/p0", new ParamInput(ParameterKind.Variable, "gg_dest_LTlt_9999"));
 
         var written = TriggerScript.Write(script, document, info, units, out var problem);
 
@@ -206,9 +206,9 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
             return;
         }
 
-        var id = document.Add("trigger", document.Tree().First(item => item.Kind == "category").Id);
-        var kill = document.AddFunction(id, null, 0, 0, "action", "KillUnit");
-        document.SetParameter(id, kill + "/p0", new ParamInput("variable", "gg_unit_hfoo_9999"));
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
+        var kill = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "KillUnit");
+        document.SetParameter(id, kill + "/p0", new ParamInput(ParameterKind.Variable, "gg_unit_hfoo_9999"));
 
         Assert.Null(TriggerScript.Write(script, document, info, units, out var problem));
         Assert.Contains("gg_unit_hfoo_9999", problem);
@@ -254,9 +254,9 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
                 call InitGlobals(  )
             endfunction
             """;
-        var id = document.Add("trigger", document.Tree().First(item => item.Kind == "category").Id);
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
         var variable = new VariableInput("Hero", "unit", false, 1, "");
-        document.AddVariable(variable, document.Tree().First(item => item.Kind == "category").Id);
+        document.AddVariable(variable, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
 
         var written = TriggerScript.Write(Script.Replace("\r\n", "\n"), document, info, units, out var problem);
 
@@ -327,7 +327,7 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
             ? script
             : script[..start] + script[(script.IndexOf("endfunction", start, StringComparison.Ordinal) + "endfunction".Length)..];
         without = without.Replace("    call InitGlobals(  )\r\n", "", StringComparison.Ordinal).Replace("    call InitGlobals(  )\n", "", StringComparison.Ordinal);
-        document.AddVariable(new VariableInput("Timer", "timer", false, 1, ""), document.Tree().First(item => item.Kind == "category").Id);
+        document.AddVariable(new VariableInput("Timer", "timer", false, 1, ""), document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
 
         var written = TriggerScript.Write(without, document, info, units, out var problem);
 
@@ -364,9 +364,9 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
         }
 
         var document = Read(store, catalog);
-        var category = document.Tree().First(item => item.Kind == "category").Id;
-        var id = document.Add("trigger", category);
-        document.AddFunction(id, null, 0, 0, "action", "SetVariable");
+        var category = document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id;
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        document.AddFunction(id, null, 0, 0, FunctionKind.Action, "SetVariable");
 
         var written = TriggerScript.Write(Encoding.UTF8.GetString(store.Read("war3map.j")!), document, Info(store), Units(store), out var problem);
 

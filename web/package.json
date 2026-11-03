@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run types && vite build",
     "test": "vitest run",
-    "check": "biome check . && svelte-check --tsconfig ./tsconfig.json",
-    "themes": "node scripts/make-themes.ts"
+    "check": "npm run types && biome check . && svelte-check --tsconfig ./tsconfig.json",
+    "themes": "node scripts/make-themes.ts",
+    "types": "dotnet run --project ../tools/MoonwellEditor.BridgeTypes -- src/lib/bridge.gen.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

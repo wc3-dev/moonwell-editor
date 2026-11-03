@@ -11,9 +11,9 @@ namespace MoonwellEditor.Triggers;
 public sealed class TriggerEditException(string message) : Exception(message);
 
 /// <summary>A parameter's new value.</summary>
-/// <param name="Kind"><c>preset</c>, <c>variable</c>, <c>function</c>, <c>value</c>, or <c>none</c> for no value.</param>
+/// <param name="Kind">What it holds; <see cref="ParameterKind.None"/> for no value.</param>
 /// <param name="Value">The preset's key, the variable's name, the function's name, or the value as text.</param>
-public sealed record ParamInput(string Kind, string Value);
+public sealed record ParamInput(ParameterKind Kind, string Value);
 
 /// <summary>A variable's fields.</summary>
 /// <param name="Name">Its name.</param>
@@ -99,21 +99,21 @@ public sealed partial class TriggerDocument
     /// Adds a category, trigger, script or comment (<paramref name="kind"/> as in <see cref="TriggerTreeItem.Kind"/>) to
     /// the category <paramref name="parent"/>, after its other items, with the first free name of its kind. Returns its id.
     /// </summary>
-    public int Add(string kind, int parent)
+    public int Add(TriggerItemKind kind, int parent)
     {
         Editable();
         NeedRoot();
         var (item, name) = kind switch
         {
-            "category" => (
+            TriggerItemKind.Category => (
                 new TriggerCategoryDefinition { Id = NextId(TriggerItemType.Category), IsExpanded = true },
                 Texts.Get("app.triggers.new.category")),
-            "trigger" => ((TriggerItem)NewDefinition(TriggerItemType.Gui), Texts.Get("app.triggers.new.trigger")),
-            "script" => (NewDefinition(TriggerItemType.Script), Texts.Get("app.triggers.new.script")),
-            "comment" => (NewDefinition(TriggerItemType.Comment), Texts.Get("app.triggers.new.comment")),
+            TriggerItemKind.Trigger => ((TriggerItem)NewDefinition(TriggerItemType.Gui), Texts.Get("app.triggers.new.trigger")),
+            TriggerItemKind.Script => (NewDefinition(TriggerItemType.Script), Texts.Get("app.triggers.new.script")),
+            TriggerItemKind.Comment => (NewDefinition(TriggerItemType.Comment), Texts.Get("app.triggers.new.comment")),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No such kind."),
         };
-        parent = kind == "category" ? Category(parent) : InCategory(parent);
+        parent = kind == TriggerItemKind.Category ? Category(parent) : InCategory(parent);
         item.Name = FreeName(name);
         item.ParentId = parent;
         Insert(item, parent, int.MaxValue);
@@ -321,7 +321,7 @@ public sealed partial class TriggerDocument
     /// <paramref name="parentPath"/>, at place <paramref name="index"/> among those of its kind or block.
     /// Returns its path.
     /// </summary>
-    public string AddFunction(int id, string? parentPath, int branch, int index, string kind, string name)
+    public string AddFunction(int id, string? parentPath, int branch, int index, FunctionKind kind, string name)
     {
         Editable();
         var copy = (TriggerDefinition)Copied(id);
@@ -402,7 +402,7 @@ public sealed partial class TriggerDocument
 
             var parent = Walk(definition, parentPath).Function;
             var block = BlocksOf(parent.Name).FirstOrDefault(each => each.Branch == branch);
-            if (block.Kind != KindOf(function.Type))
+            if (block.Title == null || !Holds(block.Kind, function.Type))
             {
                 throw new TriggerEditException(Texts.Get("app.triggers.moveWrongBlock"));
             }
@@ -458,13 +458,12 @@ public sealed partial class TriggerDocument
     [GeneratedRegex("^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?$")]
     private static partial Regex VariableName();
 
-    private static TriggerFunctionType TypeOf(string kind) => kind switch
+    private static TriggerFunctionType TypeOf(FunctionKind kind) => kind switch
     {
-        "event" => TriggerFunctionType.Event,
-        "condition" => TriggerFunctionType.Condition,
-        "action" => TriggerFunctionType.Action,
-        "call" => TriggerFunctionType.Call,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No such kind."),
+        FunctionKind.Event => TriggerFunctionType.Event,
+        FunctionKind.Condition => TriggerFunctionType.Condition,
+        FunctionKind.Action => TriggerFunctionType.Action,
+        _ => TriggerFunctionType.Call,
     };
 
     // The type of a function that fills an argument: callbacks are actions and conditions, the rest are calls.
@@ -665,7 +664,7 @@ public sealed partial class TriggerDocument
 
         var first = Live().OfType<TriggerCategoryDefinition>()
             .FirstOrDefault(each => each.Type == TriggerItemType.Category);
-        return first?.Id ?? Add("category", 0);
+        return first?.Id ?? Add(TriggerItemKind.Category, 0);
     }
 
     private TriggerDefinition NewDefinition(TriggerItemType type) => new(type)
@@ -924,22 +923,22 @@ public sealed partial class TriggerDocument
     {
         switch (input.Kind)
         {
-            case "none":
+            case ParameterKind.None:
                 return new TriggerFunctionParameter { Type = TriggerFunctionParameterType.Undefined, Value = "" };
-            case "preset":
+            case ParameterKind.Preset:
                 return _catalog.Preset(input.Value) != null
                     ? new TriggerFunctionParameter { Type = TriggerFunctionParameterType.Preset, Value = input.Value }
                     : throw new ArgumentOutOfRangeException(nameof(input), input.Value, "No such preset.");
-            case "value":
+            case ParameterKind.Value:
                 CheckNumber(input.Value, type);
                 return new TriggerFunctionParameter { Type = TriggerFunctionParameterType.String, Value = input.Value };
-            case "function":
+            case ParameterKind.Function:
                 var kind = TypeForArgument(type);
                 return new TriggerFunctionParameter
                 {
                     Type = TriggerFunctionParameterType.Function, Value = input.Value, Function = New(kind, input.Value, null),
                 };
-            case "variable":
+            case ParameterKind.Variable:
                 var variable = _triggers.Variables.FirstOrDefault(each => each.Name == input.Value);
                 return new TriggerFunctionParameter
                 {
@@ -1006,13 +1005,9 @@ public sealed partial class TriggerDocument
         return target;
     }
 
-    private static string KindOf(TriggerFunctionType type) => type switch
-    {
-        TriggerFunctionType.Event => "event",
-        TriggerFunctionType.Condition => "condition",
-        TriggerFunctionType.Action => "action",
-        _ => "call",
-    };
+    // A block takes the functions of its kind: an If's conditions, its Then and Else actions.
+    private static bool Holds(BlockKind block, TriggerFunctionType type) =>
+        (block, type) is (BlockKind.Condition, TriggerFunctionType.Condition) or (BlockKind.Action, TriggerFunctionType.Action);
 
     // What a path names. A path is steps split by /: a number is a function of the trigger, cN a function of the block
     // lists of the function before it, pN a parameter of that function or of the function in the parameter before it,

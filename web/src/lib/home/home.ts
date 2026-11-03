@@ -3,27 +3,15 @@
  * for it before it paints (`https://game.moonwelleditor/home.js` sets `window.moonwellHome`), writes what it sends, and
  * says when a file changed.
  */
+
+import type { HomeBoot, HomeChange } from "../bridge.gen.ts";
 import { call, on } from "../bridge.ts";
 import { errorText } from "../errors.ts";
 import { t } from "../text.ts";
 import { homeNotice } from "./notice.svelte.ts";
 
+export type { HomeBoot } from "../bridge.gen.ts";
 export { homeNotice };
-
-/** What the app read from the folder, as `window.moonwellHome`. */
-export type HomeBoot = {
-  folder: string;
-  /** The text of each file, or null when it is not there (or could not be read: see `unreadable`). */
-  settings: string | null;
-  hotkeys: string | null;
-  state: string | null;
-  /** Every `themes/<name>.json`, by its place in the folder. */
-  themes: { file: string; text: string }[];
-  /** While there is no `settings.json`: what the old settings kept, for the move. Else null. */
-  legacy: { gameFolder: string | null } | null;
-  /** The files that are there but could not be read, so a missing text is not taken for a missing file. */
-  unreadable: string[];
-};
 
 declare global {
   interface Window {
@@ -106,10 +94,8 @@ export async function openHome(file?: string): Promise<boolean> {
  * Listens to `homeChanged`: a file was saved or deleted (`text` is null then), by the editor itself or another program.
  * The editor's own writes come back too. Returns a function that stops listening.
  */
-export function onHomeChanged(
-  handler: (change: { file: string; text: string | null }) => void,
-): () => void {
-  return on("homeChanged", (payload) => handler(payload as { file: string; text: string | null }));
+export function onHomeChanged(handler: (change: HomeChange) => void): () => void {
+  return on("homeChanged", handler);
 }
 
 const schemas = import.meta.glob<string>("./schemas/*.json", {

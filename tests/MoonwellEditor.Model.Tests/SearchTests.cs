@@ -21,7 +21,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
         var hits = session.Search("hfoo", 10);
 
         Assert.NotEmpty(hits);
-        Assert.Equal(new Hit("unit", "hfoo", "Footman", "Human · Melee · Units", null), hits[0]);
+        Assert.Equal(new Hit(ObjectKind.Unit, "hfoo", "Footman", "Human · Melee · Units", null), hits[0]);
 
         // The custom object of the map is found by its id too, and a limit cuts the list.
         Assert.Equal("h000", session.Search("H000", 10)[0].Id);
@@ -44,7 +44,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
         var custom = session.Create(ObjectKind.Unit, "hfoo", null);
         session.Set(ObjectKind.Unit, custom, "unam", 0, "Footman Deluxe");
 
-        var hits = session.Search("footman", 500).Where(hit => hit.Kind == "unit" && hit.Field == null).ToList();
+        var hits = session.Search("footman", 500).Where(hit => hit.Kind == ObjectKind.Unit && hit.Field == null).ToList();
 
         // Name prefix: the custom one first at equal rank, then the standard Footman.
         Assert.Equal(custom, hits[0].Id);
@@ -75,7 +75,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
         var session = Session.Open(MapFolder.Open(map.Folder), game);
 
         var both = session.Search("foot hum", 50);
-        Assert.Contains(both, hit => hit.Kind == "unit" && hit.Id == "hfoo");
+        Assert.Contains(both, hit => hit.Kind == ObjectKind.Unit && hit.Id == "hfoo");
         Assert.DoesNotContain(both, hit => hit.Name.Contains("Rifleman"));
 
         // Every word has to match, in any order.
@@ -99,7 +99,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
 
         var hits = session.Search("hit points", 2000);
 
-        var field = Assert.Single(hits, hit => hit.Kind == "unit" && hit.Field == "uhpm");
+        var field = Assert.Single(hits, hit => hit.Kind == ObjectKind.Unit && hit.Field == "uhpm");
         Assert.Equal("uhpm", field.Id);
         Assert.Equal(hitPoints.Label, field.Name);
         Assert.Equal($"{hitPoints.Label} · uhpm", field.Detail);
@@ -110,7 +110,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
         Assert.All(fields, hit => Assert.Equal(hit.Id, hit.Field));
 
         // By the field's id too.
-        Assert.Contains(session.Search("uhpm", 50), hit => hit.Field == "uhpm" && hit.Kind == "unit");
+        Assert.Contains(session.Search("uhpm", 50), hit => hit.Field == "uhpm" && hit.Kind == ObjectKind.Unit);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class SearchTests(GameDataFixture fixture, ITestOutputHelper outpu
         session.Set(ObjectKind.Unit, "h000", "unam", 0, "Champion");
         var found = Assert.Single(session.Search("champ", 50), hit => hit.Id == "h000");
         Assert.Equal("Champion", found.Name);
-        Assert.Equal("unit", found.Kind);
+        Assert.Equal(ObjectKind.Unit, found.Kind);
         Assert.Null(found.Field);
         Assert.True(session.Undo());
         Assert.DoesNotContain(session.Search("champ", 50), hit => hit.Id == "h000");

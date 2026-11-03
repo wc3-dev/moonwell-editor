@@ -12,12 +12,12 @@ import { pickOnMap } from "../map/pick.svelte.ts";
 import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
 import type {
-  Catalog,
   MapReference,
   ParameterKind,
   ParameterView,
-  TreeItem,
-  Variable,
+  TriggerCatalogView,
+  TriggerTreeItem,
+  VariableView,
 } from "./api.ts";
 import {
   callsFor,
@@ -31,10 +31,10 @@ import {
 
 type Props = {
   parameter: ParameterView;
-  catalog: Catalog;
-  variables: Variable[];
+  catalog: TriggerCatalogView;
+  variables: VariableView[];
   references: MapReference[];
-  items: TreeItem[];
+  items: TriggerTreeItem[];
   /** True for a parameter of an event's function, where the game allows fewer functions. */
   inEvent: boolean;
   onset: (path: string, kind: ParameterKind, value: string) => Promise<void>;

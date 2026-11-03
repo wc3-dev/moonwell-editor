@@ -43,7 +43,7 @@ export class Startup {
     let stops: (() => void)[] = [];
     try {
       stops = [
-        on("gameData", (payload) => this.#take(payload as GameDataState)),
+        on("gameData", (payload) => this.#take(payload)),
         onSessionChanged((state) => (this.#session.state = state)),
         onCloseRequested(this.#session.closeRequested),
         watchSettings(),
@@ -61,7 +61,7 @@ export class Startup {
 
   async #connect(): Promise<void> {
     try {
-      await call<string>("ping");
+      await call("ping");
       about()
         .then((answer) => (this.versions = answer))
         .catch(() => {});

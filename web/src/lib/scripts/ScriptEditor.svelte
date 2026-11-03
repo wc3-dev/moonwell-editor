@@ -12,7 +12,7 @@ import { onDestroy } from "svelte";
 import type { CodeThemeInfo } from "../codeThemes.ts";
 import { errorText } from "../errors.ts";
 import { t } from "../text.ts";
-import { setCode, setHeader, type TriggerTree, trigger, triggerTree } from "../triggers/api.ts";
+import { setCode, setHeader, type TriggerTreeView, trigger, triggerTree } from "../triggers/api.ts";
 import type { ScriptsEditor } from "./monaco/scriptsEditor.ts";
 import { closed, matched, type OpenScript, opened } from "./openScripts.ts";
 
@@ -26,7 +26,7 @@ type Props = {
 
 let { codeTheme, queued, onnotice }: Props = $props();
 
-let tree = $state.raw<TriggerTree | null>(null);
+let tree = $state.raw<TriggerTreeView | null>(null);
 let scripts = $state<OpenScript[]>([]);
 let active = $state<number | null>(null);
 // A script's text as it was read, which its document starts from.

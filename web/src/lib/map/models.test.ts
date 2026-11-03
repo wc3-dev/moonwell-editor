@@ -31,6 +31,7 @@ function thing(change: Partial<PlacedThing>): PlacedThing {
     player: 0,
     tint: 0xffffff,
     variation: 0,
+    shadow: null,
     ...change,
   };
 }

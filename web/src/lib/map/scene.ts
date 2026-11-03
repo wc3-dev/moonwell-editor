@@ -1,119 +1,22 @@
 /**
- * The map view's scene as the app sends it (the mapScene command, MoonwellEditor.Map's MapSceneView) and the terrain's
- * bytes (the asset host's /terrain, TerrainBytes): corners every 128, row by row from the bottom left.
+ * The map view's scene as the app sends it (the mapScene command, MoonwellEditor.Map's MapSceneView, its types generated
+ * into bridge.gen.ts) and the terrain's bytes (the asset host's /terrain, TerrainBytes): corners every 128, row by row
+ * from the bottom left.
  */
 
-/** A ground texture: a sheet of 4 by 4 pieces, 8 by 4 when it has variations. */
-export type TerrainTexture = { tileId: string; path: string; extended: boolean };
-
-/** A cliff or ramp model on a tile, at the height of its lowest cliff level. */
-export type CliffPiece = {
-  column: number;
-  row: number;
-  model: string;
-  cliffType: number;
-  baseZ: number;
-};
-
-/**
- * How the tileset's water looks: its texture without the frame number, its frames and how many it plays a second, how
- * many tiles one picture covers each way, and four colours as 0xAARRGGBB.
- */
-export type WaterLook = {
-  texture: string;
-  frames: number;
-  rate: number;
-  cells: number;
-  shallowMin: number;
-  shallowMax: number;
-  deepMin: number;
-  deepMax: number;
-};
-
-/** What kind of thing is placed. */
-export type ThingKind = "Unit" | "Item" | "StartLocation" | "Destructable" | "Doodad";
-
-/** A thing placed on the map; `model` null for a marker. Facing in radians, counter-clockwise from east. */
-export type PlacedThing = {
-  number: number;
-  kind: ThingKind;
-  typeId: string;
-  name: string;
-  ref: string | null;
-  x: number;
-  y: number;
-  z: number;
-  facing: number;
-  scaleX: number;
-  scaleY: number;
-  scaleZ: number;
-  model: string | null;
-  texture: string | null;
-  player: number;
-  tint: number;
-  /** Which of its model's shapes it is (an HD tree holds all ten in one model). */
-  variation: number;
-  /** A unit's Classic shadow picture; null or missing for none. */
-  shadow?: UnitShadow | null;
-};
-
-/**
- * A unit's shadow picture, laid flat under it in Classic: the unit stands `x`, `y` from its bottom left; it is `width`
- * by `height`.
- */
-export type UnitShadow = { texture: string; x: number; y: number; width: number; height: number };
-
-/** A region: its edges and its colour, 0xRRGGBB. */
-export type RegionMark = {
-  name: string;
-  ref: string;
-  left: number;
-  bottom: number;
-  right: number;
-  top: number;
-  color: number;
-};
-
-/** A camera: what it looks at, from how far and at what angles (degrees). */
-export type CameraMark = {
-  name: string;
-  ref: string;
-  x: number;
-  y: number;
-  z: number;
-  rotation: number;
-  angleOfAttack: number;
-  distance: number;
-  fieldOfView: number;
-};
-
-/** One of the tileset's lights at noon: toward it (a unit vector), its colour and its ambient colour. */
-export type SceneLight = {
-  toward: [number, number, number];
-  colour: [number, number, number];
-  ambient: [number, number, number];
-};
-
-/** The tileset's lights at noon; `sky` is the environment map's colour along +x, -x, +y, -y, +z, -z (HD and DE). */
-export type SceneLights = { terrain: SceneLight; units: SceneLight; sky: number[] };
-
-/** Everything the view draws but the terrain's corners. */
-export type MapScene = {
-  columns: number;
-  rows: number;
-  left: number;
-  bottom: number;
-  tileset: string;
-  textures: TerrainTexture[];
-  cliffTextures: string[];
-  cliffs: CliffPiece[];
-  water: WaterLook;
-  lights: SceneLights;
-  things: PlacedThing[];
-  regions: RegionMark[];
-  cameras: CameraMark[];
-  problems: string[];
-};
+export type {
+  CameraMark,
+  CliffPiece,
+  MapSceneView,
+  PlacedThing,
+  RegionMark,
+  SceneLight,
+  SceneLights,
+  TerrainTexture,
+  ThingKind,
+  UnitShadow,
+  WaterLook,
+} from "../bridge.gen.ts";
 
 /**
  * The terrain's corners and tiles: the ground's height, the height without cliff levels (`relief`, what a cliff model

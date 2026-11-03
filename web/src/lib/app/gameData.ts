@@ -1,29 +1,19 @@
+import type { GameDataState } from "../bridge.gen.ts";
 import { call } from "../bridge.ts";
 
-/**
- * Where the game data stands in the app: the Warcraft III folder in use (or an export's), whether it is loaded, and
- * why it failed. `version` grows each time the state changes in the app; `game` is the install's game version once
- * loaded.
- */
-export type GameDataState = {
-  source: string | null;
-  loaded: boolean;
-  error: string | null;
-  version: number;
-  game?: string | null;
-};
+export type { GameDataState } from "../bridge.gen.ts";
 
 /** What the welcome screen or the status bar should say about the game data. */
 export type GameDataView = "missing" | "loading" | "failed" | "ready";
 
 /** Asks the app where the game data stands. */
 export function gameData(): Promise<GameDataState> {
-  return call<GameDataState>("gameData");
+  return call("gameData");
 }
 
 /** Opens the app's folder dialog for the Warcraft III folder; the app loads it and answers with the new state. */
 export function chooseGameData(): Promise<GameDataState> {
-  return call<GameDataState>("chooseGameData");
+  return call("chooseGameData");
 }
 
 /**

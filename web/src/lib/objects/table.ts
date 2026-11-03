@@ -2,7 +2,7 @@
  * The Table view's logic with no screen: which objects are its rows (the row chips and the tree's filter text), the
  * columns each kind keeps on this computer, the column picker's search, and sorting by a header.
  */
-import type { Column, FieldInfo, Kind, TableRow, TreeEntry } from "../api.ts";
+import type { Column, FieldDescription, Kind, TableRow, TreeEntry } from "../api.ts";
 import { t } from "../text.ts";
 import { categoryName } from "./fields.ts";
 import { columnKey, defaultColumns, sortRows } from "./grid.ts";
@@ -103,7 +103,7 @@ export { columnKey };
  * not fit its field (from 1 for a per-level field, 0 for any other), and a column given twice is kept once. Anything
  * that is not a list of columns gives none.
  */
-export function fitColumns(columns: unknown, fields: FieldInfo[]): Column[] {
+export function fitColumns(columns: unknown, fields: FieldDescription[]): Column[] {
   if (!Array.isArray(columns)) return [];
   const byId = new Map(fields.map((field) => [field.id, field]));
   const seen = new Set<string>();
@@ -135,7 +135,11 @@ export type Store = Pick<Storage, "getItem" | "setItem">;
  * A kind's columns: the ones kept in `store` (as `storageKey` names them), else the kind's default columns, fitted to
  * its fields (`fitColumns`). A store that is missing, throws or holds something that is not a list gives the defaults.
  */
-export function readColumns(kind: Kind, fields: FieldInfo[], store: () => Store | null): Column[] {
+export function readColumns(
+  kind: Kind,
+  fields: FieldDescription[],
+  store: () => Store | null,
+): Column[] {
   let kept: unknown = null;
   try {
     const text = store()?.getItem(storageKey(kind));
@@ -163,7 +167,7 @@ export const levelColumnLimit = 20;
  * level from 1 to `levels` (at least level 1, at most `levelColumnLimit`). They go after the field's last column when
  * it has one, else at the end. A (field, level) that is already a column is not added again.
  */
-export function addColumns(columns: Column[], field: FieldInfo, levels: number): Column[] {
+export function addColumns(columns: Column[], field: FieldDescription, levels: number): Column[] {
   const count = Math.min(levelColumnLimit, Math.max(1, Math.floor(levels)));
   const wanted: Column[] = field.perLevel
     ? Array.from({ length: count }, (_, at) => ({
@@ -187,7 +191,7 @@ export function removeColumn(columns: Column[], key: string): Column[] {
  * The fields the column picker shows for what was typed: those whose label, id or category holds every word of it,
  * ignoring case, in the order given. Nothing typed keeps every field.
  */
-export function searchFields(fields: FieldInfo[], query: string): FieldInfo[] {
+export function searchFields(fields: FieldDescription[], query: string): FieldDescription[] {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return fields;
   return fields.filter((field) => {
