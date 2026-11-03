@@ -24,6 +24,7 @@ const libraries: [string, string][] = [
   ["WebView2", "BSD-3-Clause"],
   ["Svelte", "MIT"],
   ["Bits UI", "MIT"],
+  ["Svelte Flow", "MIT"],
   ["Tiptap", "MIT"],
   ["xterm.js", "MIT"],
   ["CodeMirror", "MIT"],

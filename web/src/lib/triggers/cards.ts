@@ -1,12 +1,15 @@
-/** What a card asks of the trigger editor, and how a card looks. */
+/** What a card asks of the trigger editor, what it reads from its grid, and how a card looks. */
+import { createContext } from "svelte";
 import type {
   BlockView,
   CardView,
+  Catalog,
   FunctionKind,
   FunctionView,
   ParameterView,
   TriggerOptions,
 } from "./api.ts";
+import type { ScriptLanguage } from "./scriptLanguages.ts";
 
 /** What the cards on a grid can ask for; `owner` is the card a function is in. */
 export type CardActions = {
@@ -31,6 +34,32 @@ export type CardActions = {
   code(id: number, text: string): void;
   variable(card: CardView): void;
 };
+
+/** What every card on a grid is shown with. */
+export type Shared = {
+  catalog: Catalog;
+  mode: string;
+  /** What the map's scripts are in. */
+  language: ScriptLanguage;
+  readOnly: boolean;
+  selected: number | null;
+  /** True while the grid is where the user is. */
+  active: boolean;
+  /** The card whose name is being typed on it; null for none. */
+  renaming: number | null;
+  commenting: Record<number, boolean>;
+  dropKey: string | null;
+  actions: CardActions;
+};
+
+/** What a card on the grid reads from it: Svelte Flow hands a card only its own data. */
+export type Grid = {
+  readonly shared: Shared;
+  readonly zoom: number;
+  fold(id: number, folded: boolean): void;
+};
+
+export const [getGrid, setGrid] = createContext<Grid>();
 
 /** A rename box takes the cursor with its name selected, without scrolling what is around it. */
 export function focusRename(input: HTMLInputElement): void {

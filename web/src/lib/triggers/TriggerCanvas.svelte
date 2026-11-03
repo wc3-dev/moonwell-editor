@@ -1,50 +1,44 @@
 <script lang="ts">
 /**
  * A category as a Blueprint-style grid (Sven, 2026-10-31): a card for everything in it, which pans, zooms and fits. A card
- * that was never moved stands in columns; moving one keeps the whole grid's places, so nothing else jumps.
+ * that was never moved stands in columns; moving one keeps the whole grid's places, so nothing else jumps. Svelte Flow
+ * pans, zooms and drags; the grid says where each card stands and where the view goes.
  */
+import "@xyflow/svelte/dist/base.css";
+import {
+  Background,
+  BackgroundVariant,
+  type Node,
+  SvelteFlow,
+  useSvelteFlow,
+} from "@xyflow/svelte";
 import { untrack } from "svelte";
 import { t } from "../text.ts";
-import type { CardMove, CardView, Catalog } from "./api.ts";
+import type { CardMove, CardView } from "./api.ts";
+import CardNode from "./CardNode.svelte";
 import {
   type Box,
-  cardWidth,
   columnsFor,
-  farScale,
+  farZoom,
   fitted,
   focused,
   grid,
   laidOut,
-  openScale,
+  maxZoom,
+  minZoom,
+  openZoom,
   placesToSave,
-  snapped,
   titleInView,
   type View,
-  zoomedAt,
 } from "./canvas.ts";
-import type { CardActions } from "./cards.ts";
-import type { ScriptLanguage } from "./scriptLanguages.ts";
-import TriggerCard from "./TriggerCard.svelte";
+import { type Shared, setGrid } from "./cards.ts";
 
-type Props = {
+type Props = Shared & {
   /** The category shown. */
   parent: number;
   cards: CardView[];
-  catalog: Catalog;
-  mode: string;
-  /** What the map's scripts are in. */
-  language: ScriptLanguage;
-  readOnly: boolean;
-  selected: number | null;
-  /** True while the grid is where the user is. */
-  active: boolean;
-  /** The card whose name is being typed on it; null for none. */
-  renaming: number | null;
   /** A card to bring into view; a new `count` brings it again. */
   flyTo: { id: number; count: number } | null;
-  commenting: Record<number, boolean>;
-  dropKey: string | null;
-  actions: CardActions;
   onmoved: (places: CardMove[]) => void;
   onfold: (id: number, folded: boolean, places: CardMove[]) => void;
   /** A right click on the empty grid. */
@@ -53,31 +47,17 @@ type Props = {
   onempty: () => void;
 };
 
-let {
-  parent,
-  cards,
-  catalog,
-  mode,
-  language,
-  readOnly,
-  selected,
-  active,
-  renaming,
-  flyTo,
-  commenting,
-  dropKey,
-  actions,
-  onmoved,
-  onfold,
-  onmenu,
-  onempty,
-}: Props = $props();
+// What every card is shown with goes to the cards as it is: rest props stay reactive.
+let { parent, cards, flyTo, onmoved, onfold, onmenu, onempty, ...shared }: Props = $props();
 
-let element: HTMLDivElement | undefined = $state();
+const nodeTypes = { card: CardNode };
+const flow = useSvelteFlow();
+
 let width = $state(0);
 let height = $state(0);
-let view = $state<View>({ x: grid, y: grid, scale: 1 });
-let gliding = $state(false);
+// Svelte Flow keeps the view: it is read here, and moved only through `look`.
+let view = $state<View>({ x: grid, y: grid, zoom: 1 });
+let nodes = $state.raw<Node<{ card: CardView }>[]>([]);
 let heights = $state<Record<number, number>>({});
 // The columns are counted when a category first shows and when a card comes, so that a card growing does not reshape the
 // grid.
@@ -88,22 +68,6 @@ const seen = new Map<number, { view: View; columns: number }>();
 let shown: number | null = null;
 let fitting = $state(false);
 let flown = 0;
-// The card being moved, at its place on the grid.
-let moving = $state<{ id: number; x: number; y: number } | null>(null);
-let panning: { x: number; y: number } | null = null;
-// A right press, which pans once it moves, as in Blueprints; one that stays put opens the menu.
-let pressed: { x: number; y: number; pointer: number } | null = null;
-let panned = false;
-// A left press on the empty grid, a click until it moves.
-let emptyPress: { x: number; y: number } | null = null;
-let grabbed: {
-  id: number;
-  x: number;
-  y: number;
-  pressX: number;
-  pressY: number;
-  moved: boolean;
-} | null = null;
 
 const boxes = $derived(
   laidOut(
@@ -117,28 +81,62 @@ const boxes = $derived(
 );
 const measured = $derived(cards.every((card) => heights[card.id] !== undefined));
 
+setGrid({
+  get shared() {
+    return shared;
+  },
+  get zoom() {
+    return view.zoom;
+  },
+  fold: foldCard,
+});
+
 function boxOf(id: number): Box | undefined {
   return boxes.find((box) => box.id === id);
 }
 
-function glide(): void {
-  gliding = true;
-  setTimeout(() => (gliding = false), 260);
+function look(next: View, glide = true): void {
+  void flow.setViewport(next, { duration: glide ? 200 : 0 });
 }
 
 export function fit(): void {
-  glide();
-  view = fitted(boxes, width, height);
+  look(fitted(boxes, width, height));
 }
+
+// A card stands where its box is. What Svelte Flow keeps on a node, such as its measured size, stays.
+$effect(() => {
+  const before = new Map(untrack(() => nodes).map((node) => [node.id, node]));
+  nodes = cards.map((card, at) => {
+    const id = String(card.id);
+    const box = boxes[at] as Box;
+    return {
+      ...before.get(id),
+      id,
+      type: "card",
+      position: { x: box.x, y: box.y },
+      data: { card },
+      dragHandle: "[data-grip]",
+      zIndex: shared.selected === card.id ? 5 : 0,
+    };
+  });
+});
+
+$effect(() => {
+  for (const node of nodes) {
+    const id = Number(node.id);
+    const size = node.measured?.height;
+    if (size !== undefined && untrack(() => heights[id]) !== size) heights[id] = size;
+  }
+});
 
 // Another category: its view as it was left, or all of it.
 $effect(() => {
   if (shown === parent) return;
-  if (shown !== null) seen.set(shown, { view, columns });
+  if (shown !== null) seen.set(shown, { view: untrack(() => view), columns });
   shown = parent;
   const left = seen.get(parent);
   if (left) {
-    view = left.view;
+    look(left.view, false);
     columns = left.columns;
     counted = cards.length;
   } else {
@@ -159,7 +157,7 @@ $effect(() => {
     fitting = false;
     counted = cards.length;
     columns = columnsNow();
-    view = fitted(boxes, width, height, openScale);
+    look(fitted(boxes, width, height, openZoom), false);
   } else if (cards.length !== counted) {
     // A category filled from empty should not stay one long column.
     counted = cards.length;
@@ -173,131 +171,47 @@ $effect(() => {
   const box = boxOf(target.id);
   if (!box) return;
   flown = target.count;
-  glide();
-  view = focused(box, width, height, Math.max(view.scale, 0.85));
+  look(
+    focused(
+      box,
+      width,
+      height,
+      Math.max(
+        untrack(() => view.zoom),
+        0.85,
+      ),
+    ),
+  );
 });
 
 // A name is typed where it can be read.
 $effect(() => {
-  const id = renaming;
+  const id = shared.renaming;
   untrack(() => {
     const box = id === null ? undefined : boxOf(id);
-    if (box && (view.scale < farScale || !titleInView(box, view, width, height))) {
-      glide();
-      view = focused(box, width, height, Math.max(view.scale, 0.85));
+    if (box && (view.zoom < farZoom || !titleInView(box, view, width, height))) {
+      look(focused(box, width, height, Math.max(view.zoom, 0.85)));
     }
   });
 });
 
-function onpointerdown(event: PointerEvent): void {
-  const target = event.target as HTMLElement;
-  if (target.closest("[data-zoom]")) return;
-  if (event.button === 2) {
-    pressed = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
-    return;
-  }
+// A right press opens a menu where it is let go, unless it moved: then it panned, as in Blueprints. Svelte Flow pans on
+// the right button but then opens no menu of its own.
+let rightPress: { x: number; y: number } | null = null;
 
-  // A left press stays the browser's, so it takes the focus off a box: that ends a rename, here and on a card's title.
-  if (event.button === 1 || (event.button === 0 && !target.closest("[data-card]"))) {
-    if (event.button === 1) event.preventDefault();
-    else emptyPress = { x: event.clientX, y: event.clientY };
-    panning = { x: event.clientX - view.x, y: event.clientY - view.y };
-    element?.setPointerCapture(event.pointerId);
-    return;
+function oncontextmenucapture(event: MouseEvent): void {
+  const press = rightPress;
+  rightPress = null;
+  if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 4) {
+    event.preventDefault();
+    event.stopPropagation();
   }
-
-  const grip = target.closest("[data-grip]");
-  if (event.button !== 0 || !grip || target.closest("button, input") || readOnly) return;
-  const id = Number(target.closest<HTMLElement>("[data-card]")?.dataset.card);
-  const box = boxOf(id);
-  const area = element?.getBoundingClientRect();
-  if (!box || !area) return;
-  grabbed = {
-    id,
-    x: (event.clientX - area.left - view.x) / view.scale - box.x,
-    y: (event.clientY - area.top - view.y) / view.scale - box.y,
-    pressX: event.clientX,
-    pressY: event.clientY,
-    moved: false,
-  };
 }
 
-function onpointermove(event: PointerEvent): void {
-  if (pressed && Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 4) {
-    panning = { x: pressed.x - view.x, y: pressed.y - view.y };
-    element?.setPointerCapture(pressed.pointer);
-    pressed = null;
-    panned = true;
-  }
-
-  if (emptyPress && Math.hypot(event.clientX - emptyPress.x, event.clientY - emptyPress.y) > 4) {
-    emptyPress = null;
-  }
-
-  if (panning) {
-    view = { ...view, x: event.clientX - panning.x, y: event.clientY - panning.y };
-    return;
-  }
-
-  const area = element?.getBoundingClientRect();
-  if (!grabbed || !area) return;
-  // The mouse is taken only once the card moves: taken at the press, a double click would never reach the title bar.
-  if (!grabbed.moved) {
-    if (Math.hypot(event.clientX - grabbed.pressX, event.clientY - grabbed.pressY) <= 4) return;
-    grabbed.moved = true;
-    element?.setPointerCapture(event.pointerId);
-  }
-
-  moving = {
-    id: grabbed.id,
-    x: snapped((event.clientX - area.left - view.x) / view.scale - grabbed.x),
-    y: snapped((event.clientY - area.top - view.y) / view.scale - grabbed.y),
-  };
-}
-
-function swallowMenu(event: MouseEvent): void {
+function oncontextmenu(event: MouseEvent): void {
   event.preventDefault();
-  event.stopPropagation();
-}
-
-function onpointerup(): void {
-  panning = null;
-  pressed = null;
-  if (emptyPress) {
-    emptyPress = null;
-    onempty();
-  }
-
-  // The menu the right button's release would open, wherever the mouse ended up.
-  if (panned) {
-    panned = false;
-    window.addEventListener("contextmenu", swallowMenu, { capture: true, once: true });
-    setTimeout(
-      () => window.removeEventListener("contextmenu", swallowMenu, { capture: true }),
-      100,
-    );
-  }
-
-  const done = moving;
-  const dropped = grabbed;
-  grabbed = null;
-  moving = null;
-  if (done && dropped?.moved) onmoved(placesToSave(boxes, done));
-}
-
-function onwheel(event: WheelEvent): void {
-  // A box being typed in scrolls its own text.
-  const target = event.target as HTMLElement;
-  if (target.closest("textarea, .cm-editor")?.contains(document.activeElement)) return;
-  event.preventDefault();
-  const area = element?.getBoundingClientRect();
-  if (!area) return;
-  view = zoomedAt(
-    view,
-    event.clientX - area.left,
-    event.clientY - area.top,
-    event.deltaY < 0 ? 1.1 : 0.9,
-  );
+  if (!(event.target as HTMLElement).closest(".svelte-flow__node"))
+    onmenu(event.clientX, event.clientY);
 }
 
 function foldCard(id: number, folded: boolean): void {
@@ -307,81 +221,56 @@ function foldCard(id: number, folded: boolean): void {
     boxes.map(({ id: each, x, y }) => ({ id: each, x, y })),
   );
 }
-
-const lines =
-  "linear-gradient(var(--line-major) 1px, transparent 1px), linear-gradient(90deg, var(--line-major) 1px, transparent 1px), linear-gradient(var(--line-minor) 1px, transparent 1px), linear-gradient(90deg, var(--line-minor) 1px, transparent 1px)";
-const major = $derived(grid * 5 * view.scale);
-const minor = $derived(grid * view.scale);
 </script>
 
 <div
-  bind:this={element}
   bind:clientWidth={width}
   bind:clientHeight={height}
   class="canvas-look relative h-full min-h-0 overflow-hidden bg-raised select-none [--line-major:color-mix(in_srgb,var(--background-base)_70%,transparent)] [--line-minor:color-mix(in_srgb,var(--border-normal)_55%,transparent)]"
-  style:background-image={lines}
-  style:background-size="{major}px {major}px, {major}px {major}px, {minor}px {minor}px, {minor}px {minor}px"
-  style:background-position="{view.x}px {view.y}px"
-  style:--line-minor={minor < 8 ? "transparent" : null}
   role="application"
   aria-label={t("triggers.tree")}
   data-testid="trigger-canvas"
-  {onpointerdown}
-  {onpointermove}
-  {onpointerup}
-  {onwheel}
-  oncontextmenu={(event) => {
-    event.preventDefault();
-    if (!(event.target as HTMLElement).closest("[data-card]")) onmenu(event.clientX, event.clientY);
+  onpointerdowncapture={(event) => {
+    if (event.button === 2) rightPress = { x: event.clientX, y: event.clientY };
   }}
+  onmousedowncapture={(event) => event.button === 1 && event.preventDefault()}
+  {oncontextmenucapture}
+  {oncontextmenu}
 >
-  <div
-    class="absolute top-0 left-0 origin-top-left"
-    class:transition-transform={gliding}
-    class:duration-200={gliding}
-    style:transform="translate({view.x}px, {view.y}px) scale({view.scale})"
+  <SvelteFlow
+    bind:nodes
+    bind:viewport={view}
+    {nodeTypes}
+    {minZoom}
+    {maxZoom}
+    snapGrid={[grid, grid]}
+    nodeDragThreshold={4}
+    paneClickDistance={4}
+    panOnDrag={[0, 1, 2]}
+    zoomOnDoubleClick={false}
+    nodesDraggable={!shared.readOnly}
+    nodesConnectable={false}
+    nodesFocusable={false}
+    edgesFocusable={false}
+    elementsSelectable={false}
+    autoPanOnNodeDrag={false}
+    disableKeyboardA11y
+    deleteKey={null}
+    selectionKey={null}
+    multiSelectionKey={null}
+    panActivationKey={null}
+    zoomActivationKey={null}
+    proOptions={{ hideAttribution: true }}
+    onnodedragstop={({ targetNode }) => {
+      if (targetNode) onmoved(placesToSave(boxes, { id: Number(targetNode.id), ...targetNode.position }));
+    }}
+    onpaneclick={onempty}
   >
-    {#each cards as card (card.id)}
-      {@const box = boxOf(card.id)}
-      {#if box}
-        {@const x = moving?.id === card.id ? moving.x : box.x}
-        {@const y = moving?.id === card.id ? moving.y : box.y}
-        <div
-          class="absolute top-0 left-0"
-          class:z-10={moving?.id === card.id}
-          class:z-[5]={selected === card.id}
-          style:width="{cardWidth}px"
-          style:transform="translate({x}px, {y}px)"
-          data-card={card.id}
-          bind:offsetHeight={heights[card.id]}
-        >
-          <TriggerCard
-            {card}
-            {catalog}
-            {mode}
-            {language}
-            {readOnly}
-            selected={selected === card.id}
-            {active}
-            renaming={renaming === card.id}
-            folded={card.place?.folded ?? false}
-            commenting={commenting[card.id] ?? false}
-            {dropKey}
-            {actions}
-            onfold={(folded) => foldCard(card.id, folded)}
-          />
-          {#if view.scale < farScale && renaming !== card.id}
-            <div
-              class="pointer-events-none absolute inset-x-0 top-0 line-clamp-2 rounded-[8px] bg-black/75 px-[0.3em] py-[0.15em] leading-[1.15] font-medium break-words text-white"
-              style:font-size="{Math.min(14 / view.scale, 56)}px"
-            >
-              {card.name}
-            </div>
-          {/if}
-        </div>
-      {/if}
-    {/each}
-  </div>
+    {#if grid * view.zoom >= 8}
+      <Background id="minor" variant={BackgroundVariant.Lines} gap={grid} patternColor="var(--line-minor)" />
+    {/if}
+    <Background id="major" variant={BackgroundVariant.Lines} gap={grid * 5} patternColor="var(--line-major)" />
+  </SvelteFlow>
 
   {#if cards.length === 0}
     <p class="pointer-events-none absolute inset-0 m-0 grid place-items-center text-muted">
@@ -390,10 +279,9 @@ const minor = $derived(grid * view.scale);
   {/if}
 
   <div
-    class="absolute top-2 right-2 flex items-center gap-2 rounded-md border border-black bg-panel px-2 py-0.5 text-xs text-muted"
-    data-zoom
+    class="absolute top-2 right-2 z-5 flex items-center gap-2 rounded-md border border-black bg-panel px-2 py-0.5 text-xs text-muted"
   >
-    <span title={t("triggers.zoom")}>{Math.round(view.scale * 100)}%</span>
+    <span title={t("triggers.zoom")}>{Math.round(view.zoom * 100)}%</span>
     <button type="button" class="text-normal hover:text-accent-text" onclick={fit}>{t("triggers.fit")}</button>
   </div>
 </div>

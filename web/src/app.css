@@ -302,3 +302,10 @@ body:has(.dropdown-list[data-side="top"]) .dropdown[aria-expanded="true"] {
 .canvas-look {
   font: 14px / 1.45 var(--font-canvas);
 }
+
+/* Svelte Flow's grabbing hands give way to the canvas's own arrow; a card's title bar shows its hand itself. */
+.canvas-look .svelte-flow__pane.draggable,
+.canvas-look .svelte-flow__node.draggable,
+.canvas-look .svelte-flow__node.draggable.dragging {
+  cursor: default;
+}

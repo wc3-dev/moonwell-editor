@@ -7,36 +7,26 @@ import {
   grid,
   laidOut,
   placesToSave,
-  snapped,
   titleInView,
-  zoomedAt,
 } from "./canvas.ts";
 
 describe("titleInView", () => {
   const box = { id: 1, x: 100, y: 100, width: 340, height: 900 };
 
   it("is true for a card whose title bar shows, though its body runs off the bottom", () => {
-    expect(titleInView(box, { x: 0, y: 0, scale: 1 }, 800, 600)).toBe(true);
+    expect(titleInView(box, { x: 0, y: 0, zoom: 1 }, 800, 600)).toBe(true);
   });
 
   it("is false when the title bar is off any side", () => {
-    expect(titleInView(box, { x: -200, y: 0, scale: 1 }, 800, 600)).toBe(false);
-    expect(titleInView(box, { x: 500, y: 0, scale: 1 }, 800, 600)).toBe(false);
-    expect(titleInView(box, { x: 0, y: -150, scale: 1 }, 800, 600)).toBe(false);
-    expect(titleInView(box, { x: 0, y: 490, scale: 1 }, 800, 600)).toBe(false);
+    expect(titleInView(box, { x: -200, y: 0, zoom: 1 }, 800, 600)).toBe(false);
+    expect(titleInView(box, { x: 500, y: 0, zoom: 1 }, 800, 600)).toBe(false);
+    expect(titleInView(box, { x: 0, y: -150, zoom: 1 }, 800, 600)).toBe(false);
+    expect(titleInView(box, { x: 0, y: 490, zoom: 1 }, 800, 600)).toBe(false);
   });
 
-  it("goes by the scale", () => {
-    expect(titleInView(box, { x: 0, y: 0, scale: 2 }, 1000, 600)).toBe(true);
-    expect(titleInView(box, { x: 0, y: 0, scale: 3 }, 1000, 600)).toBe(false);
-  });
-});
-
-describe("snapped", () => {
-  it("goes to the nearest grid line", () => {
-    expect(snapped(29)).toBe(grid);
-    expect(snapped(31)).toBe(grid * 2);
-    expect(snapped(-29)).toBe(-grid);
+  it("goes by the zoom", () => {
+    expect(titleInView(box, { x: 0, y: 0, zoom: 2 }, 1000, 600)).toBe(true);
+    expect(titleInView(box, { x: 0, y: 0, zoom: 3 }, 1000, 600)).toBe(false);
   });
 });
 
@@ -113,21 +103,6 @@ describe("placesToSave", () => {
   });
 });
 
-describe("zoomedAt", () => {
-  it("keeps the point under the mouse where it is", () => {
-    const view = { x: 10, y: 20, scale: 1 };
-    const next = zoomedAt(view, 110, 220, 0.5);
-    expect(next.scale).toBe(0.5);
-    expect((110 - next.x) / next.scale).toBeCloseTo((110 - view.x) / view.scale);
-    expect((220 - next.y) / next.scale).toBeCloseTo((220 - view.y) / view.scale);
-  });
-
-  it("stays between its limits", () => {
-    expect(zoomedAt({ x: 0, y: 0, scale: 1 }, 0, 0, 100).scale).toBeLessThanOrEqual(1.5);
-    expect(zoomedAt({ x: 0, y: 0, scale: 1 }, 0, 0, 0.001).scale).toBeGreaterThanOrEqual(0.1);
-  });
-});
-
 describe("fitted", () => {
   it("shows every card, never larger than life", () => {
     const view = fitted(
@@ -138,27 +113,27 @@ describe("fitted", () => {
       800,
       600,
     );
-    expect(view.scale).toBeLessThan(1);
-    expect(view.x + 100 * view.scale).toBeGreaterThanOrEqual(0);
-    expect(view.y + 1200 * view.scale).toBeLessThanOrEqual(600);
+    expect(view.zoom).toBeLessThan(1);
+    expect(view.x + 100 * view.zoom).toBeGreaterThanOrEqual(0);
+    expect(view.y + 1200 * view.zoom).toBeLessThanOrEqual(600);
   });
 
   it("leaves a small grid at full size, at its top left", () => {
     const view = fitted([{ id: 1, x: 0, y: 0, width: 100, height: 100 }], 800, 600);
-    expect(view.scale).toBe(1);
+    expect(view.zoom).toBe(1);
   });
 
-  it("stops at the smallest scale asked for, at the top left", () => {
+  it("stops at the smallest zoom asked for, at the top left", () => {
     const boxes = [{ id: 1, x: 40, y: 60, width: 340, height: 20000 }];
-    expect(fitted(boxes, 800, 600).scale).toBeLessThan(0.1 + 0.01);
+    expect(fitted(boxes, 800, 600).zoom).toBeLessThan(0.1 + 0.01);
     const view = fitted(boxes, 800, 600, 0.5);
-    expect(view.scale).toBe(0.5);
-    expect(view.x + 40 * view.scale).toBe(grid);
-    expect(view.y + 60 * view.scale).toBe(grid);
+    expect(view.zoom).toBe(0.5);
+    expect(view.x + 40 * view.zoom).toBe(grid);
+    expect(view.y + 60 * view.zoom).toBe(grid);
   });
 
   it("handles a grid with no cards", () => {
-    expect(fitted([], 800, 600)).toEqual({ x: 20, y: 20, scale: 1 });
+    expect(fitted([], 800, 600)).toEqual({ x: 20, y: 20, zoom: 1 });
   });
 });
 
