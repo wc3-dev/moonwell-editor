@@ -28,6 +28,10 @@ function field(id: string, value: string, label = id): FieldView {
     skin: false,
     warning: null,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
   };
 }
 

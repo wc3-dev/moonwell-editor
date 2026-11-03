@@ -26,6 +26,10 @@ public sealed record GameDataState(string? Source, bool Loaded, string? Error, i
 /// </param>
 public sealed record SessionState(bool Dirty, int ChangedObjects);
 
+/// <summary>What the <c>closeRequested</c> event carries.</summary>
+/// <param name="Dirty">True when the window saw the map with unsaved edits.</param>
+public sealed record CloseRequest(bool Dirty);
+
 /// <summary>What the app was started with, for the page to act on once it is ready.</summary>
 /// <param name="Map">
 /// The map (a folder or an archive file) the page opens once the game data is ready: the app's first command-line
@@ -51,7 +55,7 @@ public sealed record About(string Version, string Moonwell, string DotNet, strin
 /// <param name="Path">The map folder's or the archive file's full path.</param>
 /// <param name="Archive">True for an archive (<c>.w3x</c>, <c>.w3m</c>), false for a folder.</param>
 /// <param name="Problems">What was wrong with its files (see <see cref="Session.Problems"/>).</param>
-/// <param name="Counts">How many custom objects it has, by kind key (<c>unit</c>).</param>
+/// <param name="Counts">How many custom objects it has, by kind.</param>
 /// <param name="Title">The map's name from its info file (Scenario > Map Properties); null when it has none.</param>
 /// <param name="Expansion">True for a Frozen Throne map, false for Reign of Chaos; null when unknown.</param>
 /// <param name="Options">
@@ -63,7 +67,7 @@ public sealed record MapInfo(
     string Path,
     bool Archive,
     IReadOnlyList<string> Problems,
-    IReadOnlyDictionary<string, int> Counts,
+    IReadOnlyDictionary<ObjectKind, int> Counts,
     MapOptions? Options,
     string? Title = null,
     bool? Expansion = null);
@@ -288,12 +292,12 @@ public sealed partial class Commands
 
             if (_source == null)
             {
-                throw new CommandException("gameDataMissing", Texts.Get("app.error.gameDataMissing"));
+                throw new CommandException(ErrorCode.GameDataMissing, Texts.Get("app.error.gameDataMissing"));
             }
 
             throw _error == null
-                ? new CommandException("gameDataLoading", Texts.Get("app.error.gameDataLoading"))
-                : new CommandException("gameDataFailed", Texts.Get("app.error.gameDataFailed", ("error", _error)));
+                ? new CommandException(ErrorCode.GameDataLoading, Texts.Get("app.error.gameDataLoading"))
+                : new CommandException(ErrorCode.GameDataFailed, Texts.Get("app.error.gameDataFailed", ("error", _error)));
         }
     }
 
@@ -319,7 +323,14 @@ public sealed partial class Commands
 
         try
         {
-            return Task.FromResult(RunNow(command, args));
+            return Task.FromResult(
+                ByName.TryGetValue(command, out var entry)
+                    ? entry.Invoke(this, args)
+                    : throw new UnknownCommandException(command));
+        }
+        catch (JsonException exception)
+        {
+            throw new CommandException(ErrorCode.BadRequest, exception.Message);
         }
         catch (EditException exception)
         {
@@ -327,66 +338,68 @@ public sealed partial class Commands
         }
         catch (TriggerEditException exception)
         {
-            throw new CommandException("triggerEdit", exception.Message);
+            throw new CommandException(ErrorCode.TriggerEdit, exception.Message);
         }
         catch (ChangedOnDiskException exception)
         {
-            throw new CommandException("changedOnDisk", exception.Message);
+            throw new CommandException(ErrorCode.ChangedOnDisk, exception.Message);
         }
         catch (MapFileException exception)
         {
-            throw new CommandException("mapFile", exception.Message);
+            throw new CommandException(ErrorCode.MapFile, exception.Message);
         }
     }
 
-    private object? RunNow(string command, JsonElement args) =>
-        command switch
-        {
-            "ping" => "pong",
-            "gameData" => State(),
-            "startup" => TakeStartup(),
-            "about" => AboutApp(),
-            "chooseGameData" => ChooseGameData(),
-            "openMap" => OpenMap(OptionalText(args, "path"), Flag(args, "archive"), Flag(args, "discard")),
-            "currentMap" => Current(),
-            "tree" => Map().Tree(Kind(args)),
-            "object" => ObjectOf(Kind(args), Text(args, "id")),
-            "usedBy" => Map().UsedBy(Kind(args), Text(args, "id")),
-            "setField" => SetField(args),
-            "resetField" => ResetField(args),
-            "createObject" => Changed(Map().Create(Kind(args), Text(args, "baseId"), OptionalText(args, "id"))),
-            "copyObject" => Changed(Map().Copy(Kind(args), Text(args, "fromId"), OptionalText(args, "id"))),
-            "nextId" => Map().NextId(Kind(args), Text(args, "baseId")),
-            "deleteObject" => DeleteObject(args),
-            "undo" => Changed(Map().Undo()),
-            "redo" => Changed(Map().Redo()),
-            "save" => Changed(Map().Save()),
-            "reload" => Reload(Flag(args, "discard")),
-            "search" => Map().Search(Text(args, "query"), Number(args, "limit")),
-            "choices" => ChoicesOf(NeedGameData()),
-            "assetNames" => AssetNamesOf(NeedGameData()),
-            "fields" => Fields(Kind(args)),
-            "table" => TableOf(args),
-            "setCells" => SetCells(args),
-            "closeAsking" => Raise(CloseAsking),
-            "closeWindow" => Raise(CloseApproved),
-            "minimizeWindow" => Raise(MinimizeAsked),
-            "maximizeWindow" => Raise(MaximizeAsked),
-            "closeClicked" => Raise(CloseClicked),
-            "windowState" => new WindowState(Maximized()),
-            "frameColors" => FrameColors(Text(args, "surface"), Text(args, "border")),
-            "uiScale" => UiScale(Number(args, "percent")),
-            "assetList" => AssetsOf(Text(args, "kind"), OptionalText(args, "mode") ?? "de"),
-            "mapScene" => MapSceneOf(OptionalText(args, "mode") ?? "de"),
-            "writeHome" => WriteHome(Text(args, "file"), Text(args, "text")),
-            "setState" => SetState(Text(args, "key"), ValueOf(args)),
-            "openHome" => OpenHome(OptionalText(args, "file")),
-            "recentMaps" => RecentMaps(),
-            "forgetMap" => ForgetMap(Text(args, "path")),
-            _ when command.StartsWith("trigger", StringComparison.Ordinal) => RunTrigger(command, args),
-            _ when RunsAlongside(command) => RunTerminal(command, args),
-            _ => throw new UnknownCommandException(command),
-        };
+    /// <summary>Every command the page can send, which the bridge runs and the page's types are generated from.</summary>
+    public static IReadOnlyList<CommandEntry> Table { get; } =
+        [.. MapCommands(), .. TriggerCommands(), .. TerminalCommands(), .. HomeCommands()];
+
+    private static readonly Dictionary<string, CommandEntry> ByName =
+        Table.ToDictionary(entry => entry.Name, StringComparer.Ordinal);
+
+    private static IEnumerable<CommandEntry> MapCommands() =>
+    [
+        CommandEntry.Of("ping", (Commands _) => "pong"),
+        CommandEntry.Of("gameData", (Commands c) => c.State()),
+        CommandEntry.Of("startup", (Commands c) => c.TakeStartup()),
+        CommandEntry.Of("about", (Commands _) => AboutApp()),
+        CommandEntry.Of("chooseGameData", (Commands c) => c.ChooseGameData()),
+        CommandEntry.OfNullable("openMap", (Commands c, OpenMapArgs a) => c.OpenMap(a.Path, a.Archive, a.Discard)),
+        CommandEntry.OfNullable("currentMap", (Commands c) => c.Current()),
+        CommandEntry.Of("tree", (Commands c, KindArgs a) => c.Map().Tree(a.Kind)),
+        CommandEntry.Of("object", (Commands c, ObjectArgs a) => c.ObjectOf(a.Kind, a.Id)),
+        CommandEntry.Of("usedBy", (Commands c, ObjectArgs a) => c.Map().UsedBy(a.Kind, a.Id)),
+        CommandEntry.Of("setField", (Commands c, SetFieldArgs a) => c.SetField(a)),
+        CommandEntry.Of("resetField", (Commands c, FieldArgs a) => c.ResetField(a)),
+        CommandEntry.Of(
+            "createObject", (Commands c, CreateObjectArgs a) => c.Changed(c.Map().Create(a.Kind, a.BaseId, a.Id))),
+        CommandEntry.Of(
+            "copyObject", (Commands c, CopyObjectArgs a) => c.Changed(c.Map().Copy(a.Kind, a.FromId, a.Id))),
+        CommandEntry.Of("nextId", (Commands c, NextIdArgs a) => c.Map().NextId(a.Kind, a.BaseId)),
+        CommandEntry.Do("deleteObject", (Commands c, ObjectArgs a) => c.DeleteObject(a)),
+        CommandEntry.Of("undo", (Commands c) => c.Changed(c.Map().Undo())),
+        CommandEntry.Of("redo", (Commands c) => c.Changed(c.Map().Redo())),
+        CommandEntry.Of("save", (Commands c) => c.Changed(c.Map().Save())),
+        CommandEntry.Of("reload", (Commands c, ReloadArgs a) => c.Reload(a.Discard)),
+        CommandEntry.Of("search", (Commands c, SearchArgs a) => c.Map().Search(a.Query, a.Limit)),
+        CommandEntry.Of("choices", (Commands c) => c.ChoicesOf(c.NeedGameData())),
+        CommandEntry.Of("assetNames", (Commands c) => c.AssetNamesOf(c.NeedGameData())),
+        CommandEntry.Of("fields", (Commands c, KindArgs a) => c.Fields(a.Kind)),
+        CommandEntry.Of("table", (Commands c, TableArgs a) => c.Map().Table(a.Kind, a.Ids, a.Columns)),
+        CommandEntry.Of("setCells", (Commands c, SetCellsArgs a) => c.SetCells(a)),
+        CommandEntry.Do("closeAsking", (Commands c) => c.CloseAsking?.Invoke()),
+        CommandEntry.Do("closeWindow", (Commands c) => c.CloseApproved?.Invoke()),
+        CommandEntry.Do("minimizeWindow", (Commands c) => c.MinimizeAsked?.Invoke()),
+        CommandEntry.Do("maximizeWindow", (Commands c) => c.MaximizeAsked?.Invoke()),
+        CommandEntry.Do("closeClicked", (Commands c) => c.CloseClicked?.Invoke()),
+        CommandEntry.Of("windowState", (Commands c) => new WindowState(c.Maximized())),
+        CommandEntry.Do("frameColors", (Commands c, FrameColorsArgs a) => c.FrameColors(a.Surface, a.Border)),
+        CommandEntry.Do("uiScale", (Commands c, UiScaleArgs a) => c.UiScale(a.Percent)),
+        CommandEntry.Of("assetList", (Commands c, AssetListArgs a) => c.AssetsOf(a.Kind, a.Mode)),
+        CommandEntry.Of("mapScene", (Commands c, MapSceneArgs a) => c.MapSceneOf(a.Mode)),
+        CommandEntry.Of("recentMaps", (Commands c) => c.RecentMaps()),
+        CommandEntry.Of("forgetMap", (Commands c, PathArgs a) => c.ForgetMap(a.Path)),
+    ];
 
     // The map to open the first time, so a page that is loaded again does not open it again.
     private Startup TakeStartup()
@@ -485,7 +498,7 @@ public sealed partial class Commands
     {
         if (!discard && Dirty)
         {
-            throw new CommandException("unsaved", Texts.Get(text));
+            throw new CommandException(ErrorCode.Unsaved, Texts.Get(text));
         }
     }
 
@@ -500,10 +513,10 @@ public sealed partial class Commands
 
     private static MapInfo Info(IMapStore store, Session session)
     {
-        var counts = new Dictionary<string, int>();
+        var counts = new Dictionary<ObjectKind, int>();
         foreach (var kind in Enum.GetValues<ObjectKind>())
         {
-            counts[Kinds.Key(kind)] = session.Tree(kind).Count(entry => entry.BaseId != null);
+            counts[kind] = session.Tree(kind).Count(entry => entry.BaseId != null);
         }
 
         var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(store.Path));
@@ -522,25 +535,18 @@ public sealed partial class Commands
     // An object of a read-only kind is shown too: its view says why it cannot be edited.
     private ObjectView ObjectOf(ObjectKind kind, string id) =>
         Map().Object(kind, id)
-        ?? throw new CommandException(
-            "noObject", Texts.Get("app.error.noObject", ("kind", Kinds.Key(kind)), ("id", id)));
+        ?? throw new CommandException(ErrorCode.NoObject, Texts.Get("app.error.noObject", ("kind", Kinds.Key(kind)), ("id", id)));
 
-    private ObjectView SetField(JsonElement args)
+    private ObjectView SetField(SetFieldArgs args)
     {
-        var session = Map();
-        var kind = Kind(args);
-        var id = Text(args, "id");
-        session.Set(kind, id, Text(args, "field"), Number(args, "level"), Text(args, "value"));
-        return Changed(ObjectOf(kind, id));
+        Map().Set(args.Kind, args.Id, args.Field, args.Level, args.Value);
+        return Changed(ObjectOf(args.Kind, args.Id));
     }
 
-    private ObjectView ResetField(JsonElement args)
+    private ObjectView ResetField(FieldArgs args)
     {
-        var session = Map();
-        var kind = Kind(args);
-        var id = Text(args, "id");
-        session.Reset(kind, id, Text(args, "field"), Number(args, "level"));
-        return Changed(ObjectOf(kind, id));
+        Map().Reset(args.Kind, args.Id, args.Field, args.Level);
+        return Changed(ObjectOf(args.Kind, args.Id));
     }
 
     /// <summary>
@@ -641,65 +647,25 @@ public sealed partial class Commands
         return fields;
     }
 
-    private IReadOnlyList<TableRow> TableOf(JsonElement args)
+    private CellsChanged SetCells(SetCellsArgs args)
     {
-        var session = Map();
-        var kind = Kind(args);
-        var ids = new List<string>();
-        foreach (var item in ArrayOf(args, "ids"))
-        {
-            ids.Add(item.ValueKind == JsonValueKind.String
-                ? item.GetString()!
-                : throw BadRequest("The argument ids must be a list of text."));
-        }
-
-        var columns = new List<Column>();
-        foreach (var item in ArrayOf(args, "columns"))
-        {
-            columns.Add(new Column(Text(item, "field"), Number(item, "level")));
-        }
-
-        return session.Table(kind, ids, columns);
-    }
-
-    private CellsChanged SetCells(JsonElement args)
-    {
-        var session = Map();
-        var kind = Kind(args);
-        var edits = new List<CellEdit>();
-        foreach (var item in ArrayOf(args, "edits"))
-        {
-            // The value must be there, as text or null: a missing one is not taken for a reset.
-            if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("value", out _))
-            {
-                throw BadRequest("Each edit needs an id, a field, a level and a value (text, or null to reset).");
-            }
-
-            edits.Add(new CellEdit(
-                Text(item, "id"), Text(item, "field"), Number(item, "level"), OptionalText(item, "value")));
-        }
-
-        var changed = session.SetCells(kind, edits);
+        var changed = Map().SetCells(args.Kind, args.Edits);
         return changed == 0 ? new CellsChanged(0) : Changed(new CellsChanged(changed));
     }
 
-    private object? DeleteObject(JsonElement args)
+    private void DeleteObject(ObjectArgs args)
     {
-        Map().Delete(Kind(args), Text(args, "id"));
-        return Changed<object?>(null);
+        Map().Delete(args.Kind, args.Id);
+        Changed<object?>(null);
     }
 
-    private AssetList AssetsOf(string kind, string mode)
+    private AssetList AssetsOf(AssetListKind kind, string mode)
     {
-        if (kind is not ("icon" or "model"))
-        {
-            throw BadRequest($"The kind {kind} is not icon or model.");
-        }
-
         var assets = Assets;
         return assets == null
             ? new AssetList(false, Texts.Get("app.assets.none"), "", [])
-            : new AssetList(assets.Ready, assets.Error, assets.Folder, assets.List(kind, mode));
+            : new AssetList(
+                assets.Ready, assets.Error, assets.Folder, assets.List(kind == AssetListKind.Icon ? "icon" : "model", mode));
     }
 
     /// <summary>
@@ -718,7 +684,7 @@ public sealed partial class Commands
             throw BadRequest($"The graphics mode {mode} is not sd, hd or de.");
         }
 
-        var assets = Assets ?? throw new CommandException("noAssets", Texts.Get("app.assets.none"));
+        var assets = Assets ?? throw new CommandException(ErrorCode.NoAssets, Texts.Get("app.assets.none"));
         var (view, terrain) = MapScene.Build(_store!, session, assets, mode);
         Volatile.Write(ref _terrain, new TerrainCopy(mode, terrain));
         return view;
@@ -749,13 +715,7 @@ public sealed partial class Commands
     private static bool IsColor(string text) =>
         text.Length == 7 && text[0] == '#' && text.Skip(1).All(char.IsAsciiHexDigit);
 
-    private static object? Raise(Action? handler)
-    {
-        handler?.Invoke();
-        return null;
-    }
-
-    private Session Map() => _session ?? throw new CommandException("noMap", Texts.Get("app.error.noMap"));
+    private Session Map() => _session ?? throw new CommandException(ErrorCode.NoMap, Texts.Get("app.error.noMap"));
 
     // Tells the page where the map stands now, and passes the command's result on.
     private T Changed<T>(T result)
@@ -765,75 +725,7 @@ public sealed partial class Commands
         return result;
     }
 
-    private static ObjectKind Kind(JsonElement args)
-    {
-        var key = Text(args, "kind");
-        return Kinds.FromKey(key) ?? throw BadRequest($"There is no kind \"{key}\".");
-    }
-
-    private static string Text(JsonElement args, string name) =>
-        OptionalText(args, name) ?? throw BadRequest($"The argument {name} is missing.");
-
-    // A text argument, or null when it is missing or null.
-    private static string? OptionalText(JsonElement args, string name)
-    {
-        if (args.ValueKind != JsonValueKind.Object
-            || !args.TryGetProperty(name, out var value)
-            || value.ValueKind == JsonValueKind.Null)
-        {
-            return null;
-        }
-
-        return value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : throw BadRequest($"The argument {name} must be text.");
-    }
-
-    // The items of a list argument.
-    private static JsonElement.ArrayEnumerator ArrayOf(JsonElement args, string name)
-    {
-        if (args.ValueKind == JsonValueKind.Object
-            && args.TryGetProperty(name, out var value)
-            && value.ValueKind == JsonValueKind.Array)
-        {
-            return value.EnumerateArray();
-        }
-
-        throw BadRequest($"The argument {name} must be a list.");
-    }
-
-    // A yes/no argument; false when it is missing or null.
-    private static bool Flag(JsonElement args, string name)
-    {
-        if (args.ValueKind != JsonValueKind.Object
-            || !args.TryGetProperty(name, out var value)
-            || value.ValueKind == JsonValueKind.Null)
-        {
-            return false;
-        }
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            _ => throw BadRequest($"The argument {name} must be true or false."),
-        };
-    }
-
-    private static int Number(JsonElement args, string name)
-    {
-        if (args.ValueKind == JsonValueKind.Object
-            && args.TryGetProperty(name, out var value)
-            && value.ValueKind == JsonValueKind.Number
-            && value.TryGetInt32(out var number))
-        {
-            return number;
-        }
-
-        throw BadRequest($"The argument {name} must be a whole number.");
-    }
-
-    private static CommandException BadRequest(string message) => new("badRequest", message);
+    private static CommandException BadRequest(string message) => new(ErrorCode.BadRequest, message);
 
     // True once game data is loaded.
     private bool Loaded

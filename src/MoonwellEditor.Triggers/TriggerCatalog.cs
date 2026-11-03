@@ -42,7 +42,7 @@ public sealed record CatalogPreset(string Key, string Type, string Text, string 
 
 /// <summary>A function a trigger can use.</summary>
 /// <param name="Name">Its name in the map's file.</param>
-/// <param name="Kind"><c>event</c>, <c>condition</c>, <c>action</c> or <c>call</c>.</param>
+/// <param name="Kind">What it is.</param>
 /// <param name="Category">Its category's key.</param>
 /// <param name="Title">Its name in the editor's lists.</param>
 /// <param name="Sentence">Its sentence.</param>
@@ -54,7 +54,7 @@ public sealed record CatalogPreset(string Key, string Type, string Text, string 
 /// <param name="Hint">World Editor's hint; empty for none.</param>
 public sealed record CatalogFunction(
     string Name,
-    string Kind,
+    FunctionKind Kind,
     string Category,
     string Title,
     IReadOnlyList<SentencePart> Sentence,
@@ -362,7 +362,7 @@ public sealed partial class TriggerCatalog
         {
             var each = Data.TriggerEvents[key];
             Add(_events, new CatalogFunction(
-                key, "event", each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
+                key, FunctionKind.Event, each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
                 each.ArgumentTypes, Defaults(each.Defaults), null, false, each.GameVersion, Hint(key)));
         }
 
@@ -370,7 +370,7 @@ public sealed partial class TriggerCatalog
         {
             var each = Data.TriggerConditions[key];
             Add(_conditions, new CatalogFunction(
-                key, "condition", each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
+                key, FunctionKind.Condition, each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
                 each.ArgumentTypes, Defaults(each.Defaults), null, false, each.GameVersion, Hint(key)));
         }
 
@@ -378,7 +378,7 @@ public sealed partial class TriggerCatalog
         {
             var each = Data.TriggerActions[key];
             Add(_actions, new CatalogFunction(
-                key, "action", each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
+                key, FunctionKind.Action, each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
                 each.ArgumentTypes, Defaults(each.Defaults), null, false, each.GameVersion, Hint(key)));
         }
 
@@ -386,7 +386,7 @@ public sealed partial class TriggerCatalog
         {
             var each = Data.TriggerCalls[key];
             Add(_calls, new CatalogFunction(
-                key, "call", each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
+                key, FunctionKind.Call, each.Category ?? "", Title(each.DisplayName), Sentence(each.Parameters, each.DisplayName),
                 each.ArgumentTypes, Defaults(each.Defaults), each.ReturnType, each.UsableInEvents, each.GameVersion, Hint(key)));
         }
 

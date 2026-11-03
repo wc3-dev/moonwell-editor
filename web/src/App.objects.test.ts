@@ -38,6 +38,8 @@ describe("the Hidden folder", () => {
     suffix: "",
     path: [t("app.folder.hidden")],
     changed: false,
+    icon: "",
+    iconModes: null,
   };
   const folder = () => screen.queryByRole("button", { name: /^Hidden/ });
   const openTree = () =>

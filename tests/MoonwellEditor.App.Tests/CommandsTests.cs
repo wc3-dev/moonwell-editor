@@ -1,3 +1,4 @@
+using MoonwellEditor.Model;
 using System.Text.Json;
 using MoonwellEditor.App;
 
@@ -107,7 +108,7 @@ public sealed class CommandsTests : IDisposable
         var state = await Ask(commands, "gameData");
 
         Assert.Equal(JsonValueKind.Null, state.GetProperty("result").GetProperty("source").ValueKind);
-        Assert.Equal("gameDataMissing", Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
+        Assert.Equal(ErrorCode.GameDataMissing, Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
     }
 
     [Fact]
@@ -136,7 +137,7 @@ public sealed class CommandsTests : IDisposable
     [Fact]
     public async Task Command_exception_keeps_its_code()
     {
-        var bridge = new Bridge((command, args) => throw new CommandException("gameDataMissing", "no folder"));
+        var bridge = new Bridge((command, args) => throw new CommandException(ErrorCode.GameDataMissing, "no folder"));
 
         var reply = Parse(await bridge.Handle("""{"id":1,"command":"x","args":{}}"""));
 
@@ -290,7 +291,7 @@ public sealed class CommandsTests : IDisposable
         Assert.Equal(JsonValueKind.Null, result.GetProperty("source").ValueKind);
         Assert.False(result.GetProperty("loaded").GetBoolean());
         Assert.Equal(JsonValueKind.Null, result.GetProperty("error").ValueKind);
-        Assert.Equal("gameDataMissing", Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
+        Assert.Equal(ErrorCode.GameDataMissing, Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
     }
 
     [Fact]
@@ -310,7 +311,7 @@ public sealed class CommandsTests : IDisposable
         Assert.Equal(_folder, result.GetProperty("source").GetString());
         Assert.False(result.GetProperty("loaded").GetBoolean());
         Assert.Equal(JsonValueKind.Null, result.GetProperty("error").ValueKind);
-        Assert.Equal("gameDataLoading", Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
+        Assert.Equal(ErrorCode.GameDataLoading, Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
 
         release.Set();
         await loading;
@@ -327,7 +328,7 @@ public sealed class CommandsTests : IDisposable
         var result = reply.GetProperty("result");
         Assert.False(result.GetProperty("loaded").GetBoolean());
         Assert.Equal("no such folder", result.GetProperty("error").GetString());
-        Assert.Equal("gameDataFailed", Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
+        Assert.Equal(ErrorCode.GameDataFailed, Assert.Throws<CommandException>(() => commands.NeedGameData()).Code);
     }
 
     [Fact]

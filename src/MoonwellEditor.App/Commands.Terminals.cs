@@ -1,5 +1,5 @@
-using System.Text.Json;
 using MoonwellEditor.Files;
+using MoonwellEditor.Model;
 
 namespace MoonwellEditor.App;
 
@@ -31,7 +31,7 @@ public sealed partial class Commands
     /// </summary>
     /// <param name="command">The command's name.</param>
     /// <returns>Whether it runs beside the others.</returns>
-    public static bool RunsAlongside(string command) => command.StartsWith("terminal", StringComparison.Ordinal);
+    public static bool RunsAlongside(string command) => ByName.TryGetValue(command, out var entry) && entry.RunsAlongside;
 
     /// <summary>The folder a new terminal opens in: the map's own, or the one its archive sits in; else the home folder.</summary>
     /// <param name="map">The map's folder or archive file; null with no map open.</param>
@@ -45,33 +45,21 @@ public sealed partial class Commands
         return folder != null && exists(folder) ? folder : home;
     }
 
-    private object? RunTerminal(string command, JsonElement args)
-    {
-        switch (command)
-        {
-            case "terminalShells":
-                return Shells.Found();
-            case "terminalStart":
-                return StartTerminal(Text(args, "shell"), Number(args, "columns"), Number(args, "rows"));
-            case "terminalWrite":
-                Terminals.Write(Number(args, "id"), Text(args, "text"));
-                return null;
-            case "terminalResize":
-                Terminals.Resize(Number(args, "id"), Number(args, "columns"), Number(args, "rows"));
-                return null;
-            case "terminalClose":
-                Terminals.Close(Number(args, "id"));
-                return null;
-            default:
-                throw new UnknownCommandException(command);
-        }
-    }
+    private static IEnumerable<CommandEntry> TerminalCommands() =>
+    [
+        CommandEntry.Of("terminalShells", (Commands _) => Shells.Found()).Alongside(),
+        CommandEntry.Of("terminalStart", (Commands c, TerminalStartArgs a) => c.StartTerminal(a.Shell, a.Columns, a.Rows))
+            .Alongside(),
+        CommandEntry.Tell("terminalWrite", (Commands c, TerminalWriteArgs a) => c.Terminals.Write(a.Id, a.Text)),
+        CommandEntry.Tell("terminalResize", (Commands c, TerminalResizeArgs a) => c.Terminals.Resize(a.Id, a.Columns, a.Rows)),
+        CommandEntry.Tell("terminalClose", (Commands c, TerminalIdArgs a) => c.Terminals.Close(a.Id)),
+    ];
 
     private TerminalStarted StartTerminal(string shellId, int columns, int rows)
     {
         var shells = Shells.Found();
         var shell = shells.FirstOrDefault(each => each.Id == shellId) ?? shells.FirstOrDefault()
-            ?? throw new CommandException("noShell", Texts.Get("app.terminal.noShell"));
+            ?? throw new CommandException(ErrorCode.NoShell, Texts.Get("app.terminal.noShell"));
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var store = _store;
         var folder = TerminalFolder(store?.Path, store?.IsArchive ?? false, Directory.Exists, home);

@@ -1,7 +1,7 @@
 /** The scripts open in the Script Editor (Sven, 2026-10-31): what can be opened, and how the list changes. */
-import type { TreeItem, TreeKind } from "../triggers/api.ts";
+import type { TreeKind, TriggerTreeItem } from "../triggers/api.ts";
 
-export type OpenScript = Pick<TreeItem, "id" | "kind" | "name">;
+export type OpenScript = Pick<TriggerTreeItem, "id" | "kind" | "name">;
 
 /** True for what holds a script: Map Script, a custom script, and a trigger written as text. */
 export function isScript(item: { kind: TreeKind }): boolean {
@@ -27,7 +27,7 @@ export function closed(
 /** The list as the map has it now: a script deleted closes, and one renamed takes its new name. */
 export function matched(
   list: OpenScript[],
-  items: TreeItem[],
+  items: TriggerTreeItem[],
   active: number | null,
 ): { list: OpenScript[]; active: number | null } {
   let now = { list, active };

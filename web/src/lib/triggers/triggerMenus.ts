@@ -7,13 +7,13 @@ import {
   deleteFunction,
   enableFunction,
   type FunctionView,
-  type TreeItem,
+  type TriggerTreeItem,
 } from "./api.ts";
 import { blockPlace, type TriggerState } from "./triggerState.svelte.ts";
 
 export function itemMenu(
   state: TriggerState,
-  each: TreeItem,
+  each: TriggerTreeItem,
   x: number,
   y: number,
   extra: MenuItem[] = [],

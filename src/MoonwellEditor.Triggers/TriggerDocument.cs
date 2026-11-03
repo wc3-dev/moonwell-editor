@@ -16,7 +16,7 @@ namespace MoonwellEditor.Triggers;
 /// <param name="Enabled">False for a trigger that is switched off.</param>
 /// <param name="Expanded">True for a category shown open.</param>
 /// <param name="Ref">The name a parameter holds for a trigger (<c>gg_trg_Wave_1</c>); empty for the other kinds.</param>
-public sealed record TriggerTreeItem(int Id, int Parent, string Kind, string Name, bool Enabled, bool Expanded, string Ref);
+public sealed record TriggerTreeItem(int Id, int Parent, TriggerItemKind Kind, string Name, bool Enabled, bool Expanded, string Ref);
 
 /// <summary>
 /// A map's triggers: <c>war3map.wtg</c> and <c>war3map.wct</c> as War3Net reads them, with the edits made to them. A
@@ -138,21 +138,28 @@ public sealed partial class TriggerDocument
         var rooted = Live().Any(item => item.Type == TriggerItemType.RootCategory);
         if (!rooted)
         {
-            items.Add(new TriggerTreeItem(NoRoot, -1, "root", "", true, true, ""));
+            items.Add(new TriggerTreeItem(NoRoot, -1, TriggerItemKind.Root, "", true, true, ""));
         }
 
         foreach (var item in Live())
         {
-            var (kind, enabled, expanded) = item switch
+            (TriggerItemKind Kind, bool Enabled, bool Expanded)? shown = item switch
             {
                 TriggerCategoryDefinition category => (
-                    item.Type == TriggerItemType.RootCategory ? "root" : "category", true, category.IsExpanded),
-                TriggerVariableDefinition => ("variable", true, false),
+                    item.Type == TriggerItemType.RootCategory ? TriggerItemKind.Root : TriggerItemKind.Category,
+                    true,
+                    category.IsExpanded),
+                TriggerVariableDefinition => (TriggerItemKind.Variable, true, false),
                 TriggerDefinition definition => (KindOf(definition), definition.IsEnabled, false),
-                _ => ("", false, false),
+                _ => null,
             };
+            if (shown is not var (kind, enabled, expanded))
+            {
+                continue;
+            }
+
             var parent = rooted || ids.Contains(item.ParentId) ? item.ParentId : NoRoot;
-            var name = kind is "trigger" or "custom" ? ScriptName(item.Name) : "";
+            var name = kind is TriggerItemKind.Trigger or TriggerItemKind.Custom ? ScriptName(item.Name) : "";
             items.Add(new TriggerTreeItem(item.Id, parent, kind, item.Name, enabled, expanded, name));
         }
 
@@ -235,12 +242,12 @@ public sealed partial class TriggerDocument
             GlobalCustomScriptCode = new CustomTextTrigger { Code = "" },
         };
 
-    private static string KindOf(TriggerDefinition definition) => definition switch
+    private static TriggerItemKind KindOf(TriggerDefinition definition) => definition switch
     {
-        { Type: TriggerItemType.Comment } => "comment",
-        { Type: TriggerItemType.Script } => "script",
-        { IsCustomTextTrigger: true } => "custom",
-        _ => "trigger",
+        { Type: TriggerItemType.Comment } => TriggerItemKind.Comment,
+        { Type: TriggerItemType.Script } => TriggerItemKind.Script,
+        { IsCustomTextTrigger: true } => TriggerItemKind.Custom,
+        _ => TriggerItemKind.Trigger,
     };
 
     // The items that are in the tree.

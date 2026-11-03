@@ -6,7 +6,7 @@
 import { mat4 } from "gl-matrix";
 import { ownerRgb } from "../../teamColors.ts";
 import { byModel, instanceMatrix } from "../models.ts";
-import type { MapScene, PlacedThing, ThingKind } from "../scene.ts";
+import type { MapSceneView, PlacedThing, ThingKind } from "../scene.ts";
 
 export const instanceFloats = 23;
 
@@ -50,8 +50,8 @@ function write(
  * The cliff and ramp models, each at its tile's bottom-left corner and its lowest cliff level, turned a quarter
  * clockwise (*claim*, HiveWE: the game's cliff models lie so), in its cliff type's texture.
  */
-export function cliffBatches(scene: MapScene): Batch[] {
-  const groups = new Map<string, MapScene["cliffs"]>();
+export function cliffBatches(scene: MapSceneView): Batch[] {
+  const groups = new Map<string, MapSceneView["cliffs"]>();
   for (const piece of scene.cliffs) {
     const key = `${piece.model}|${piece.cliffType}`;
     const group = groups.get(key);

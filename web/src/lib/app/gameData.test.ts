@@ -4,18 +4,24 @@ import { chooseGameData, gameData, newer, viewOf } from "./gameData.ts";
 
 describe("viewOf", () => {
   it("is missing with no folder, loading with a folder, failed with an error, ready once loaded", () => {
-    expect(viewOf({ source: null, loaded: false, error: null, version: 0 })).toBe("missing");
-    expect(viewOf({ source: "C:data", loaded: false, error: null, version: 1 })).toBe("loading");
-    expect(viewOf({ source: "C:data", loaded: false, error: "no such folder", version: 2 })).toBe(
-      "failed",
+    expect(viewOf({ source: null, loaded: false, error: null, version: 0, game: null })).toBe(
+      "missing",
     );
-    expect(viewOf({ source: "C:data", loaded: true, error: null, version: 2 })).toBe("ready");
+    expect(viewOf({ source: "C:data", loaded: false, error: null, version: 1, game: null })).toBe(
+      "loading",
+    );
+    expect(
+      viewOf({ source: "C:data", loaded: false, error: "no such folder", version: 2, game: null }),
+    ).toBe("failed");
+    expect(viewOf({ source: "C:data", loaded: true, error: null, version: 2, game: null })).toBe(
+      "ready",
+    );
   });
 });
 
 describe("newer", () => {
-  const loading = { source: "C:data", loaded: false, error: null, version: 1 };
-  const loaded = { source: "C:data", loaded: true, error: null, version: 2 };
+  const loading = { source: "C:data", loaded: false, error: null, version: 1, game: null };
+  const loaded = { source: "C:data", loaded: true, error: null, version: 2, game: null };
 
   it("takes the first state, and a state as new or newer than the one it has", () => {
     expect(newer(null, loading)).toBe(loading);
@@ -53,7 +59,7 @@ describe("the commands", () => {
   });
 
   it("gameData and chooseGameData call the app's commands of those names", async () => {
-    const state = { source: "C:data", loaded: false, error: null, version: 1 };
+    const state = { source: "C:data", loaded: false, error: null, version: 1, game: null };
     const first = gameData();
     const second = chooseGameData();
 
@@ -67,7 +73,7 @@ describe("the commands", () => {
   });
 
   it("a failed call carries the app's error code", async () => {
-    const pending = call("needsData");
+    const pending = call("choices");
     listener?.({
       data: JSON.stringify({
         id: sent[0]?.id,

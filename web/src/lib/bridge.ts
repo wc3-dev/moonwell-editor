@@ -3,6 +3,7 @@
  * replies are `{id, ok, result | error}` and events are `{event, payload}`, both coming back as strings.
  */
 
+import type { Commands, ErrorCode, Events, NoArgs, Tells } from "./bridge.gen.ts";
 import { t } from "./text.ts";
 
 type Webview = NonNullable<NonNullable<Window["chrome"]>["webview"]>;
@@ -10,15 +11,25 @@ type Reply = {
   id: number | null;
   ok: boolean;
   result?: unknown;
-  error?: { code: string; message: string };
+  error?: { code: ErrorCode; message: string };
 };
+
+/**
+ * What `call` takes after a command's name: nothing for a command with no arguments, its arguments (which may be left
+ * out when every one has a default) for the others.
+ */
+type ArgsOf<C extends keyof Commands> = Commands[C]["args"] extends NoArgs
+  ? []
+  : NoArgs extends Commands[C]["args"]
+    ? [args?: Commands[C]["args"]]
+    : [args: Commands[C]["args"]];
 type Pending = { resolve: (value: never) => void; reject: (error: Error) => void };
 
 /** A command that failed in the app. `code` is the app's error code, such as `gameDataLoading`. */
 export class BridgeError extends Error {
-  readonly code: string;
+  readonly code: ErrorCode;
 
-  constructor(code: string, message: string) {
+  constructor(code: ErrorCode, message: string) {
     super(message);
     this.name = "BridgeError";
     this.code = code;
@@ -81,14 +92,18 @@ function errorOf(reply: Reply): BridgeError {
 }
 
 /**
- * Runs a command in the app. Rejects with a BridgeError (the app's code and message) when the command fails, and
- * with an Error when the page is not inside the Moonwell Editor window.
+ * Runs a command in the app. Its name, its arguments and its answer are the app's own (`Commands`, generated from the C#
+ * command table). Rejects with a BridgeError (the app's code and message) when the command fails, and with an Error
+ * when the page is not inside the Moonwell Editor window.
  */
-export async function call<T>(command: string, args: object = {}): Promise<T> {
+export async function call<C extends keyof Commands>(
+  command: C,
+  ...args: ArgsOf<C>
+): Promise<Commands[C]["answer"]> {
   const channel = webview();
   const id = nextId++;
   count(1);
-  return new Promise<T>((resolve, reject) => {
+  return new Promise<Commands[C]["answer"]>((resolve, reject) => {
     pending.set(id, {
       resolve: (value: never) => {
         count(-1);
@@ -99,7 +114,7 @@ export async function call<T>(command: string, args: object = {}): Promise<T> {
         reject(error);
       },
     });
-    channel.postMessage(JSON.stringify({ id, command, args }));
+    channel.postMessage(JSON.stringify({ id, command, args: args[0] ?? {} }));
   });
 }
 
@@ -107,7 +122,7 @@ export async function call<T>(command: string, args: object = {}): Promise<T> {
  * Sends a command that is not answered, for what comes too often to count as the app working (keys in a terminal). It
  * must not be able to fail: a failure has no id to go back to.
  */
-export function tell(command: string, args: object): void {
+export function tell<C extends keyof Tells>(command: C, args: Tells[C]): void {
   webview().postMessage(JSON.stringify({ command, args }));
 }
 
@@ -124,12 +139,16 @@ export function onWaiting(handler: (waiting: number) => void): () => void {
 }
 
 /** Listens to an event the app sends on its own. Returns a function that stops listening. */
-export function on(event: string, handler: (payload: unknown) => void): () => void {
+export function on<E extends keyof Events>(
+  event: E,
+  handler: (payload: Events[E]) => void,
+): () => void {
   webview();
   const set = handlers.get(event) ?? new Set();
-  set.add(handler);
+  const take = (payload: unknown) => handler(payload as Events[E]);
+  set.add(take);
   handlers.set(event, set);
   return () => {
-    set.delete(handler);
+    set.delete(take);
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Column, FieldInfo, TableCell, TableRow, TreeEntry } from "../api.ts";
+import type { Column, FieldDescription, TableCell, TableRow, TreeEntry } from "../api.ts";
 import { t } from "../text.ts";
 import { defaultColumns } from "./grid.ts";
 import {
@@ -32,6 +32,8 @@ function entry(id: string, path: string[], over: Partial<TreeEntry> = {}): TreeE
     suffix: "",
     path,
     changed: false,
+    icon: "",
+    iconModes: null,
     ...over,
   };
 }
@@ -47,7 +49,11 @@ const entries = [
 
 const standardOnly = entries.filter((each) => each.path[0] !== "Custom");
 
-function info(id: string, perLevel = false, over: Partial<FieldInfo> = {}): FieldInfo {
+function info(
+  id: string,
+  perLevel = false,
+  over: Partial<FieldDescription> = {},
+): FieldDescription {
   return {
     id,
     label: `Label ${id}`,
@@ -57,6 +63,7 @@ function info(id: string, perLevel = false, over: Partial<FieldInfo> = {}): Fiel
     perLevel,
     choice: null,
     listOf: null,
+    meta: "",
     ...over,
   };
 }

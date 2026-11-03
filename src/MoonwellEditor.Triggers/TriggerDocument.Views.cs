@@ -22,7 +22,7 @@ public sealed record TextPart(string Text, ParameterView? Parameter = null);
 /// <param name="Path">Where it is in the trigger.</param>
 /// <param name="Type">Its type's key.</param>
 /// <param name="Name">The argument's name in the sentence (<c>Time</c>).</param>
-/// <param name="Kind"><c>preset</c>, <c>variable</c>, <c>function</c>, <c>value</c>, or <c>none</c> when it has no value.</param>
+/// <param name="Kind">What it holds; <see cref="ParameterKind.None"/> when it has no value.</param>
 /// <param name="Value">The value the map's file holds.</param>
 /// <param name="Text">The value as shown.</param>
 /// <param name="Typed">A typed value as its box starts: not rounded, a <c>TRIGSTR_n</c> as its text; empty for the other kinds.</param>
@@ -32,7 +32,7 @@ public sealed record ParameterView(
     string Path,
     string Type,
     string Name,
-    string Kind,
+    ParameterKind Kind,
     string Value,
     string Text,
     string Typed,
@@ -42,15 +42,15 @@ public sealed record ParameterView(
 /// <summary>A block of a function that holds others: the Then actions of an If.</summary>
 /// <param name="Branch">The block's number in the file.</param>
 /// <param name="Title">Its title (<c>Then - Actions</c>).</param>
-/// <param name="Kind"><c>condition</c> or <c>action</c>.</param>
+/// <param name="Kind">What it holds.</param>
 /// <param name="Functions">What it holds.</param>
-public sealed record BlockView(int Branch, string Title, string Kind, IReadOnlyList<FunctionView> Functions);
+public sealed record BlockView(int Branch, string Title, BlockKind Kind, IReadOnlyList<FunctionView> Functions);
 
 /// <summary>A function in a trigger.</summary>
 /// <param name="Path">Where it is in the trigger.</param>
 /// <param name="Name">Its name.</param>
 /// <param name="Title">Its name in the editor's lists, for its card's title bar.</param>
-/// <param name="Kind"><c>event</c>, <c>condition</c>, <c>action</c> or <c>call</c>.</param>
+/// <param name="Kind">What it is.</param>
 /// <param name="Category">Its category's key.</param>
 /// <param name="Enabled">False when it is turned off.</param>
 /// <param name="Branch">The block it is in; null for one in a trigger's own list or a parameter.</param>
@@ -61,7 +61,7 @@ public sealed record FunctionView(
     string Path,
     string Name,
     string Title,
-    string Kind,
+    FunctionKind Kind,
     string Category,
     bool Enabled,
     int? Branch,
@@ -83,7 +83,7 @@ public sealed record FunctionView(
 /// <param name="Code">A script's text; null for the other kinds.</param>
 public sealed record TriggerView(
     int Id,
-    string Kind,
+    TriggerItemKind Kind,
     string Name,
     string Description,
     bool Enabled,
@@ -135,25 +135,25 @@ public sealed partial class TriggerDocument
             functions.Where(each => each.Function.Type == type).Select(each => each.View).ToList();
     }
 
-    private static (int Branch, string Title, string Kind)[] BlocksOf(string name)
+    private static (int Branch, string Title, BlockKind Kind)[] BlocksOf(string name)
     {
         if (name == "IfThenElseMultiple")
         {
             return
             [
-                (0, "WESTRING_TRIGSUBFUNC_IFCONDITIONS", "condition"),
-                (1, "WESTRING_TRIGSUBFUNC_IFTHENACTIONS", "action"),
-                (2, "WESTRING_TRIGSUBFUNC_IFELSEACTIONS", "action"),
+                (0, "WESTRING_TRIGSUBFUNC_IFCONDITIONS", BlockKind.Condition),
+                (1, "WESTRING_TRIGSUBFUNC_IFTHENACTIONS", BlockKind.Action),
+                (2, "WESTRING_TRIGSUBFUNC_IFELSEACTIONS", BlockKind.Action),
             ];
         }
 
         if (name is "AndMultiple" or "OrMultiple")
         {
-            return [(0, "WESTRING_TRIGSUBFUNC_ANDORCONDITIONS", "condition")];
+            return [(0, "WESTRING_TRIGSUBFUNC_ANDORCONDITIONS", BlockKind.Condition)];
         }
 
         return name.EndsWith("Multiple", StringComparison.Ordinal)
-            ? [(0, "WESTRING_TRIGSUBFUNC_FORLOOPACTIONS", "action")]
+            ? [(0, "WESTRING_TRIGSUBFUNC_FORLOOPACTIONS", BlockKind.Action)]
             : [];
     }
 
@@ -218,11 +218,11 @@ public sealed partial class TriggerDocument
             name,
             parameter.Type switch
             {
-                TriggerFunctionParameterType.Preset => "preset",
-                TriggerFunctionParameterType.Variable => "variable",
-                TriggerFunctionParameterType.Function => "function",
-                TriggerFunctionParameterType.String => "value",
-                _ => "none",
+                TriggerFunctionParameterType.Preset => ParameterKind.Preset,
+                TriggerFunctionParameterType.Variable => ParameterKind.Variable,
+                TriggerFunctionParameterType.Function => ParameterKind.Function,
+                TriggerFunctionParameterType.String => ParameterKind.Value,
+                _ => ParameterKind.None,
             },
             parameter.Value,
             parameter.Type switch

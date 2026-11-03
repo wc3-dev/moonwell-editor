@@ -11,6 +11,13 @@ public sealed partial class Commands
     /// </summary>
     public event Action<HomeChange>? HomeChanged;
 
+    private static IEnumerable<CommandEntry> HomeCommands() =>
+    [
+        CommandEntry.Do("writeHome", (Commands c, WriteHomeArgs a) => c.WriteHome(a.File, a.Text)),
+        CommandEntry.Do("setState", (Commands c, SetStateArgs a) => c.SetState(a.Key, a.Value)),
+        CommandEntry.Do("openHome", (Commands c, OpenHomeArgs a) => c.OpenHome(a.File)),
+    ];
+
     // A refused name is the page's mistake; a file that cannot be written is the disk's, and answers as "failed".
     private object? WriteHome(string file, string text)
     {
@@ -61,11 +68,6 @@ public sealed partial class Commands
         _open(path);
         return null;
     }
-
-    private static JsonElement ValueOf(JsonElement args) =>
-        args.ValueKind == JsonValueKind.Object && args.TryGetProperty("value", out var value)
-            ? value
-            : throw BadRequest("The argument value is missing.");
 
     // settings.json names another folder (the page wrote it, or the user edited the file): load it, or the install found
     // when it names none, unless that is the one loaded already. With nothing to load the data in use stays.

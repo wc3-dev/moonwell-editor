@@ -1,3 +1,4 @@
+using MoonwellEditor.Model;
 using MoonwellEditor.Files;
 using Xunit.Abstractions;
 
@@ -49,13 +50,13 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         session.Set(ObjectKind.Unit, "hfoo", "urac", 0, "undead");
         Assert.Equal("undead", Single(session.Object(ObjectKind.Unit, "hfoo")!, "urac", 0).Value);
 
-        Assert.Equal("noObject", Refused(() => session.Set(ObjectKind.Unit, "zzzz", "uhpm", 0, "1")));
-        Assert.Equal("noField", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "zzzz", 0, "1")));
-        Assert.Equal("noField", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ustr", 0, "1")));   // a hero's
-        Assert.Equal("noField", Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 4, "1")));
-        Assert.Equal("noField", Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 0, "1")));
-        Assert.Equal("noField", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 1, "1")));
-        Assert.Equal("noObject", Refused(() => session.Reset(ObjectKind.Unit, "zzzz", "uhpm", 0)));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Set(ObjectKind.Unit, "zzzz", "uhpm", 0, "1")));
+        Assert.Equal(ErrorCode.NoField, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "zzzz", 0, "1")));
+        Assert.Equal(ErrorCode.NoField, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ustr", 0, "1")));   // a hero's
+        Assert.Equal(ErrorCode.NoField, Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 4, "1")));
+        Assert.Equal(ErrorCode.NoField, Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 0, "1")));
+        Assert.Equal(ErrorCode.NoField, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 1, "1")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Reset(ObjectKind.Unit, "zzzz", "uhpm", 0)));
     }
 
     [Fact]
@@ -176,7 +177,7 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal(new FieldValue.Text("Captain"), footman.Find("unam", 0)!.Value);
 
         // The format cannot hold a line that is a lone }.
-        Assert.Equal("badText", Refused(() => session.Set(ObjectKind.Unit, "h000", "unam", 0, "a\n}\nb")));
+        Assert.Equal(ErrorCode.BadText, Refused(() => session.Set(ObjectKind.Unit, "h000", "unam", 0, "a\n}\nb")));
         Assert.Equal("Knight", session.Strings!.Get(12));
 
         Assert.True(session.Undo());
@@ -282,11 +283,11 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal("A00!", session.Create(ObjectKind.Ability, "AHhb", "A00!"));
         Assert.Equal("A~#%", session.Create(ObjectKind.Ability, "AHhb", "A~#%"));
         Assert.Equal("A+-.", session.Create(ObjectKind.Ability, "AHhb", "A+-."));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A0,0")));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00 ")));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00å")));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00!!")));
-        Assert.Equal("idTaken", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00!")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A0,0")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00 ")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00å")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00!!")));
+        Assert.Equal(ErrorCode.IdTaken, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A00!")));
     }
 
     [Fact]
@@ -312,12 +313,12 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal("h00Z", session.Create(ObjectKind.Unit, "hfoo", "h00Z"));
         Assert.Equal("h003", session.Create(ObjectKind.Unit, "hfoo", null));
 
-        Assert.Equal("idTaken", Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A000")));
-        Assert.Equal("idTaken", Refused(() => session.Create(ObjectKind.Unit, "hfoo", "hpea")));
-        Assert.Equal("idTaken", Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h001")));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h0")));
-        Assert.Equal("idInvalid", Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h0 1")));
-        Assert.Equal("noObject", Refused(() => session.Create(ObjectKind.Unit, "zzzz", null)));
+        Assert.Equal(ErrorCode.IdTaken, Refused(() => session.Create(ObjectKind.Ability, "AHhb", "A000")));
+        Assert.Equal(ErrorCode.IdTaken, Refused(() => session.Create(ObjectKind.Unit, "hfoo", "hpea")));
+        Assert.Equal(ErrorCode.IdTaken, Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h001")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h0")));
+        Assert.Equal(ErrorCode.IdInvalid, Refused(() => session.Create(ObjectKind.Unit, "hfoo", "h0 1")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Create(ObjectKind.Unit, "zzzz", null)));
 
         // The new object is in both files, with no modifications, after the map's own objects.
         var view = session.Object(ObjectKind.Unit, "h001")!;
@@ -354,16 +355,16 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         var footman = session.Object(ObjectKind.Unit, "h005")!;
         Assert.Equal("hfoo", footman.BaseId);
         Assert.Equal("500", Single(footman, "uhpm", 0).Value);
-        Assert.Equal("idTaken", Refused(() => session.Copy(ObjectKind.Unit, "hfoo", "h000")));
-        Assert.Equal("noObject", Refused(() => session.Copy(ObjectKind.Unit, "zzzz", null)));
+        Assert.Equal(ErrorCode.IdTaken, Refused(() => session.Copy(ObjectKind.Unit, "hfoo", "h000")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Copy(ObjectKind.Unit, "zzzz", null)));
 
         session.Delete(ObjectKind.Unit, "h001");
         Assert.Null(session.Object(ObjectKind.Unit, "h001"));
         Assert.DoesNotContain(session.FileOf(ObjectKind.Unit, false)!.Custom, entry => entry.Id == "h001");
         Assert.DoesNotContain(session.FileOf(ObjectKind.Unit, true)!.Custom, entry => entry.Id == "h001");
         Assert.Equal("h001", session.Create(ObjectKind.Unit, "hfoo", null));
-        Assert.Equal("noObject", Refused(() => session.Delete(ObjectKind.Unit, "hfoo")));
-        Assert.Equal("noObject", Refused(() => session.Delete(ObjectKind.Unit, "zzzz")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Delete(ObjectKind.Unit, "hfoo")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.Delete(ObjectKind.Unit, "zzzz")));
     }
 
     [Fact]
@@ -386,7 +387,7 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
 
         Assert.Equal(session.NextId(ObjectKind.Unit, "hfoo"), session.Create(ObjectKind.Unit, "hfoo", null));
         Assert.Equal("h002", session.NextId(ObjectKind.Unit, "hfoo"));
-        Assert.Equal("noObject", Refused(() => session.NextId(ObjectKind.Unit, "zzzz")));
+        Assert.Equal(ErrorCode.NoObject, Refused(() => session.NextId(ObjectKind.Unit, "zzzz")));
     }
 
     [Fact]
@@ -622,12 +623,12 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         using var map = TempMap.Of("we-3.0");
         var session = Session.Open(MapFolder.Open(map.Folder), game);
 
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "lots")));
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "1.5")));
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "")));
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "fast")));
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "NaN")));
-        Assert.Equal("notNumber", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "1,5")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "lots")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "1.5")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "fast")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "NaN")));
+        Assert.Equal(ErrorCode.NotNumber, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ua1c", 0, "1,5")));
 
         Assert.False(session.Dirty);
         Assert.False(Single(session.Object(ObjectKind.Unit, "hfoo")!, "uhpm", 0).Changed);
@@ -646,17 +647,17 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         var session = Session.Open(MapFolder.Open(map.Folder), game);
 
         // A yes/no field takes 1 or 0 only.
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "7")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "-1")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "Yes")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "7")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "-1")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "Yes")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "ubdg", 0, "")));
 
         // A choice of one value takes one of its list's values, not anything else and not a label that differs.
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "Bogus")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "Fortified")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "")));
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udea", 0, "7")));   // stored as int
-        Assert.Equal("badValue", Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udea", 0, "fast")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "Bogus")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "Fortified")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "")));
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udea", 0, "7")));   // stored as int
+        Assert.Equal(ErrorCode.BadValue, Refused(() => session.Set(ObjectKind.Unit, "hfoo", "udea", 0, "fast")));
         var message = Assert.Throws<EditException>(() => session.Set(ObjectKind.Unit, "hfoo", "udty", 0, "Bogus"))
             .Message;
         output.WriteLine(message);
@@ -717,7 +718,7 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
                     {
                         session.Set(kind, standard.Id, field.Id, level, value);
                     }
-                    catch (EditException exception) when (exception.Code is "badValue" or "notNumber")
+                    catch (EditException exception) when (exception.Code is ErrorCode.BadValue or ErrorCode.NotNumber)
                     {
                         refused.Add($"{standard.Id} {key} = \"{value}\": {exception.Message}");
                     }
@@ -824,11 +825,11 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         File.WriteAllBytes(Path.Combine(map.Folder, "war3map.w3a"), [3, 0, 0, 0, 0]);
         var session = Session.Open(MapFolder.Open(map.Folder), game);
 
-        Assert.Equal("readOnly", Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 1, "5")));
-        Assert.Equal("readOnly", Refused(() => session.Reset(ObjectKind.Ability, "A000", "anam", 0)));
-        Assert.Equal("readOnly", Refused(() => session.Create(ObjectKind.Ability, "AHhb", null)));
-        Assert.Equal("readOnly", Refused(() => session.Copy(ObjectKind.Ability, "A000", null)));
-        Assert.Equal("readOnly", Refused(() => session.Delete(ObjectKind.Ability, "A000")));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => session.Set(ObjectKind.Ability, "AHhb", "acdn", 1, "5")));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => session.Reset(ObjectKind.Ability, "A000", "anam", 0)));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => session.Create(ObjectKind.Ability, "AHhb", null)));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => session.Copy(ObjectKind.Ability, "A000", null)));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => session.Delete(ObjectKind.Ability, "A000")));
         Assert.False(session.Dirty);
         Assert.NotNull(session.FileOf(ObjectKind.Ability, true)!.Custom.Single().Find("anam", 0));
 
@@ -842,9 +843,9 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
             Path.Combine(twoSets.Folder, "war3map.w3u"),
             [.. bytes[..20], 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, .. bytes[28..]]);
         var sets = Session.Open(MapFolder.Open(twoSets.Folder), game);
-        Assert.Equal("readOnly", Refused(() => sets.Set(ObjectKind.Unit, "h000", "uhpm", 0, "5")));
-        Assert.Equal("readOnly", Refused(() => sets.Delete(ObjectKind.Unit, "h000")));
-        Assert.Equal("readOnly", Refused(() => sets.Copy(ObjectKind.Unit, "h000", null)));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => sets.Set(ObjectKind.Unit, "h000", "uhpm", 0, "5")));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => sets.Delete(ObjectKind.Unit, "h000")));
+        Assert.Equal(ErrorCode.ReadOnly, Refused(() => sets.Copy(ObjectKind.Unit, "h000", null)));
         sets.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "500");
         Assert.Equal("h001", sets.Create(ObjectKind.Unit, "hfoo", null));
     }
@@ -866,7 +867,7 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         return lines;
     }
 
-    private static string Refused(Action edit) => Assert.Throws<EditException>(edit).Code;
+    private static ErrorCode Refused(Action edit) => Assert.Throws<EditException>(edit).Code;
 
     private static FieldView Single(ObjectView view, string field, int level) =>
         Assert.Single(view.Fields, candidate => candidate.Id == field && candidate.Level == level);

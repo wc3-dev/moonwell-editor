@@ -2,15 +2,15 @@
 import type { Kind } from "../api.ts";
 import type { PickKind } from "../map/picking.ts";
 import type {
-  Catalog,
   CatalogFunction,
   CatalogPreset,
   FunctionKind,
   FunctionView,
   ParameterView,
-  TreeItem,
+  TriggerCatalogView,
+  TriggerTreeItem,
   TriggerView,
-  Variable,
+  VariableView,
 } from "./api.ts";
 
 /** Where the user is: the side panel, or the grid of cards. */
@@ -21,27 +21,27 @@ export type TriggerZone = "tree" | "grid";
  * only the one on show, which an empty click leaves selected.
  */
 export function actedOn(
-  item: TreeItem | null,
+  item: TriggerTreeItem | null,
   zone: TriggerZone,
   gridParent: number | null,
-): TreeItem | null {
+): TriggerTreeItem | null {
   if (!item || item.kind === "root") return null;
   return zone === "grid" && item.id === gridParent ? null : item;
 }
 
 /** One row of the tree. */
-export type TreeRow = { item: TreeItem; depth: number; children: boolean };
+export type TreeRow = { item: TriggerTreeItem; depth: number; children: boolean };
 
 /**
  * The rows to show, in tree order: the root, then what is in each open category. With a filter, every item whose name
  * has it and the categories around it, open or not.
  */
 export function treeRows(
-  items: TreeItem[],
-  isOpen: (item: TreeItem) => boolean,
+  items: TriggerTreeItem[],
+  isOpen: (item: TriggerTreeItem) => boolean,
   filter: string,
 ): TreeRow[] {
-  const byParent = new Map<number, TreeItem[]>();
+  const byParent = new Map<number, TriggerTreeItem[]>();
   for (const item of items) {
     if (item.kind === "root") continue;
     const siblings = byParent.get(item.parent);
@@ -49,12 +49,12 @@ export function treeRows(
     else byParent.set(item.parent, [item]);
   }
   const wanted = filter.trim().toLowerCase();
-  const matches = (item: TreeItem): boolean =>
+  const matches = (item: TriggerTreeItem): boolean =>
     item.name.toLowerCase().includes(wanted) ||
     (byParent.get(item.id) ?? []).some((child) => matches(child));
 
   const rows: TreeRow[] = [];
-  const add = (item: TreeItem, depth: number): void => {
+  const add = (item: TriggerTreeItem, depth: number): void => {
     const children = byParent.get(item.id) ?? [];
     rows.push({ item, depth, children: children.length > 0 });
     if (wanted === "" ? item.kind !== "root" && !isOpen(item) : false) return;
@@ -86,20 +86,20 @@ export function dropPlaceAt(y: number, height: number, container: boolean): Drop
  * place.
  */
 export function treeDrop(
-  items: TreeItem[],
-  dragged: TreeItem,
-  target: TreeItem,
+  items: TriggerTreeItem[],
+  dragged: TriggerTreeItem,
+  target: TriggerTreeItem,
   place: DropPlace,
-  isOpen: (item: TreeItem) => boolean,
+  isOpen: (item: TriggerTreeItem) => boolean,
 ): TreeDrop | null {
   if (dragged.kind === "root") return null;
-  for (let at: TreeItem | undefined = target; at; ) {
+  for (let at: TriggerTreeItem | undefined = target; at; ) {
     if (at.id === dragged.id) return null;
     const parent: number = at.parent;
     at = items.find((each) => each.id === parent);
   }
 
-  const childrenOf = (parent: number): TreeItem[] =>
+  const childrenOf = (parent: number): TriggerTreeItem[] =>
     items.filter(
       (each) => each.parent === parent && each.kind !== "root" && each.id !== dragged.id,
     );
@@ -122,12 +122,16 @@ export function treeDrop(
 }
 
 /** The named values of a type. */
-export function presetsOf(catalog: Catalog, type: string): CatalogPreset[] {
+export function presetsOf(catalog: TriggerCatalogView, type: string): CatalogPreset[] {
   return catalog.presets.filter((preset) => preset.type === type);
 }
 
 /** The functions that can fill a parameter of a type; in an event's arguments, only those allowed there. */
-export function callsFor(catalog: Catalog, type: string, inEvent: boolean): CatalogFunction[] {
+export function callsFor(
+  catalog: TriggerCatalogView,
+  type: string,
+  inEvent: boolean,
+): CatalogFunction[] {
   if (type === "code") return catalog.functions.filter((each) => each.kind === "action");
   if (type === "boolexpr" || type === "boolcall") {
     return catalog.functions.filter((each) => each.kind === "condition");
@@ -139,7 +143,7 @@ export function callsFor(catalog: Catalog, type: string, inEvent: boolean): Cata
 }
 
 /** The map's variables a parameter of a type can name. */
-export function variablesFor(variables: Variable[], type: string): Variable[] {
+export function variablesFor(variables: VariableView[], type: string): VariableView[] {
   if (type === "AnyGlobal") return variables;
   const wanted = type === "integervar" ? "integer" : type;
   return variables.filter((variable) => variable.type === wanted);
@@ -176,7 +180,7 @@ const typed = new Set([
 ]);
 
 /** True when a parameter of a type can hold a typed value; so can any type that offers nothing else. */
-export function valueOffered(catalog: Catalog, type: string): boolean {
+export function valueOffered(catalog: TriggerCatalogView, type: string): boolean {
   return typed.has(type) || catalog.types.every((each) => each.key !== type);
 }
 
@@ -225,7 +229,7 @@ export function pickKindOf(type: string): PickKind | null {
 
 /** A kind's functions in a category ("" for all), whose title or category has `text`. */
 export function functionsOf(
-  catalog: Catalog,
+  catalog: TriggerCatalogView,
   kind: FunctionKind,
   category: string,
   text: string,
@@ -240,7 +244,7 @@ export function functionsOf(
 }
 
 /** A function's name in a list: `Unit - Create Units Facing Angle`. */
-export function functionTitle(catalog: Catalog, function_: CatalogFunction): string {
+export function functionTitle(catalog: TriggerCatalogView, function_: CatalogFunction): string {
   const category = catalog.categories.find((each) => each.key === function_.category);
   return category?.shown ? `${category.title} - ${function_.title}` : function_.title;
 }

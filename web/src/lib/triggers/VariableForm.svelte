@@ -3,10 +3,10 @@
 
 import { t } from "../text.ts";
 import Select from "../ui/Select.svelte";
-import type { Catalog, VariableInput } from "./api.ts";
+import type { TriggerCatalogView, VariableInput } from "./api.ts";
 
 type Props = {
-  catalog: Catalog;
+  catalog: TriggerCatalogView;
   value: VariableInput;
   readOnly: boolean;
   onsave: (value: VariableInput) => void;

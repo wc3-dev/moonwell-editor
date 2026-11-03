@@ -8,7 +8,12 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!package-lock.json", "!src/lib/scripts/monaco/jass.*.json"]
+    "includes": [
+      "**",
+      "!package-lock.json",
+      "!src/lib/scripts/monaco/jass.*.json",
+      "!src/lib/bridge.gen.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

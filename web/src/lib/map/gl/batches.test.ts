@@ -1,6 +1,6 @@
 import { vec3 } from "gl-matrix";
 import { describe, expect, it } from "vitest";
-import type { MapScene, PlacedThing } from "../scene.ts";
+import type { MapSceneView, PlacedThing } from "../scene.ts";
 import { cliffBatches, instanceFloats, markerColour, thingBatches } from "./batches.ts";
 
 const scene = {
@@ -23,7 +23,7 @@ const scene = {
       baseZ: 0,
     },
   ],
-} as unknown as MapScene;
+} as unknown as MapSceneView;
 
 function at(floats: Float32Array, instance: number, point: [number, number, number]): vec3 {
   const m = floats.subarray(instance * instanceFloats, instance * instanceFloats + 16);
@@ -67,6 +67,7 @@ describe("thingBatches", () => {
     player: 1,
     tint: 0xff8000,
     variation: 4,
+    shadow: null,
     ...change,
   });
 

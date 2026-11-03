@@ -345,6 +345,28 @@ Change the text after the colon and keep each `{name}`, which the page fills in;
 and `.other` for any other. Rebuild with `npm run build` (in `web`). The code reads them with `t(key)` from
 `web/src/lib/text.ts`, and `npm test` checks that each call fills the placeholders its text has.
 
+## The bridge's types
+
+The page's types for everything that crosses the bridge are made from the C# types, never written by hand:
+`web/src/lib/bridge.gen.ts` has every answer, argument and event payload, the command list (`Commands` for `call`,
+`Tells` for `tell`), the events (`Events` for `on`) and `ErrorCode`. `tools/MoonwellEditor.BridgeTypes` writes it: it
+asks the bridge's own serializer (`BridgeJson`) what each type looks like when written, so the names, the nulls and the
+enums' text are what the app sends, and it copies the C# docs.
+
+```
+cd web && npm run types
+```
+
+`npm run build` and `npm run check` run it first, so they need the .NET SDK, and it builds the App's Debug output (it
+fails while a Debug build of the editor is running). The file is committed; a test in
+`tests/MoonwellEditor.BridgeTypes.Tests` fails when it is out of date.
+
+A command is one entry in `Commands.Table` (`Commands.cs`, `Commands.Triggers.cs`, `Commands.Terminals.cs`,
+`Commands.Home.cs`): its name, a record its arguments are read into (`CommandArgs.cs`, `TriggerArgs.cs`) and what it
+answers. Arguments are read strictly (`BridgeJson.Arguments`): one with no default must be there, `null` only where the
+record takes it, numbers as numbers and enums as their exact text; anything else is a `badRequest`. An event is one entry
+in `BridgeEvents`. A kind the page compares is a C# enum with `CamelCaseEnum<T>`, so the page gets its values as a union.
+
 ## Tests and checks
 
 ```
@@ -353,7 +375,8 @@ cd web && npm test
 cd web && npm run check
 ```
 
-`dotnet test` runs every test project in the solution. `npm run check` is Biome plus svelte-check.
+`dotnet test` runs every test project in the solution. `npm run check` writes the bridge's types, then runs Biome and
+svelte-check.
 
 `src/App.*.test.ts` run the whole page in jsdom against `FakeApp` (`src/test/fakeApp.ts`), which stands in for the C# side
 of the bridge: it answers commands from a table, keeps what was asked and sends events. jsdom has no layout, WebGL or

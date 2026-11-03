@@ -120,7 +120,7 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
         }
 
         return new ObjectView(
-            Kinds.Key(kind),
+            kind,
             id,
             custom ? map!.BaseId : null,
             name,
@@ -219,6 +219,14 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
             : 0;
     }
 
+    private static AssetKind? AssetOf(string? asset) => asset switch
+    {
+        "icon" => AssetKind.Icon,
+        "model" => AssetKind.Model,
+        "texture" => AssetKind.Texture,
+        _ => null,
+    };
+
     /// <summary>One field of an object at a level, as <see cref="View"/> shows it.</summary>
     internal FieldView Field(FieldInfo field, int level, StandardObject standard, MapObject? map)
     {
@@ -240,7 +248,7 @@ internal sealed class Resolver(ObjectKind kind, KindData data, WtsFile? strings,
             field.Skin,
             mapValue == null ? null : Warning(field, mapValue),
             modes,
-            field.Asset,
+            AssetOf(field.Asset),
             field.Meta,
             field.Pointer,
             field.MaxLength);

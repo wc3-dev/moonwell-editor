@@ -90,10 +90,10 @@ public sealed class TriggerDocumentTests(ITestOutputHelper output)
             store.Read(TriggerDocument.TriggersFile), store.Read(TriggerDocument.CustomTextFile), catalog);
         var tree = document.Tree();
 
-        Assert.Equal("root", tree[0].Kind);
-        Assert.Equal("category", tree[1].Kind);
+        Assert.Equal(TriggerItemKind.Root, tree[0].Kind);
+        Assert.Equal(TriggerItemKind.Category, tree[1].Kind);
         Assert.Equal("Initialization", tree[1].Name);
-        var trigger = Assert.Single(tree, item => item.Kind == "trigger");
+        var trigger = Assert.Single(tree, item => item.Kind == TriggerItemKind.Trigger);
         Assert.Equal("Melee Initialization", trigger.Name);
         Assert.Equal(tree[1].Id, trigger.Parent);
     }
@@ -125,7 +125,7 @@ public sealed class TriggerDocumentTests(ITestOutputHelper output)
         Assert.True(document.ReadOnly);
         Assert.NotNull(document.Problem);
         var tree = document.Tree();
-        Assert.Equal(["root", "category", "trigger", "trigger"], tree.Select(item => item.Kind));
+        Assert.Equal([TriggerItemKind.Root, TriggerItemKind.Category, TriggerItemKind.Trigger, TriggerItemKind.Trigger], tree.Select(item => item.Kind));
         Assert.Equal(tree[0].Id, tree[1].Parent);
         Assert.Equal(4, tree.Select(item => item.Id).Distinct().Count());
         Assert.Null(document.TriggerBytes());
@@ -144,7 +144,7 @@ public sealed class TriggerDocumentTests(ITestOutputHelper output)
 
         var document = TriggerDocument.Read(
             store.Read(TriggerDocument.TriggersFile), store.Read(TriggerDocument.CustomTextFile), catalog);
-        var script = document.Tree().First(item => item.Kind == "script");
+        var script = document.Tree().First(item => item.Kind == TriggerItemKind.Script);
 
         Assert.False(string.IsNullOrEmpty(document.CodeOf(script.Id)));
     }

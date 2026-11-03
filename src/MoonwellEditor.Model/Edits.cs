@@ -79,8 +79,7 @@ public sealed partial class Session
         var data = _game.Kind(kind);
         if (data.Object(baseId) == null)
         {
-            throw new EditException(
-                "noObject", Texts.Get("app.error.noStandardObject", ("kind", Kinds.Key(kind)), ("id", baseId)));
+            throw new EditException(ErrorCode.NoObject, Texts.Get("app.error.noStandardObject", ("kind", Kinds.Key(kind)), ("id", baseId)));
         }
 
         RefuseReadOnly(map, null);
@@ -108,8 +107,7 @@ public sealed partial class Session
         var data = _game.Kind(kind);
         if (data.Object(baseId) == null)
         {
-            throw new EditException(
-                "noObject", Texts.Get("app.error.noStandardObject", ("kind", Kinds.Key(kind)), ("id", baseId)));
+            throw new EditException(ErrorCode.NoObject, Texts.Get("app.error.noStandardObject", ("kind", Kinds.Key(kind)), ("id", baseId)));
         }
 
         return NewId(kind, _kinds[kind], data, baseId, null);
@@ -157,8 +155,7 @@ public sealed partial class Session
         var found = map.Find(id);
         if (found is not { Custom: true })
         {
-            throw new EditException(
-                "noObject",
+            throw new EditException(ErrorCode.NoObject,
                 found == null && _game.Kind(kind).Object(id) == null
                     ? Texts.Get("app.error.noObject", ("kind", Kinds.Key(kind)), ("id", id))
                     : Texts.Get("app.error.notCustom", ("id", id), ("kind", Kinds.Key(kind))));
@@ -262,8 +259,7 @@ public sealed partial class Session
         var info = data.Field(field);
         if (info == null || standard == null || !data.Applies(info, standard))
         {
-            throw new EditException(
-                "noField", Texts.Get("app.error.noField", ("kind", Kinds.Key(kind)), ("id", id), ("field", field)));
+            throw new EditException(ErrorCode.NoField, Texts.Get("app.error.noField", ("kind", Kinds.Key(kind)), ("id", id), ("field", field)));
         }
 
         if (info.PerLevel)
@@ -271,15 +267,13 @@ public sealed partial class Session
             var levels = ResolverOf(kind, data).Levels(standard, found);
             if (level < 1 || level > levels)
             {
-                throw new EditException(
-                    "noField",
+                throw new EditException(ErrorCode.NoField,
                     Texts.Get("app.error.noLevel", ("field", field), ("id", id), ("levels", levels), ("level", level)));
             }
         }
         else if (level != 0)
         {
-            throw new EditException(
-                "noField", Texts.Get("app.error.noLevels", ("field", field), ("id", id), ("level", level)));
+            throw new EditException(ErrorCode.NoField, Texts.Get("app.error.noLevels", ("field", field), ("id", id), ("level", level)));
         }
 
         RefuseReadOnly(map, found);
@@ -298,8 +292,7 @@ public sealed partial class Session
         var standard = found is { Custom: true } ? data.Object(found.BaseId) : data.Object(id);
         if (standard == null && found is not { Custom: true })
         {
-            throw new EditException(
-                "noObject", Texts.Get("app.error.noObject", ("kind", Kinds.Key(kind)), ("id", id)));
+            throw new EditException(ErrorCode.NoObject, Texts.Get("app.error.noObject", ("kind", Kinds.Key(kind)), ("id", id)));
         }
 
         return (map, data, found, standard == null ? null : data.ByOwnId(standard, id));
@@ -310,7 +303,7 @@ public sealed partial class Session
         var reason = map.ReadOnly(found);
         if (reason != null)
         {
-            throw new EditException("readOnly", reason);
+            throw new EditException(ErrorCode.ReadOnly, reason);
         }
     }
 
@@ -341,8 +334,7 @@ public sealed partial class Session
                     return new FieldValue.Int(number);
                 }
 
-                throw new EditException(
-                    "notNumber", Texts.Get("app.error.notWhole", ("field", field.Label), ("value", value)));
+                throw new EditException(ErrorCode.NotNumber, Texts.Get("app.error.notWhole", ("field", field.Label), ("value", value)));
             case "real":
             case "unreal":
                 if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var real)
@@ -351,8 +343,7 @@ public sealed partial class Session
                     return field.Store == "real" ? new FieldValue.Real(real) : new FieldValue.Unreal(real);
                 }
 
-                throw new EditException(
-                    "notNumber", Texts.Get("app.error.notNumber", ("field", field.Label), ("value", value)));
+                throw new EditException(ErrorCode.NotNumber, Texts.Get("app.error.notNumber", ("field", field.Label), ("value", value)));
             default:
                 CheckText(value);
                 return new FieldValue.Text(value);
@@ -368,7 +359,7 @@ public sealed partial class Session
             return new FieldValue.Int(number);
         }
 
-        throw new EditException("badValue", Texts.Get("app.error.notYesNo", ("field", field.Label), ("value", value)));
+        throw new EditException(ErrorCode.BadValue, Texts.Get("app.error.notYesNo", ("field", field.Label), ("value", value)));
     }
 
     /// <summary>
@@ -396,8 +387,7 @@ public sealed partial class Session
         const int shown = 12;
         var values = string.Join(", ", list.Entries.Take(shown).Select(entry => entry.Value));
         var more = list.Entries.Count > shown ? ", ..." : "";
-        throw new EditException(
-            "badValue", $"{field.Label} takes one of its list's values ({values}{more}), not \"{value}\".");
+        throw new EditException(ErrorCode.BadValue, $"{field.Label} takes one of its list's values ({values}{more}), not \"{value}\".");
     }
 
     /// <summary>
@@ -417,7 +407,7 @@ public sealed partial class Session
 
         if (!valid)
         {
-            throw new EditException("badText", Texts.Get("app.error.badText"));
+            throw new EditException(ErrorCode.BadText, Texts.Get("app.error.badText"));
         }
     }
 
@@ -491,8 +481,7 @@ public sealed partial class Session
         var entry = number!.Value;
         if (!strings.Set(entry, text.Value))
         {
-            throw new EditException(
-                "badText", $"war3map.wts cannot hold a line that is only \"}}\" (in {reference.Value}).");
+            throw new EditException(ErrorCode.BadText, $"war3map.wts cannot hold a line that is only \"}}\" (in {reference.Value}).");
         }
 
         edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Set(entry, old)));
@@ -675,13 +664,12 @@ public sealed partial class Session
         {
             if (!ObjectIds.IsValid(id))
             {
-                throw new EditException("idInvalid", Texts.Get("app.error.idInvalid", ("id", id)));
+                throw new EditException(ErrorCode.IdInvalid, Texts.Get("app.error.idInvalid", ("id", id)));
             }
 
             if (taken.Contains(id))
             {
-                throw new EditException(
-                    "idTaken", Texts.Get("app.error.idTaken", ("id", id), ("kind", Kinds.Key(kind))));
+                throw new EditException(ErrorCode.IdTaken, Texts.Get("app.error.idTaken", ("id", id), ("kind", Kinds.Key(kind))));
             }
 
             return id;
@@ -689,8 +677,7 @@ public sealed partial class Session
 
         var letter = ObjectIds.Letter(kind, baseId);
         return ObjectIds.Next(letter, taken.Contains)
-            ?? throw new EditException(
-                "idTaken", Texts.Get("app.error.idsUsedUp", ("first", $"{letter}000"), ("last", $"{letter}ZZZ")));
+            ?? throw new EditException(ErrorCode.IdTaken, Texts.Get("app.error.idsUsedUp", ("first", $"{letter}000"), ("last", $"{letter}ZZZ")));
     }
 
     /// <summary>A copied value: a <c>TRIGSTR_n</c> text the strings file has becomes that text.</summary>
@@ -743,17 +730,16 @@ public sealed partial class Session
 public sealed class EditException : Exception
 {
     /// <summary>An edit refused for the reason <paramref name="code"/>.</summary>
-    public EditException(string code, string message)
+    public EditException(ErrorCode code, string message)
         : base(message)
     {
         Code = code;
     }
 
     /// <summary>
-    /// Why: <c>noObject</c> (no such object), <c>noField</c> (no such field, or not at that level), <c>notNumber</c>
-    /// (text in a number field), <c>badValue</c> (a value the field's type does not take: a yes/no field's other than
-    /// 1 and 0, a choice's that its list does not have), <c>idTaken</c>, <c>idInvalid</c>, <c>readOnly</c> (the kind
-    /// or the object cannot be edited), or <c>badText</c> (text a map file cannot hold).
+    /// Why: <see cref="ErrorCode.NoObject"/>, <see cref="ErrorCode.NoField"/>, <see cref="ErrorCode.NotNumber"/>,
+    /// <see cref="ErrorCode.BadValue"/>, <see cref="ErrorCode.IdTaken"/>, <see cref="ErrorCode.IdInvalid"/>,
+    /// <see cref="ErrorCode.ReadOnly"/> or <see cref="ErrorCode.BadText"/>.
     /// </summary>
-    public string Code { get; }
+    public ErrorCode Code { get; }
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { CellEdit, ChoiceList, Column, FieldInfo, TableCell, TableRow } from "../api.ts";
+import type {
+  CellEdit,
+  ChoiceList,
+  Column,
+  FieldDescription,
+  TableCell,
+  TableRow,
+} from "../api.ts";
 import { t } from "../text.ts";
 import {
   blockSize,
@@ -36,8 +43,18 @@ function row(id: string, values: string[], over: Partial<TableRow> = {}): TableR
   };
 }
 
-function info(id: string, label: string, type: string, perLevel = false): FieldInfo {
-  return { id, label, category: "stats", sort: "", type, perLevel, choice: null, listOf: null };
+function info(id: string, label: string, type: string, perLevel = false): FieldDescription {
+  return {
+    id,
+    label,
+    category: "stats",
+    sort: "",
+    type,
+    perLevel,
+    choice: null,
+    listOf: null,
+    meta: "",
+  };
 }
 
 const columns: Column[] = [
@@ -46,7 +63,7 @@ const columns: Column[] = [
   { field: "unam", level: 0 },
 ];
 
-const fields: FieldInfo[] = [
+const fields: FieldDescription[] = [
   info("ugol", "Gold cost", "int"),
   info("uhpm", "Hit points", "float"),
   info("unam", "Name", "string"),
@@ -82,36 +99,36 @@ const choices: Record<string, ChoiceList> = {
     flags: false,
     store: "string",
     entries: [
-      { value: "unknown", label: "None" },
-      { value: "normal", label: "Normal" },
-      { value: "pierce", label: "Pierce" },
+      { value: "unknown", label: "None", alternates: [], group: null, hidden: false },
+      { value: "normal", label: "Normal", alternates: [], group: null, hidden: false },
+      { value: "pierce", label: "Pierce", alternates: [], group: null, hidden: false },
     ],
   },
   defenseType: {
     flags: false,
     store: "string",
     entries: [
-      { value: "large", label: "Large" },
-      { value: "fort", label: "Fortified" },
-      { value: "none", label: "Unarmored" },
+      { value: "large", label: "Large", alternates: [], group: null, hidden: false },
+      { value: "fort", label: "Fortified", alternates: [], group: null, hidden: false },
+      { value: "none", label: "Unarmored", alternates: [], group: null, hidden: false },
     ],
   },
   deathType: {
     flags: false,
     store: "string",
-    entries: [{ value: "alive", label: "Alive", alternates: ["aliv"] }],
+    entries: [{ value: "alive", label: "Alive", alternates: ["aliv"], group: null, hidden: false }],
   },
   targetList: {
     flags: true,
     store: "string",
     entries: [
-      { value: "ground", label: "Ground" },
-      { value: "air", label: "Air" },
+      { value: "ground", label: "Ground", alternates: [], group: null, hidden: false },
+      { value: "air", label: "Air", alternates: [], group: null, hidden: false },
     ],
   },
 };
 
-const choiceFields: FieldInfo[] = [
+const choiceFields: FieldDescription[] = [
   info("ubdg", "Is a building", "bool"),
   { ...info("ua1t", "Attack type", "choice"), choice: "attackType" },
   { ...info("udty", "Defense type", "choice"), choice: "defenseType" },
@@ -278,7 +295,7 @@ describe("pasteEdits", () => {
   });
 
   it("skips an empty cell for bool, choice and unknown fields, writes it for lists", () => {
-    const more: FieldInfo[] = [
+    const more: FieldDescription[] = [
       info("a", "A", "bool"),
       info("b", "B", "choice"),
       info("c", "C", "objectList"),
@@ -432,7 +449,7 @@ describe("bulkEdits", () => {
   });
 
   it("does not read the text as a calculation in a column that is not a number", () => {
-    const kinds: FieldInfo[] = [
+    const kinds: FieldDescription[] = [
       info("unam", "Name", "string"),
       info("umvt", "Movement type", "choice"),
       info("uabi", "Abilities", "objectList"),
@@ -729,6 +746,10 @@ describe("cellField", () => {
       skin: false,
       warning: "Too long.",
       modes: null,
+      asset: null,
+      meta: null,
+      data: 0,
+      maxLength: null,
     });
   });
 });

@@ -19,12 +19,12 @@ public sealed class ReferenceTests(GameDataFixture fixture, ITestOutputHelper ou
 
         // The Paladin's hero abilities hold Holy Light.
         var paladin = Assert.Single(session.UsedBy(ObjectKind.Ability, "AHhb"), each => each.Id == "Hpal");
-        Assert.Equal("unit", paladin.Kind);
+        Assert.Equal(ObjectKind.Unit, paladin.Kind);
         Assert.Equal(game.Kind(ObjectKind.Unit).Object("Hpal")!.Name, paladin.Name);
         Assert.Contains(paladin.Fields, label => label == game.Kind(ObjectKind.Unit).Field("uhab")!.Label);
 
         // The Barracks trains Footmen.
-        Assert.Contains(session.UsedBy(ObjectKind.Unit, "hfoo"), each => each.Id == "hbar" && each.Kind == "unit");
+        Assert.Contains(session.UsedBy(ObjectKind.Unit, "hfoo"), each => each.Id == "hbar" && each.Kind == ObjectKind.Unit);
         Assert.Empty(session.UsedBy(ObjectKind.Unit, "zzzz"));
     }
 
@@ -48,7 +48,7 @@ public sealed class ReferenceTests(GameDataFixture fixture, ITestOutputHelper ou
 
         var users = session.UsedBy(ObjectKind.Ability, "AHhb");
         var mine = Assert.Single(users, each => each.Id == custom);
-        Assert.Equal("unit", mine.Kind);
+        Assert.Equal(ObjectKind.Unit, mine.Kind);
         Assert.DoesNotContain(users, each => each.Id == "Hpal");
         Assert.Contains(session.UsedBy(ObjectKind.Ability, "AHds"), each => each.Id == "Hpal");
     }

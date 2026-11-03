@@ -110,11 +110,22 @@ public sealed class BridgeTests
     }
 
     [Fact]
-    public void Event_carries_name_and_payload()
-    {
-        var message = Parse(Bridge.Event("mapOpened", new { MapName = "arena" }));
+    public void An_event_is_written_as_before() =>
+        Assert.Equal(
+            "{\"event\":\"sessionChanged\",\"payload\":{\"dirty\":true,\"changedObjects\":2}}",
+            Bridge.Event(BridgeEvents.SessionChanged, new SessionState(true, 2)));
 
-        Assert.Equal("mapOpened", message.GetProperty("event").GetString());
-        Assert.Equal("arena", message.GetProperty("payload").GetProperty("mapName").GetString());
-    }
+    [Fact]
+    public void The_events_are_the_seven_the_page_listens_to() =>
+        Assert.Equal(
+            [
+                ("closeRequested", typeof(CloseRequest)),
+                ("gameData", typeof(GameDataState)),
+                ("homeChanged", typeof(HomeChange)),
+                ("sessionChanged", typeof(SessionState)),
+                ("terminalExit", typeof(TerminalExit)),
+                ("terminalOutput", typeof(TerminalOutput)),
+                ("windowState", typeof(WindowState)),
+            ],
+            BridgeEvents.All.OrderBy(each => each.Name, StringComparer.Ordinal));
 }

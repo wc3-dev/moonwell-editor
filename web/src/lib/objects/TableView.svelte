@@ -20,7 +20,7 @@ import {
   type CellEdit,
   type ChoiceList,
   type Column,
-  type FieldInfo,
+  type FieldDescription,
   fields,
   type Kind,
   type SessionState,
@@ -117,7 +117,7 @@ let {
 /** The rows shown, with the kind and columns they were fetched for. */
 type Shown = { kind: Kind; columns: Column[]; rows: TableRow[] };
 
-let fieldLists = $state.raw<Partial<Record<Kind, FieldInfo[]>>>({});
+let fieldLists = $state.raw<Partial<Record<Kind, FieldDescription[]>>>({});
 let fieldsError = $state("");
 const fieldsAsked = new Set<Kind>();
 let shown = $state.raw<Shown | null>(null);
@@ -289,7 +289,7 @@ async function levelsShown(each: Kind): Promise<number> {
   return mostLevels(await table(each, rowIdList, [{ field, level: 0 }]));
 }
 
-async function add(field: FieldInfo, all: boolean): Promise<void> {
+async function add(field: FieldDescription, all: boolean): Promise<void> {
   const each = kind;
   pickerError = "";
   pickerNote = "";
@@ -411,7 +411,7 @@ async function edit(each: Kind, edits: CellEdit[]): Promise<EditResult> {
 }
 
 /** The fields of the kind the rows were fetched for. */
-function shownFields(): FieldInfo[] {
+function shownFields(): FieldDescription[] {
   return shown ? (fieldLists[shown.kind] ?? []) : [];
 }
 

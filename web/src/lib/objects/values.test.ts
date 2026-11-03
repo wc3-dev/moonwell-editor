@@ -29,6 +29,10 @@ function field(over: Partial<FieldView> & { id: string }): FieldView {
     skin: false,
     warning: null,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
     ...over,
   };
 }
@@ -37,10 +41,10 @@ const targets: ChoiceList = {
   flags: true,
   store: "string",
   entries: [
-    { value: "ground", label: "Ground" },
-    { value: "air", label: "Air" },
-    { value: "enemies", label: "Enemy", alternates: ["enemy"] },
-    { value: "friend", label: "Friend" },
+    { value: "ground", label: "Ground", alternates: [], group: null, hidden: false },
+    { value: "air", label: "Air", alternates: [], group: null, hidden: false },
+    { value: "enemies", label: "Enemy", alternates: ["enemy"], group: null, hidden: false },
+    { value: "friend", label: "Friend", alternates: [], group: null, hidden: false },
   ],
 };
 
@@ -48,8 +52,8 @@ const attackType: ChoiceList = {
   flags: false,
   store: "string",
   entries: [
-    { value: "normal", label: "Normal" },
-    { value: "pierce", label: "Pierce" },
+    { value: "normal", label: "Normal", alternates: [], group: null, hidden: false },
+    { value: "pierce", label: "Pierce", alternates: [], group: null, hidden: false },
   ],
 };
 
@@ -58,9 +62,9 @@ const pathing: ChoiceList = {
   flags: true,
   store: "int",
   entries: [
-    { value: "1", label: "Ground" },
-    { value: "2", label: "Air" },
-    { value: "4", label: "Building" },
+    { value: "1", label: "Ground", alternates: [], group: null, hidden: false },
+    { value: "2", label: "Air", alternates: [], group: null, hidden: false },
+    { value: "4", label: "Building", alternates: [], group: null, hidden: false },
   ],
 };
 
@@ -141,9 +145,9 @@ describe("flags", () => {
       flags: true,
       store: "int",
       entries: [
-        { value: "1", label: "Reign of Chaos" },
-        { value: "2", label: "The Frozen Throne" },
-        { value: "4", label: "Unlisted", hidden: true },
+        { value: "1", label: "Reign of Chaos", alternates: [], group: null, hidden: false },
+        { value: "2", label: "The Frozen Throne", alternates: [], group: null, hidden: false },
+        { value: "4", label: "Unlisted", alternates: [], group: null, hidden: true },
       ],
     };
     const ticked = parseFlags("6", versions);

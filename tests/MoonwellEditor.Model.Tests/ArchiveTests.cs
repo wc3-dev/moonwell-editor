@@ -1,3 +1,4 @@
+using MoonwellEditor.Model;
 using MoonwellEditor.Files;
 using War3Net.IO.Mpq;
 using Xunit.Abstractions;
@@ -373,7 +374,7 @@ public sealed class ArchiveTests(GameDataFixture fixture, ITestOutputHelper outp
         Assert.Contains(session.Problems, problem => problem.Contains("war3map.w3a") && problem.Contains("0x0407"));
         Assert.Contains(session.Problems, problem => problem.Contains("war3map.wts") && problem.Contains("0x0407"));
         Assert.Equal(
-            "readOnly",
+            ErrorCode.ReadOnly,
             Assert.Throws<EditException>(() => session.Set(ObjectKind.Ability, "AHhb", "atp1", 1, "Heal")).Code);
 
         // The strings file is never written: a name that is a TRIGSTR in it is written into the object file.

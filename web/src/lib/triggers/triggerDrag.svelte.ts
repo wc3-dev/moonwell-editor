@@ -1,11 +1,11 @@
 import {
   type BlockView,
   type FunctionKind,
-  type FunctionPlace,
+  type FunctionSlot,
   type FunctionView,
   moveFunction,
   moveItem,
-  type TreeItem,
+  type TriggerTreeItem,
 } from "./api.ts";
 import { type DropPlace, dropPlaceAt, treeDrop } from "./lists.ts";
 import { atEnd, blockPlace, parentOf, type TriggerState } from "./triggerState.svelte.ts";
@@ -15,7 +15,7 @@ const openAfter = 600;
 
 /** Dragging the tree's rows, and the functions on the cards. */
 export class TriggerDrag {
-  draggedItem = $state<TreeItem | null>(null);
+  draggedItem = $state<TriggerTreeItem | null>(null);
   dropAt = $state<{ id: number; place: DropPlace } | null>(null);
   draggedFunction = $state.raw<{ owner: number; function_: FunctionView } | null>(null);
   /** Where the function dragged would land: next to a function, or at a place of a block or a list. */
@@ -24,7 +24,7 @@ export class TriggerDrag {
     owner: number;
     target?: FunctionView;
     after?: boolean;
-    place?: FunctionPlace;
+    place?: FunctionSlot;
   } | null>(null);
 
   readonly #state: TriggerState;
@@ -34,7 +34,7 @@ export class TriggerDrag {
     this.#state = state;
   }
 
-  startRow(row: TreeItem, event: DragEvent): void {
+  startRow(row: TriggerTreeItem, event: DragEvent): void {
     this.draggedItem = row;
     if (event.dataTransfer) {
       event.dataTransfer.setData("text/plain", row.name);
@@ -42,7 +42,7 @@ export class TriggerDrag {
     }
   }
 
-  rowOver(event: DragEvent, row: TreeItem): void {
+  rowOver(event: DragEvent, row: TriggerTreeItem): void {
     const dragged = this.draggedItem;
     const { tree, isOpen, toggled } = this.#state;
     if (!dragged || !tree) return;
@@ -71,7 +71,7 @@ export class TriggerDrag {
     this.dropAt = null;
   }
 
-  rowDrop(event: DragEvent, row: TreeItem): void {
+  rowDrop(event: DragEvent, row: TriggerTreeItem): void {
     event.preventDefault();
     const dragged = this.draggedItem;
     const place = this.dropAt?.id === row.id ? this.dropAt.place : null;

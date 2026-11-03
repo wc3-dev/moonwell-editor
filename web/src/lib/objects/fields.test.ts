@@ -37,6 +37,10 @@ function field(over: Partial<FieldView> & { id: string }): FieldView {
     skin: false,
     warning: null,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
     ...over,
   };
 }
@@ -238,27 +242,33 @@ describe("the value shown", () => {
       flags: false,
       store: "string",
       entries: [
-        { value: "normal", label: "Normal" },
-        { value: "hero", label: "Hero" },
+        { value: "normal", label: "Normal", alternates: [], group: null, hidden: false },
+        { value: "hero", label: "Hero", alternates: [], group: null, hidden: false },
       ],
     },
     targetList: {
       flags: true,
       store: "string",
       entries: [
-        { value: "air", label: "Air" },
-        { value: "ground", label: "Ground" },
-        { value: "invulnerable", label: "Invulnerable", alternates: ["invu"] },
+        { value: "air", label: "Air", alternates: [], group: null, hidden: false },
+        { value: "ground", label: "Ground", alternates: [], group: null, hidden: false },
+        {
+          value: "invulnerable",
+          label: "Invulnerable",
+          alternates: ["invu"],
+          group: null,
+          hidden: false,
+        },
       ],
     },
     defenseTypeBits: {
       flags: true,
       store: "int",
       entries: [
-        { value: "1", label: "Small" },
-        { value: "2", label: "Medium" },
-        { value: "4", label: "Large" },
-        { value: "8", label: "Unlisted", hidden: true },
+        { value: "1", label: "Small", alternates: [], group: null, hidden: false },
+        { value: "2", label: "Medium", alternates: [], group: null, hidden: false },
+        { value: "4", label: "Large", alternates: [], group: null, hidden: false },
+        { value: "8", label: "Unlisted", alternates: [], group: null, hidden: true },
       ],
     },
   };

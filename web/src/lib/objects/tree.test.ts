@@ -11,6 +11,8 @@ function entry(id: string, path: string[], name = id): TreeEntry {
     suffix: "",
     path,
     changed: false,
+    icon: "",
+    iconModes: null,
   };
 }
 

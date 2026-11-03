@@ -21,7 +21,7 @@ import { allLayers, type Layers, MapRenderer } from "./gl/renderer.ts";
 import { groundPoint } from "./groundRay.ts";
 import { answer, picking } from "./pick.svelte.ts";
 import { cameraAt, choose, type Pick, type PickKind, regionAt } from "./picking.ts";
-import { groundAt, type MapScene, readTerrain, type Terrain, type ThingKind } from "./scene.ts";
+import { groundAt, type MapSceneView, readTerrain, type Terrain, type ThingKind } from "./scene.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in: `sd`, `hd` or `de`. */
@@ -45,7 +45,7 @@ const pitch = (56 * Math.PI) / 180;
 /** How near the mouse must be to a camera's target to pick it, in world units. */
 const cameraReach = 96;
 let view: View = { x: 0, y: 0, z: 0, distance: 1650, yaw: 0, pitch };
-let scene: MapScene | null = null;
+let scene: MapSceneView | null = null;
 let terrain: Terrain | null = null;
 let renderer: MapRenderer | null = null;
 let frame = 0;
@@ -178,7 +178,7 @@ async function open(
 }
 
 /** Over player 1's start location, else the map's middle. */
-function start(read: MapScene, grid: Terrain): View {
+function start(read: MapSceneView, grid: Terrain): View {
   const home = read.things.find((thing) => thing.kind === "StartLocation" && thing.player === 0);
   const x = home?.x ?? grid.left + ((grid.columns - 1) * 128) / 2;
   const y = home?.y ?? grid.bottom + ((grid.rows - 1) * 128) / 2;

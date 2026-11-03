@@ -41,7 +41,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
     }
 
     private static int Category(TriggerDocument document) =>
-        document.Tree().First(item => item.Kind == "category").Id;
+        document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id;
 
     private static List<string> ImportedPaths(byte[]? imports)
     {
@@ -55,9 +55,9 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
     }
 
     [Theory]
-    [InlineData(WarChasers, "jass")]
-    [InlineData(ForgottenHollow, "lua")]
-    public void A_map_says_what_language_its_scripts_are_in(string map, string language)
+    [InlineData(WarChasers, MapLanguage.Jass)]
+    [InlineData(ForgottenHollow, MapLanguage.Lua)]
+    public void A_map_says_what_language_its_scripts_are_in(string map, MapLanguage language)
     {
         if (Copy(map) is not var (path, _))
         {
@@ -78,12 +78,12 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         var session = Session.Open(MapStore.Open(path), game.Data!);
         var document = session.Triggers(catalog);
 
-        session.EditTriggers(catalog, each => each.Add("trigger", Category(each)));
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
 
         Assert.True(session.Dirty);
         Assert.True(session.Undo());
         Assert.False(session.Dirty);
-        Assert.Single(document.Tree(), item => item.Kind == "root");
+        Assert.Single(document.Tree(), item => item.Kind == TriggerItemKind.Root);
         Assert.DoesNotContain(document.Tree(), item => item.Name == "Untitled Trigger 001");
         Assert.True(session.Redo());
         Assert.Contains(document.Tree(), item => item.Name == "Untitled Trigger 001");
@@ -102,7 +102,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
 
         Assert.Throws<TriggerEditException>(() => session.EditTriggers(catalog, each =>
         {
-            var id = each.Add("trigger", Category(each));
+            var id = each.Add(TriggerItemKind.Trigger, Category(each));
             each.Rename(id, "   ");
             return id;
         }));
@@ -126,9 +126,9 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         var session = Session.Open(before, game.Data!);
         var id = session.EditTriggers(catalog, each =>
         {
-            var made = each.Add("trigger", Category(each));
-            each.AddFunction(made, null, 0, 0, "event", "TriggerRegisterTimerEventPeriodic");
-            each.AddFunction(made, null, 0, 0, "action", "CreateNUnitsAtLoc");
+            var made = each.Add(TriggerItemKind.Trigger, Category(each));
+            each.AddFunction(made, null, 0, 0, FunctionKind.Event, "TriggerRegisterTimerEventPeriodic");
+            each.AddFunction(made, null, 0, 0, FunctionKind.Action, "CreateNUnitsAtLoc");
             return made;
         });
 
@@ -163,7 +163,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         var before = MapStore.Open(path);
         var imported = ImportedPaths(before.Read(ImportedFiles.MapFileName));
         var session = Session.Open(before, game.Data!);
-        var id = session.Triggers(catalog).Tree().First(item => item.Kind == "trigger").Id;
+        var id = session.Triggers(catalog).Tree().First(item => item.Kind == TriggerItemKind.Trigger).Id;
 
         session.EditTriggers(catalog, each =>
         {
@@ -193,7 +193,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         }
 
         var session = Session.Open(MapStore.Open(path), game.Data!);
-        var id = session.Triggers(catalog).Tree().First(item => item.Kind == "trigger").Id;
+        var id = session.Triggers(catalog).Tree().First(item => item.Kind == TriggerItemKind.Trigger).Id;
         session.EditTriggers(catalog, each =>
         {
             each.SetPlaces([new CardMove(id, 120, 60)]);
@@ -219,7 +219,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         }
 
         var first = Session.Open(MapStore.Open(path), game.Data!);
-        var id = first.Triggers(catalog).Tree().First(item => item.Kind == "trigger").Id;
+        var id = first.Triggers(catalog).Tree().First(item => item.Kind == TriggerItemKind.Trigger).Id;
         first.EditTriggers(catalog, each =>
         {
             each.SetPlaces([new CardMove(id, 120, 60)]);
@@ -262,7 +262,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         }
 
         var session = Session.Open(MapStore.Open(path), game.Data!);
-        session.EditTriggers(catalog, each => each.Add("trigger", Category(each)));
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
 
         var report = session.Save();
 
@@ -279,7 +279,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         }
 
         var session = Session.Open(MapStore.Open(path), game.Data!);
-        session.EditTriggers(catalog, each => each.Add("trigger", Category(each)));
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
 
         session.Reload();
 

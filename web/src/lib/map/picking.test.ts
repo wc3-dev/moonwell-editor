@@ -48,6 +48,7 @@ const unit: PlacedThing = {
   player: 0,
   tint: 0xffffff,
   variation: 0,
+  shadow: null,
 };
 
 describe("numbers as colours", () => {

@@ -5,7 +5,7 @@
  * there). A column already shown is not added again.
  * Enter adds the first field found (at level 1); Esc closes the picker.
  */
-import type { Column, FieldInfo } from "../api.ts";
+import type { Column, FieldDescription } from "../api.ts";
 import { t } from "../text.ts";
 import Popover from "../ui/Popover.svelte";
 import { categoryName } from "./fields.ts";
@@ -13,12 +13,12 @@ import { columnKey, searchFields } from "./table.ts";
 
 type Props = {
   anchor: HTMLElement;
-  fields: FieldInfo[];
+  fields: FieldDescription[];
   columns: Column[];
   /** A line to show under the search, such as where "All levels" stopped; "" for none. */
   note?: string;
   /** Adds a field: `all` for every level of a per-level field, else level 1 (or the field, with no levels). */
-  onadd: (field: FieldInfo, all: boolean) => void;
+  onadd: (field: FieldDescription, all: boolean) => void;
   onclose: () => void;
 };
 
@@ -30,7 +30,7 @@ let input: HTMLInputElement | undefined = $state();
 const found = $derived(searchFields(fields, query));
 const shown = $derived(new Set(columns.map(columnKey)));
 
-function isShown(field: FieldInfo): boolean {
+function isShown(field: FieldDescription): boolean {
   return shown.has(columnKey({ field: field.id, level: field.perLevel ? 1 : 0 }));
 }
 

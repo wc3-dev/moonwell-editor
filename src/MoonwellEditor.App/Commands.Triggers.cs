@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MoonwellEditor.Files;
 using MoonwellEditor.Map;
+using MoonwellEditor.Model;
 using MoonwellEditor.Triggers;
 using War3Net.Build.Audio;
 using War3Net.Build.Environment;
@@ -33,7 +34,7 @@ public sealed record MapReference(string Type, string Ref, string Text);
 /// <param name="HeaderComment">The comment on the map's own script text.</param>
 /// <param name="HeaderCode">The map's own script text.</param>
 /// <param name="References">The regions, cameras and sounds the map has.</param>
-/// <param name="Language">What the map's scripts are in: "jass" or "lua".</param>
+/// <param name="Language">What the map's scripts are in.</param>
 public sealed record TriggerTreeView(
     IReadOnlyList<TriggerTreeItem> Items,
     IReadOnlyList<VariableView> Variables,
@@ -42,7 +43,7 @@ public sealed record TriggerTreeView(
     string HeaderComment,
     string HeaderCode,
     IReadOnlyList<MapReference> References,
-    string Language);
+    MapLanguage Language);
 
 /// <summary>A new item's id.</summary>
 /// <param name="Id">The id.</param>
@@ -63,7 +64,7 @@ public sealed partial class Commands
 
     private TriggerCatalog Catalog()
     {
-        var assets = Assets ?? throw new CommandException("noAssets", Texts.Get("app.assets.none"));
+        var assets = Assets ?? throw new CommandException(ErrorCode.NoAssets, Texts.Get("app.assets.none"));
         if (_triggerCatalog is { } known && known.Folder == assets.Folder)
         {
             return known.Catalog;
@@ -147,7 +148,7 @@ public sealed partial class Commands
         }
     }
 
-    private TriggerView TriggerOf(JsonElement args) => Map().Triggers(Catalog()).Trigger(Number(args, "id"), Map());
+    private TriggerView TriggerOf(int id) => Map().Triggers(Catalog()).Trigger(id, Map());
 
     private T EditTriggers<T>(Func<TriggerDocument, T> change) => Changed(Map().EditTriggers(Catalog(), change));
 
@@ -157,87 +158,50 @@ public sealed partial class Commands
         return null;
     });
 
-    private object? RunTrigger(string command, JsonElement args) => command switch
-    {
-        "triggerCatalog" => CatalogView(),
-        "triggerTree" => TriggerTree(),
-        "trigger" => TriggerOf(args),
-        "triggerAdd" => EditTriggers(document =>
-            new NewTriggerItem(document.Add(Text(args, "kind"), Number(args, "parent")))),
-        "triggerRename" => EditTriggers(document => document.Rename(Number(args, "id"), Text(args, "name"))),
-        "triggerOptions" => EditTriggers(document => document.SetOptions(
-            Number(args, "id"),
-            OptionalFlag(args, "enabled"),
-            OptionalFlag(args, "initiallyOn"),
-            OptionalFlag(args, "runOnInit"),
-            OptionalText(args, "description"))),
-        "triggerCode" => EditTriggers(document => document.SetCode(Number(args, "id"), Text(args, "code"))),
-        "triggerHeader" => EditTriggers(document => document.SetHeader(Text(args, "comment"), Text(args, "code"))),
-        "triggerDelete" => EditTriggers(document => document.Delete(Number(args, "id"))),
-        "triggerMove" => EditTriggers(document =>
-            document.Move(Number(args, "id"), Number(args, "parent"), Number(args, "index"))),
-        "triggerVariableAdd" => EditTriggers(document =>
-            new NewTriggerItem(document.AddVariable(VariableOf(args), Number(args, "parent")))),
-        "triggerVariableSet" => EditTriggers(document => document.SetVariable(Number(args, "id"), VariableOf(args))),
-        "triggerFunctionAdd" => EditTriggers(document => new FunctionPlace(document.AddFunction(
-            Number(args, "id"),
-            OptionalText(args, "parent"),
-            Number(args, "branch"),
-            Number(args, "index"),
-            Text(args, "kind"),
-            Text(args, "name")))),
-        "triggerFunctionCopy" => CopyFunction(args),
-        "triggerFunctionPaste" => EditTriggers(document => new FunctionPlace(document.PasteFunction(
-            Number(args, "id"),
-            OptionalText(args, "parent"),
-            Number(args, "branch"),
-            Number(args, "index")))),
-        "triggerFunctionChange" => EditTriggers(document =>
-            document.ChangeFunction(Number(args, "id"), Text(args, "path"), Text(args, "name"))),
-        "triggerFunctionDelete" => EditTriggers(document => document.DeleteFunction(Number(args, "id"), Text(args, "path"))),
-        "triggerFunctionEnable" => EditTriggers(document =>
-            document.EnableFunction(Number(args, "id"), Text(args, "path"), Flag(args, "enabled"))),
-        "triggerCards" => Map().Triggers(Catalog()).Cards(Number(args, "parent"), Map()),
-        "triggerPlaces" => EditTriggers(document => document.SetPlaces(Moves(args))),
-        "triggerFolded" => EditTriggers(document =>
+    private static IEnumerable<CommandEntry> TriggerCommands() =>
+    [
+        CommandEntry.Of("triggerCatalog", (Commands c) => c.CatalogView()),
+        CommandEntry.Of("triggerTree", (Commands c) => c.TriggerTree()),
+        CommandEntry.Of("trigger", (Commands c, IdArgs a) => c.TriggerOf(a.Id)),
+        CommandEntry.Of("triggerAdd", (Commands c, TriggerAddArgs a) =>
+            c.EditTriggers(document => new NewTriggerItem(document.Add(a.Kind, a.Parent)))),
+        CommandEntry.Do("triggerRename", (Commands c, RenameArgs a) =>
+            c.EditTriggers(document => document.Rename(a.Id, a.Name))),
+        CommandEntry.Do("triggerOptions", (Commands c, TriggerOptionsArgs a) =>
+            c.EditTriggers(document => document.SetOptions(a.Id, a.Enabled, a.InitiallyOn, a.RunOnInit, a.Description))),
+        CommandEntry.Do("triggerCode", (Commands c, TriggerCodeArgs a) =>
+            c.EditTriggers(document => document.SetCode(a.Id, a.Code))),
+        CommandEntry.Do("triggerHeader", (Commands c, TriggerHeaderArgs a) =>
+            c.EditTriggers(document => document.SetHeader(a.Comment, a.Code))),
+        CommandEntry.Do("triggerDelete", (Commands c, IdArgs a) => c.EditTriggers(document => document.Delete(a.Id))),
+        CommandEntry.Do("triggerMove", (Commands c, TriggerMoveArgs a) =>
+            c.EditTriggers(document => document.Move(a.Id, a.Parent, a.Index))),
+        CommandEntry.Of("triggerVariableAdd", (Commands c, VariableAddArgs a) => c.EditTriggers(document =>
+            new NewTriggerItem(document.AddVariable(new VariableInput(a.Name, a.Type, a.IsArray, a.Size, a.Initial), a.Parent)))),
+        CommandEntry.Do("triggerVariableSet", (Commands c, VariableSetArgs a) => c.EditTriggers(document =>
+            document.SetVariable(a.Id, new VariableInput(a.Name, a.Type, a.IsArray, a.Size, a.Initial)))),
+        CommandEntry.Of("triggerFunctionAdd", (Commands c, FunctionAddArgs a) => c.EditTriggers(document =>
+            new FunctionPlace(document.AddFunction(a.Id, a.Parent, a.Branch, a.Index, a.Kind, a.Name)))),
+        CommandEntry.Do("triggerFunctionCopy", (Commands c, FunctionPathArgs a) =>
+            c.Map().Triggers(c.Catalog()).CopyFunction(a.Id, a.Path)),
+        CommandEntry.Of("triggerFunctionPaste", (Commands c, FunctionPasteArgs a) => c.EditTriggers(document =>
+            new FunctionPlace(document.PasteFunction(a.Id, a.Parent, a.Branch, a.Index)))),
+        CommandEntry.Do("triggerFunctionChange", (Commands c, FunctionChangeArgs a) =>
+            c.EditTriggers(document => document.ChangeFunction(a.Id, a.Path, a.Name))),
+        CommandEntry.Do("triggerFunctionDelete", (Commands c, FunctionPathArgs a) =>
+            c.EditTriggers(document => document.DeleteFunction(a.Id, a.Path))),
+        CommandEntry.Do("triggerFunctionEnable", (Commands c, FunctionEnableArgs a) =>
+            c.EditTriggers(document => document.EnableFunction(a.Id, a.Path, a.Enabled))),
+        CommandEntry.Of("triggerCards", (Commands c, CardsArgs a) => c.Map().Triggers(c.Catalog()).Cards(a.Parent, c.Map())),
+        CommandEntry.Do("triggerPlaces", (Commands c, PlacesArgs a) => c.EditTriggers(document => document.SetPlaces(a.Places))),
+        CommandEntry.Do("triggerFolded", (Commands c, FoldedArgs a) => c.EditTriggers(document =>
         {
-            document.SetPlaces(Moves(args));
-            document.SetFolded(Number(args, "id"), Flag(args, "folded"));
-        }),
-        "triggerFunctionMove" => EditTriggers(document => document.MoveFunction(
-            Number(args, "from"),
-            Text(args, "path"),
-            Number(args, "id"),
-            OptionalText(args, "parent"),
-            Number(args, "branch"),
-            Number(args, "index"))),
-        "triggerParameter" => EditTriggers(document => document.SetParameter(
-            Number(args, "id"), Text(args, "path"), new ParamInput(Text(args, "kind"), Text(args, "value")))),
-        _ => throw new UnknownCommandException(command),
-    };
-
-    private object? CopyFunction(JsonElement args)
-    {
-        Map().Triggers(Catalog()).CopyFunction(Number(args, "id"), Text(args, "path"));
-        return null;
-    }
-
-    private static List<CardMove> Moves(JsonElement args) => ArrayOf(args, "places")
-        .Select(place => new CardMove(Number(place, "id"), Number(place, "x"), Number(place, "y")))
-        .ToList();
-
-    private static VariableInput VariableOf(JsonElement args) => new(
-        Text(args, "name"),
-        Text(args, "type"),
-        Flag(args, "isArray"),
-        Number(args, "size"),
-        OptionalText(args, "initial") ?? "");
-
-    // A yes/no argument; null when it is missing or null.
-    private static bool? OptionalFlag(JsonElement args, string name) =>
-        args.ValueKind == JsonValueKind.Object
-        && args.TryGetProperty(name, out var value)
-        && value.ValueKind != JsonValueKind.Null
-            ? Flag(args, name)
-            : null;
+            document.SetPlaces(a.Places);
+            document.SetFolded(a.Id, a.Folded);
+        })),
+        CommandEntry.Do("triggerFunctionMove", (Commands c, FunctionMoveArgs a) => c.EditTriggers(document =>
+            document.MoveFunction(a.From, a.Path, a.Id, a.Parent, a.Branch, a.Index))),
+        CommandEntry.Do("triggerParameter", (Commands c, ParameterArgs a) =>
+            c.EditTriggers(document => document.SetParameter(a.Id, a.Path, new ParamInput(a.Kind, a.Value)))),
+    ];
 }

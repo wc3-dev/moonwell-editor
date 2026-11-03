@@ -30,6 +30,10 @@ function field(over: Partial<FieldView> & { id: string }): FieldView {
     skin: false,
     warning: null,
     modes: null,
+    asset: null,
+    meta: null,
+    data: 0,
+    maxLength: null,
     ...over,
   };
 }
@@ -278,6 +282,6 @@ describe("textKey", () => {
     expect(textKey({ id: "Hbz1", data: 1 })).toBe("DataA");
     expect(textKey({ id: "Hbz3", data: 3 })).toBe("DataC");
     expect(textKey({ id: "adur", data: 0 })).toBe("Dur");
-    expect(textKey({ id: "anam" })).toBeUndefined();
+    expect(textKey({ id: "anam", data: 0 })).toBeUndefined();
   });
 });
