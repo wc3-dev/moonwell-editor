@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cutPieces, ddsInfo, pieceRect, twoChannels } from "./textures.ts";
+import { cutPieces, ddsInfo, decodedImage, pieceRect } from "./textures.ts";
 
 /** A DDS file's header with room for its largest image, as Lords_Dirt.dds has it: 512 by 256 DXT5. */
-function dds(width: number, height: number, fourCC: string, mipmaps = 1): Uint8Array {
+function dds(width: number, height: number, fourCC: string, mipmaps = 1): Uint8Array<ArrayBuffer> {
   const bytes = new Uint8Array(128 + width * height * 2);
   const view = new DataView(bytes.buffer);
   bytes.set([68, 68, 83, 32], 0); // "DDS "
@@ -83,10 +83,25 @@ describe("cutPieces", () => {
   });
 });
 
-describe("twoChannels", () => {
-  it("spreads a two-channel image (an ATI2 normal map, decoded) to red, green, a full blue and alpha", () => {
-    // dds-parser leaves the pixels' red and green bytes packed at the front of a four-byte-a-pixel buffer.
-    const packed = new Uint8Array([10, 20, 30, 40, 0, 0, 0, 0]);
-    expect(Array.from(twoChannels(packed, 2))).toEqual([10, 20, 255, 255, 30, 40, 255, 255]);
+describe("decodedImage", () => {
+  it("decodes an ATI2 normal map as a graphics card samples it: red and green, blue 0", () => {
+    const file = dds(4, 4, "ATI2");
+    file.set([200, 200, 0, 0, 0, 0, 0, 0, 50, 50, 0, 0, 0, 0, 0, 0], 128);
+    const image = decodedImage(file.buffer);
+    expect(image?.width).toBe(4);
+    expect(image?.height).toBe(4);
+    expect(Array.from(image?.data ?? [])).toEqual(new Array(16).fill([200, 50, 0, 0]).flat());
+  });
+
+  it("decodes a DXT1 image", () => {
+    const file = dds(4, 4, "DXT1");
+    file.set([0x00, 0xf8, 0, 0, 0, 0, 0, 0], 128); // red all over
+    expect(Array.from(decodedImage(file.buffer)?.data.subarray(0, 4) ?? [])).toEqual([
+      255, 0, 0, 255,
+    ]);
+  });
+
+  it("is null for bytes that are no image it reads", () => {
+    expect(decodedImage(new Uint8Array([1, 2, 3, 4]).buffer)).toBeNull();
   });
 });

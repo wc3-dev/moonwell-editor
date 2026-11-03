@@ -136,7 +136,7 @@ export function makeGroundTexture(
     arrayFilter(gl);
     return texture;
   }
-  const pixels = decoded(bytes, data, info);
+  const pixels = decodedImage(data);
   if (!pixels) return null;
   const extended = pixels.width === pixels.height * 2;
   const side = pixels.height / 4;
@@ -184,22 +184,28 @@ export function plainArray(
   return texture;
 }
 
-// The largest image of a DDS WebGL cannot take compressed, or of a BLP, as pixels; null when neither reads.
-function decoded(
-  bytes: Uint8Array,
+/**
+ * The largest image of a DDS or of a BLP, as pixels, for a texture the graphics card cannot take compressed; null when
+ * it reads as neither. An ATI2 normal map comes as a card samples one, red and green with blue 0: war3-model's HD
+ * shader turns the normal round, so a full blue would light it from inside.
+ */
+export function decodedImage(
   data: ArrayBuffer,
-  info: DdsInfo | null,
 ): { width: number; height: number; data: Uint8Array } | null {
+  const bytes = new Uint8Array(data);
   try {
+    const info = ddsInfo(bytes);
     const top = info?.images[0];
     if (info && top && info.format !== "other") {
-      const pixels = decodeDds(
-        bytes.subarray(top.offset, top.offset + top.length),
-        info.format,
-        top.width,
-        top.height,
+      const pixels = new Uint8Array(
+        decodeDds(
+          bytes.subarray(top.offset, top.offset + top.length),
+          info.format,
+          top.width,
+          top.height,
+        ).buffer,
       );
-      return { width: top.width, height: top.height, data: new Uint8Array(pixels.buffer) };
+      return { width: top.width, height: top.height, data: pixels };
     }
     if (String.fromCharCode(...bytes.subarray(0, 3)) === "BLP") {
       const top = getBLPImageData(decodeBLP(data), 0);
@@ -229,19 +235,6 @@ function arrayFilter(gl: WebGL2RenderingContext): void {
 }
 
 /**
- * A two-channel image as dds-parser decodes it (each pixel's red and green bytes packed at the front of a buffer of
- * four bytes a pixel) spread to red, green, a full blue and a full alpha.
- */
-export function twoChannels(packed: Uint8Array, pixels: number): Uint8Array {
-  const out = new Uint8Array(pixels * 4).fill(255);
-  for (let pixel = 0; pixel < pixels; pixel++) {
-    out[pixel * 4] = packed[pixel * 2] ?? 0;
-    out[pixel * 4 + 1] = packed[pixel * 2 + 1] ?? 0;
-  }
-  return out;
-}
-
-/**
  * A texture made from a file's bytes, with mipmaps; null when they cannot be read. It repeats past its edges when
  * `repeat` (a texture tiled across the world, the water's), else stops at them.
  */
@@ -252,23 +245,17 @@ export function makeTexture(
 ): WebGLTexture | null {
   const bytes = new Uint8Array(data);
   const head = String.fromCharCode(...bytes.subarray(0, 4));
-  if (head === "DDS ") return ddsTexture(gl, bytes, repeat);
-  if (head.startsWith("BLP")) {
-    try {
-      const top = getBLPImageData(decodeBLP(data), 0);
-      return rgbaTexture(gl, top.width, top.height, new Uint8Array(top.data.buffer), repeat);
-    } catch {
-      return null;
-    }
-  }
-  return null;
+  if (head === "DDS ") return ddsTexture(gl, data, repeat);
+  const image = decodedImage(data);
+  return image && rgbaTexture(gl, image.width, image.height, image.data, repeat);
 }
 
 function ddsTexture(
   gl: WebGL2RenderingContext,
-  bytes: Uint8Array,
+  data: ArrayBuffer,
   repeat: boolean,
 ): WebGLTexture | null {
+  const bytes = new Uint8Array(data);
   const info = ddsInfo(bytes);
   const top = info?.images[0];
   if (!info || !top) return null;
@@ -301,21 +288,8 @@ function ddsTexture(
     filter(gl, repeat);
     return texture;
   }
-  if (info.format === "other") return null;
-  try {
-    const pixels = new Uint8Array(
-      decodeDds(
-        bytes.subarray(top.offset, top.offset + top.length),
-        info.format,
-        top.width,
-        top.height,
-      ).buffer,
-    );
-    const rgba = info.format === "ati2" ? twoChannels(pixels, top.width * top.height) : pixels;
-    return rgbaTexture(gl, top.width, top.height, rgba, repeat);
-  } catch {
-    return null;
-  }
+  const image = decodedImage(data);
+  return image && rgbaTexture(gl, image.width, image.height, image.data, repeat);
 }
 
 function rgbaTexture(
