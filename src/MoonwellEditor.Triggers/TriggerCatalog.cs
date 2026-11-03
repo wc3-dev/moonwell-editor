@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.RegularExpressions;
+using MoonwellEditor.Files;
 using War3Net.Build.Extensions;
 using War3Net.Build.Script;
 
@@ -125,14 +126,14 @@ public sealed partial class TriggerCatalog
         var orders = Orders(text);
         var scriptNames = new Dictionary<string, string>(StringComparer.Ordinal);
         var data = new StringReader(Cleaned(text, scriptNames)).ReadTriggerData();
-        var strings = Strings(read(@"UI\WorldEditStrings.txt"));
-        foreach (var (key, value) in Strings(read(@"UI\WorldEditGameStrings.txt")))
+        var strings = GameText.Strings(read(@"UI\WorldEditStrings.txt"));
+        foreach (var (key, value) in GameText.Strings(read(@"UI\WorldEditGameStrings.txt")))
         {
             strings.TryAdd(key, value);
         }
 
         var catalog = new TriggerCatalog(data, strings) { CallScriptNames = scriptNames };
-        catalog.Fill(orders, Strings(read(@"UI\TriggerStrings.txt")));
+        catalog.Fill(orders, GameText.Strings(read(@"UI\TriggerStrings.txt")));
         return catalog;
     }
 
@@ -172,7 +173,7 @@ public sealed partial class TriggerCatalog
             return "";
         }
 
-        return _strings.TryGetValue(text, out var found) ? found : Unquoted(text);
+        return _strings.TryGetValue(text, out var found) ? found : GameText.Unquoted(text);
     }
 
     // The keys of each section in the order of the file; War3Net's dictionaries have no order.
@@ -309,30 +310,6 @@ public sealed partial class TriggerCatalog
         }
     }
 
-    // Each KEY=text line of a strings file; the first of a key counts, whatever its section.
-    private static Dictionary<string, string> Strings(byte[]? bytes)
-    {
-        var strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (bytes == null)
-        {
-            return strings;
-        }
-
-        foreach (var line in Encoding.UTF8.GetString(bytes).Split('\n'))
-        {
-            var equals = line.IndexOf('=');
-            if (equals > 0 && !line.StartsWith("//", StringComparison.Ordinal) && !line.StartsWith('['))
-            {
-                strings.TryAdd(line[..equals].Trim(), Unquoted(line[(equals + 1)..].Trim()));
-            }
-        }
-
-        return strings;
-    }
-
-    // A text without its quotes; the game's file leaves some closing quotes out.
-    private static string Unquoted(string text) => text.StartsWith('"') ? text[1..].TrimEnd('"') : text;
-
     private void Fill(Dictionary<string, List<string>> orders, Dictionary<string, string> hints)
     {
         List<string> Order(string section) => orders.GetValueOrDefault(section) ?? [];
@@ -458,7 +435,7 @@ public sealed partial class TriggerCatalog
             var pieces = gap.Trim(',', '`').Split("\",\"");
             for (var i = 0; i < pieces.Length; i++)
             {
-                var piece = Unquoted(pieces[i].TrimStart('"')).TrimEnd('"');
+                var piece = GameText.Unquoted(pieces[i].TrimStart('"')).TrimEnd('"');
                 var titleFirst = first && i == 0 && pieces.Length + argument > 1 && piece == Title(title);
                 if (piece.Length > 0 && !titleFirst)
                 {
