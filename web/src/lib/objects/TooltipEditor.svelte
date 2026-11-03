@@ -16,6 +16,7 @@ import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
+import { RadioGroup } from "bits-ui";
 import { onDestroy } from "svelte";
 import { type FieldView, iconUrl, type ObjectView, object } from "../api.ts";
 import { uiIcons } from "../gameIcons.ts";
@@ -585,28 +586,27 @@ onDestroy(() => {
             {/if}
           </button>
         {/each}
-        <div
+        <RadioGroup.Root
           class="mt-1 flex items-center gap-1 border-t border-line px-2 pt-1.5 pb-0.5"
-          role="radiogroup"
+          orientation="horizontal"
           aria-label={t("tooltipEditor.form.label")}
+          value={form}
+          onValueChange={(value) => (form = value as NumberForm | "auto")}
         >
           <span class="mr-1 text-muted">{t("tooltipEditor.form.label")}</span>
           {#each forms as each (each.form)}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={form === each.form}
+            <RadioGroup.Item
+              value={each.form}
               title={each.title}
               class="rounded-ui border border-transparent px-2 py-0.5 {form === each.form
                 ? 'bg-selection text-normal'
                 : 'bg-raised text-muted hover:text-normal'}"
               onpointerdown={(event) => event.preventDefault()}
-              onclick={() => (form = each.form)}
             >
               {each.label}
-            </button>
+            </RadioGroup.Item>
           {/each}
-        </div>
+        </RadioGroup.Root>
       </div>
     </Popover>
   {/if}

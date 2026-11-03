@@ -8,10 +8,11 @@
 import Check from "@lucide/svelte/icons/check";
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+import { RadioGroup, Tabs } from "bits-ui";
 import { onMount } from "svelte";
 import { type Kind, kinds, type MapInfo } from "../api.ts";
 import { type CodeTheme, codeColors, codeThemeOf, codeThemes } from "../codeThemes.ts";
-import { graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
+import { type GraphicsMode, graphics, graphicsModes, setGraphicsMode } from "../graphics.svelte.ts";
 import { openHome } from "../home/home.ts";
 import type { Problem } from "../home/jsonc.ts";
 import { homeNotice } from "../home/notice.svelte.ts";
@@ -252,57 +253,62 @@ function resetAll(): void {
     </div>
   {/if}
 
-  <div class="mb-2 flex border-b border-line" role="tablist">
-    {#each tabs as each (each.tab)}
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === each.tab}
-        class="-mb-px rounded-t-ui border-b px-2.5 py-0.5 {tab === each.tab
-          ? 'border-transparent bg-raised text-normal'
-          : 'border-line text-muted hover:text-normal'}"
-        onclick={() => (tab = each.tab)}
-      >
-        {each.name}
-      </button>
-    {/each}
-  </div>
+  <Tabs.Root value={tab} onValueChange={(value) => (tab = value as Tab)}>
+    <Tabs.List class="mb-2 flex border-b border-line">
+      {#each tabs as each (each.tab)}
+        <Tabs.Trigger
+          value={each.tab}
+          class="-mb-px rounded-t-ui border-b px-2.5 py-0.5 {tab === each.tab
+            ? 'border-transparent bg-raised text-normal'
+            : 'border-line text-muted hover:text-normal'}"
+        >
+          {each.name}
+        </Tabs.Trigger>
+      {/each}
+    </Tabs.List>
+  </Tabs.Root>
 
   <div class="min-h-[300px]">
     {#if tab === "general"}
       {@render heading(t("settings.graphicsMode"))}
-      <div class="flex gap-1" role="radiogroup" aria-label={t("settings.graphicsMode")}>
+      <RadioGroup.Root
+        class="flex gap-1"
+        orientation="horizontal"
+        aria-label={t("settings.graphicsMode")}
+        value={graphics.mode}
+        onValueChange={(mode) => setGraphicsMode(mode as GraphicsMode)}
+      >
         {#each graphicsModes as each (each.mode)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={graphics.mode === each.mode}
+          <RadioGroup.Item
+            value={each.mode}
             class="rounded-ui border border-transparent px-3 py-0.5 {graphics.mode === each.mode
               ? 'bg-selection text-normal'
               : 'bg-raised text-soft hover:border-muted'}"
-            onclick={() => setGraphicsMode(each.mode)}
           >
             {each.name}
-          </button>
+          </RadioGroup.Item>
         {/each}
-      </div>
+      </RadioGroup.Root>
 
       {@render heading(t("settings.uiScale"))}
-      <div class="flex flex-wrap gap-1" role="radiogroup" aria-label={t("settings.uiScale")}>
+      <RadioGroup.Root
+        class="flex flex-wrap gap-1"
+        orientation="horizontal"
+        aria-label={t("settings.uiScale")}
+        value={String(prefs.uiScale)}
+        onValueChange={(percent) => setPref("uiScale", Number(percent))}
+      >
         {#each uiScales as percent (percent)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={prefs.uiScale === percent}
+          <RadioGroup.Item
+            value={String(percent)}
             class="rounded-ui border border-transparent px-2.5 py-0.5 font-mono text-mono {prefs.uiScale === percent
               ? 'bg-selection text-normal'
               : 'bg-raised text-soft hover:border-muted'}"
-            onclick={() => setPref("uiScale", percent)}
           >
             {percent}%
-          </button>
+          </RadioGroup.Item>
         {/each}
-      </div>
+      </RadioGroup.Root>
 
       {@render heading(t("settings.theme"))}
       <ThemePicker

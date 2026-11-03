@@ -3,6 +3,7 @@
  * The 24 player colours as a grid of squares, the chosen one outlined; a click picks one. The model preview's colour
  * list and the settings' default team colour (Sven, 2026-10-29) both show it.
  */
+import { RadioGroup } from "bits-ui";
 import { playerIndex, teamColors } from "../teamColors.ts";
 import { t } from "../text.ts";
 
@@ -15,20 +16,22 @@ type Props = {
 let { value, onpick }: Props = $props();
 </script>
 
-<div class="grid w-[264px] grid-cols-12 gap-0.5" role="radiogroup" aria-label={t("model.teamColour")}>
+<RadioGroup.Root
+  class="grid w-[264px] grid-cols-12 gap-0.5"
+  orientation="horizontal"
+  aria-label={t("model.teamColour")}
+  value={String(playerIndex(value))}
+  onValueChange={(index) => onpick(Number(index))}
+>
   {#each teamColors as colour, index (colour.name)}
-    {@const chosen = playerIndex(value) === index}
-    <button
-      type="button"
-      class="aspect-square rounded-ui border {chosen
+    <RadioGroup.Item
+      value={String(index)}
+      class="aspect-square rounded-ui border {playerIndex(value) === index
         ? 'relative z-10 border-deep outline-2 outline-normal'
         : 'border-line hover:border-muted'}"
       style="background-color: {colour.hex}"
       title={t("model.playerTitle", { player: index + 1, colour: colour.name })}
       aria-label={t("model.playerLabel", { player: index + 1, colour: colour.name })}
-      role="radio"
-      aria-checked={chosen}
-      onclick={() => onpick(index)}
-    ></button>
+    />
   {/each}
-</div>
+</RadioGroup.Root>

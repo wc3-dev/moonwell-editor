@@ -251,6 +251,30 @@ describe("settings.json", () => {
     expect(app.count("writeHome")).toBe(1);
   });
 
+  test("Settings' tabs and choices move with the arrow keys", async () => {
+    loadSettings('{\n  "editor.alphaNotice": false,\n  "appearance.uiScale": 100\n}');
+    new FakeApp();
+    render(App);
+    await screen.findByTestId("welcome");
+    await press("F10");
+    const dialog = within(
+      await screen.findByRole("dialog", { name: t("settings.title") }, { timeout: 5000 }),
+    );
+    const scale = dialog.getByRole("radio", { name: "100%" });
+    scale.focus();
+    await fireEvent.keyDown(scale, { key: "ArrowRight" });
+    await waitFor(() => expect(prefs.uiScale).toBe(120));
+
+    const general = dialog.getByRole("tab", { name: t("settings.tab.general") });
+    general.focus();
+    await fireEvent.keyDown(general, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(
+        dialog.getByRole("tab", { name: t("settings.tab.hotkeys") }).getAttribute("aria-selected"),
+      ).toBe("true"),
+    );
+  });
+
   test("Settings says a file that can't be read as JSON is not written to", async () => {
     loadSettings("{ oops");
     new FakeApp();

@@ -6,6 +6,7 @@
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import Plus from "@lucide/svelte/icons/plus";
 import X from "@lucide/svelte/icons/x";
+import { Tabs } from "bits-ui";
 import { getEditor } from "../app/editor.svelte.ts";
 import { setState, stateOf } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
@@ -67,62 +68,73 @@ const iconButton = "rounded-ui p-1 text-muted hover:bg-hover hover:text-normal";
         title={t("terminal.resize")}
         onpointerdown={startDrag}
       ></div>
-      <div class="flex shrink-0 items-center gap-0.5 bg-raised px-1" role="tablist" aria-label={t("terminal.label")}>
-        {#each terminals.tabs as tab (tab.key)}
-          {@const active = tab.key === terminals.active}
-          {@const name = tab.name || t("terminal.label")}
-          <div
-            class="flex cursor-default items-center gap-1 px-2 py-0.5 {active ? 'bg-panel text-normal' : 'text-muted hover:text-normal'}"
-            role="tab"
-            tabindex="0"
-            aria-selected={active}
-            onclick={() => terminals.show(tab.key)}
-            onkeydown={(event) => event.key === "Enter" && terminals.show(tab.key)}
-          >
-            {name}
-            <button
-              type="button"
-              class="rounded-ui text-faint hover:text-normal"
-              title={t("terminal.close", { name })}
-              aria-label={t("terminal.close", { name })}
-              onclick={(event) => {
-                event.stopPropagation();
-                terminals.close(tab.key);
-              }}
+      <Tabs.Root
+        class="shrink-0"
+        value={String(terminals.active)}
+        onValueChange={(key) => terminals.show(Number(key))}
+      >
+        <Tabs.List class="flex items-center gap-0.5 bg-raised px-1" aria-label={t("terminal.label")}>
+          {#each terminals.tabs as tab (tab.key)}
+            {@const active = tab.key === terminals.active}
+            {@const name = tab.name || t("terminal.label")}
+            <!-- A click or Enter on the tab already shown still puts the cursor in its shell. -->
+            <Tabs.Trigger
+              value={String(tab.key)}
+              onclick={() => terminals.show(tab.key)}
+              onkeydown={(event) => event.key === "Enter" && terminals.show(tab.key)}
             >
-              <X size={12} />
-            </button>
-          </div>
-        {/each}
-        <button
-          type="button"
-          class={iconButton}
-          title={t("terminal.new")}
-          aria-label={t("terminal.new")}
-          onclick={() => terminals.add()}
-        >
-          <Plus size={13} />
-        </button>
-        <button
-          type="button"
-          class={iconButton}
-          title={t("terminal.pickShell")}
-          aria-label={t("terminal.pickShell")}
-          aria-haspopup="menu"
-          onclick={(event) => pickShell(event.currentTarget)}
-        >
-          <ChevronDown size={13} />
-        </button>
-        <button
-          type="button"
-          class="{iconButton} ml-auto"
-          title={t("terminal.hide")}
-          aria-label={t("terminal.hide")}
-          onclick={terminals.toggle}
-        >
-          <X size={13} />
-        </button>
-      </div>
+              {#snippet child({ props })}
+                <div
+                  {...props}
+                  class="flex cursor-default items-center gap-1 px-2 py-0.5 {active ? 'bg-panel text-normal' : 'text-muted hover:text-normal'}"
+                >
+                  {name}
+                  <button
+                    type="button"
+                    class="rounded-ui text-faint hover:text-normal"
+                    title={t("terminal.close", { name })}
+                    aria-label={t("terminal.close", { name })}
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      terminals.close(tab.key);
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              {/snippet}
+            </Tabs.Trigger>
+          {/each}
+          <button
+            type="button"
+            class={iconButton}
+            title={t("terminal.new")}
+            aria-label={t("terminal.new")}
+            onclick={() => terminals.add()}
+          >
+            <Plus size={13} />
+          </button>
+          <button
+            type="button"
+            class={iconButton}
+            title={t("terminal.pickShell")}
+            aria-label={t("terminal.pickShell")}
+            aria-haspopup="menu"
+            onclick={(event) => pickShell(event.currentTarget)}
+          >
+            <ChevronDown size={13} />
+          </button>
+          <button
+            type="button"
+            class="{iconButton} ml-auto"
+            title={t("terminal.hide")}
+            aria-label={t("terminal.hide")}
+            onclick={terminals.toggle}
+          >
+            <X size={13} />
+          </button>
+        </Tabs.List>
+      </Tabs.Root>
       <div class="relative m-1 min-h-0 flex-1">
         {#each terminals.tabs as tab (tab.key)}
           <TerminalView {tab} />
