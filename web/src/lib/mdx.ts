@@ -280,7 +280,7 @@ export function hdTextureUse(model: Materials, image: string): "normal" | "orm" 
 export function standSequence(names: readonly string[]): number {
   if (names.length === 0) return -1;
   const stand = names.findIndex((name) => name.trim().toLowerCase().startsWith("stand"));
-  return stand >= 0 ? stand : 0;
+  return Math.max(stand, 0);
 }
 
 /** A box, as the model gives its extents: the smallest and largest corner. */
