@@ -18,7 +18,7 @@ is the agent's call unless it says otherwise. Sven's own decisions are marked **
 
 The agent's calls are listed together at the end ("Calls to check") so they can be read and corrected in one place.
 
-The clickable mockup is `docs/mockups/editor.html` (open it in a browser). It is unchanged by the switch.
+The clickable mockup was `docs/mockups/editor.html`, removed once the native-look restyle replaced it (in git history).
 
 ## Why
 

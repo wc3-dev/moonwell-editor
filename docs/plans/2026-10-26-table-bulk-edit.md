@@ -1,7 +1,5 @@
 # Object Editor, milestone 3 (the table: bulk edit) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** A Table view where the user picks a kind's objects (rows) and fields (columns), edits cells, and changes many
 cells at once (a value or an expression, paste from a spreadsheet, fill down, reset), each bulk change one step of undo.
 
@@ -13,8 +11,8 @@ selection, paste and fill mapping) in tested `.ts` modules and the view in two c
 **Tech Stack:** as milestones 1-2: .NET 10, War3Net `6.1.2-moonwell.4`, xUnit 2.9.3; Svelte 5, TypeScript, Tailwind 4,
 Vitest, Biome.
 
-**Spec:** `docs/superpowers/specs/2026-10-26-object-editor-design.md`, section "The table (milestone 3)" (all of it
-the agent's calls). Mockup: `docs/mockups/editor.html` (Table view).
+**Spec:** `docs/specs/2026-10-26-object-editor-design.md`, section "The table (milestone 3)" (all of it
+the agent's calls). Mockup: `docs/mockups/editor.html` (Table view; removed, in git history).
 
 ## Global Constraints
 

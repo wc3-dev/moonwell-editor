@@ -1,7 +1,5 @@
 # Object Editor, milestones 1 and 2 (browse, then edit and save a map folder) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** A Windows desktop app that opens a Warcraft III map folder, shows every object of the seven kinds against
 the game's standard data with fast search, and edits and saves the map's object files exactly.
 
@@ -14,7 +12,7 @@ what is on screen.
 reference into wc3-cs), `Microsoft.Web.WebView2`, xUnit; Svelte 5, TypeScript, Vite, Tailwind CSS 4, Lucide,
 fontsource, Biome, Vitest.
 
-**Spec:** `docs/superpowers/specs/2026-10-26-object-editor-design.md`. Mockup: `docs/mockups/editor.html`.
+**Spec:** `docs/specs/2026-10-26-object-editor-design.md`. Mockup: `docs/mockups/editor.html` (removed, in git history).
 
 ## Global Constraints
 

@@ -1,8 +1,5 @@
 # Editor themes and the .moonwell folder: implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
-> superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** The editor's interface reads its own theme files (64 shipped, plus the user's), VS Code themes colour only
 scripts, and settings, hotkeys, state and themes live as files in `C:\Users\<name>\.moonwell\`.
 
@@ -15,7 +12,7 @@ comments survive. A one-off script makes the 64 shipped theme files from today's
 **Tech Stack:** C# (.NET 10, WinForms, WebView2, System.Text.Json, xunit), Svelte 5, UnoCSS (Wind4), Vitest, Biome,
 `jsonc-parser` (new, MIT, Microsoft).
 
-**Spec:** `docs/superpowers/specs/2026-11-02-themes-and-settings-design.md` (approved by Sven, 2026-11-02). Read it
+**Spec:** `docs/specs/2026-11-02-themes-and-settings-design.md` (approved by Sven, 2026-11-02). Read it
 before any task; its tables of colour keys, settings keys and worked-out rules are not repeated here.
 
 ## Global Constraints

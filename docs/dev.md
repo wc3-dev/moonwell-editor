@@ -190,7 +190,7 @@ WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333" src/Moonwel
 
 ## The trigger editor
 
-The Trigger Editor button shows the map's triggers (design: wc3-cs `docs/plans/2026-10-31-trigger-editor-design.md`).
+The Trigger Editor button shows the map's triggers.
 `MoonwellEditor.Triggers` holds the logic: `TriggerCatalog` reads the game's `UI\TriggerData.txt` with World Editor's
 strings (War3Net's bundled copy lags the game, and its reader stops at lines the game's file has, so `Cleaned` drops or
 corrects them first); `TriggerDocument` is the map's `war3map.wtg` and `war3map.wct` with the edits and the views the page
