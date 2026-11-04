@@ -1,7 +1,5 @@
 # Generated bridge types Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Every type, command, event and error code that crosses the bridge is written once in C#, and the page's
 TypeScript for it is generated and checked.
 
@@ -13,7 +11,7 @@ bridge and the generator read; events become a typed list. A C# test fails when 
 **Tech Stack:** .NET 10, System.Text.Json (contract API: `JsonTypeInfo`, `JsonPropertyInfo`, `JsonParameterInfo`),
 xunit 2, Svelte 5 + TypeScript, svelte-check, vitest, Biome.
 
-**Spec:** `docs/superpowers/specs/2026-11-03-bridge-types-design.md`
+**Spec:** `docs/specs/2026-11-03-bridge-types-design.md`
 
 ## Global Constraints
 

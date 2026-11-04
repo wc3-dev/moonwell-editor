@@ -5,6 +5,5 @@ obj/
 *.backup/
 test-results/
 base-data/
-.superpowers/
 .vs/
 .idea/
