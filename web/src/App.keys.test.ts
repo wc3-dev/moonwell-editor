@@ -200,7 +200,7 @@ describe("on the details page", () => {
     expect(await notice()).toBe(t("notice.copied", { name: "Footman", id: "h000" }));
     await press("v", { ctrlKey: true });
     await screen.findByRole("dialog", { name: /^Paste Footman/ });
-    expect(app.args("nextId")).toEqual({ kind: "unit", baseId: "hfoo" });
+    expect(app.args("nextId")).toEqual({ kind: "unit", baseId: "h000" });
   });
 
   test("Ctrl C with text selected leaves the object alone", async () => {
