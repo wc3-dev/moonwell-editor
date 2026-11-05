@@ -365,7 +365,10 @@ function ownerOf(pick: Pick): string {
   const thing = scene?.things.find(
     (each) => each.ref === pick.ref && each.x === pick.x && each.y === pick.y,
   );
-  return thing ? t("mapView.player", { number: thing.player + 1 }) : "";
+  if (!thing) return "";
+  if (thing.owner === 24) return t("app.folder.hostile");
+  if (thing.owner === 27) return t("app.folder.passive");
+  return t("mapView.player", { number: thing.owner + 1 });
 }
 </script>
 

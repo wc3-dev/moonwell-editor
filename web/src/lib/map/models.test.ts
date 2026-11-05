@@ -29,6 +29,7 @@ function thing(change: Partial<PlacedThing>): PlacedThing {
     model: "units\\human\\Footman\\Footman.mdl",
     texture: null,
     player: 0,
+    owner: 0,
     tint: 0xffffff,
     variation: 0,
     shadow: null,

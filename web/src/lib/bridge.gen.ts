@@ -793,6 +793,8 @@ export type PlacedThing = {
   texture: string | null;
   /** The player whose colour its team colour takes, 0 for player 1; -1 for none. */
   player: number;
+  /** The player who owns it, 0 for player 1, 24 for Neutral Hostile, 27 for Neutral Passive; -1 for none. */
+  owner: number;
   /** Its tint, 0xRRGGBB. */
   tint: number;
   /** Its variation, from its file: which of its model's shapes it is. */
