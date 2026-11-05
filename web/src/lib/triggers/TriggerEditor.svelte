@@ -5,7 +5,7 @@
  * picked in the map view.
  */
 import { SvelteFlowProvider } from "@xyflow/svelte";
-import { onMount, untrack } from "svelte";
+import { onDestroy, onMount, untrack } from "svelte";
 import { isScript, type OpenScript } from "../scripts/openScripts.ts";
 import { t } from "../text.ts";
 import ContextMenu from "../ui/ContextMenu.svelte";
@@ -80,6 +80,8 @@ const cardActions: CardActions = {
 onMount(() => {
   untrack(() => state.load());
 });
+
+onDestroy(() => state.end());
 </script>
 
 <div class="grid h-full min-h-0 grid-cols-[320px_1fr] gap-1 max-[1100px]:grid-cols-[250px_1fr]" data-testid="trigger-editor">
@@ -171,9 +173,8 @@ onMount(() => {
     items={state.tree.items}
     inEvent={state.inEvent(state.openParameter.path)}
     onset={state.setParameterValue}
-    onpoint={state.setPoint}
+    onpick={state.pick}
     onopen={(inner) => (state.parameters = { owner: state.parameters.owner, paths: [...state.parameters.paths, inner.path] })}
-    onpicking={(now) => (state.picking = now)}
     onclose={() => (state.parameters = { owner: state.parameters.owner, paths: state.parameters.paths.slice(0, -1) })}
   />
 {/if}

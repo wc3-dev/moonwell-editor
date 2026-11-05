@@ -8,7 +8,7 @@
 import Crosshair from "@lucide/svelte/icons/crosshair";
 import { type Hit, search } from "../api.ts";
 import { errorText } from "../errors.ts";
-import { pickOnMap } from "../map/pick.svelte.ts";
+import type { PickKind } from "../map/picking.ts";
 import { t } from "../text.ts";
 import Dialog from "../ui/Dialog.svelte";
 import type {
@@ -38,12 +38,10 @@ type Props = {
   /** True for a parameter of an event's function, where the game allows fewer functions. */
   inEvent: boolean;
   onset: (path: string, kind: ParameterKind, value: string) => Promise<void>;
-  /** Sets a point: the `Location` function with these coordinates. */
-  onpoint: (path: string, x: number, y: number) => Promise<void>;
+  /** Asks the map for a thing of the parameter's kind, which then fills it. */
+  onpick: (path: string, kind: PickKind) => void;
   /** Opens a parameter inside this one. */
   onopen: (parameter: ParameterView) => void;
-  /** The map is about to show for a pick, or has gone again: the dialog hides meanwhile. */
-  onpicking: (picking: boolean) => void;
   onclose: () => void;
 };
 
@@ -55,9 +53,8 @@ let {
   items,
   inEvent,
   onset,
-  onpoint,
+  onpick,
   onopen,
-  onpicking,
   onclose,
 }: Props = $props();
 
@@ -143,14 +140,8 @@ function sendValue(): void {
   if (parameter.kind !== "value" || text !== parameter.typed) set("value", text);
 }
 
-async function pick(): Promise<void> {
-  if (!pickKind) return;
-  onpicking(true);
-  const picked = await pickOnMap(pickKind);
-  onpicking(false);
-  if (!picked) return;
-  if (pickKind === "point") await onpoint(parameter.path, picked.x, picked.y);
-  else if (picked.ref) await set("variable", picked.ref);
+function pick(): void {
+  if (pickKind) onpick(parameter.path, pickKind);
 }
 
 // The objects of the parameter's kind that a typed text finds.
