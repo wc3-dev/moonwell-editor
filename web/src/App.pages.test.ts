@@ -307,7 +307,9 @@ describe("the history", () => {
     );
     await fireEvent.contextMenu(screen.getByRole("treeitem", { name: /Knight/ }));
     await fireEvent.click(await screen.findByRole("menuitem", { name: t("menu.editTooltip") }));
-    await screen.findByRole("dialog", { name: new RegExp(t("tooltipEditor.title", { name: "Knight" })) });
+    await screen.findByRole("dialog", {
+      name: new RegExp(t("tooltipEditor.title", { name: "Knight" })),
+    });
 
     await fireEvent.mouseUp(document.body, { button: 3 });
     await press("ArrowLeft", { altKey: true });
