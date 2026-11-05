@@ -69,6 +69,7 @@ export function showModel(
   panel.missing = [];
   panel.sequences = [];
   panel.playing = -1;
+  panel.turning = true;
   panel.lifted = false;
   const abort = new AbortController();
   let stopped = false;

@@ -53,7 +53,15 @@ class NoResizeObserver {
   disconnect(): void {}
 }
 
-const footman = { kind: "Unit", name: "Footman", ref: "gg_unit_hfoo_0001", typeId: "hfoo", x: 0, y: 0, z: 0 };
+const footman = {
+  kind: "Unit",
+  name: "Footman",
+  ref: "gg_unit_hfoo_0001",
+  typeId: "hfoo",
+  x: 0,
+  y: 0,
+  z: 0,
+};
 
 function scene(): MapSceneView {
   return {
