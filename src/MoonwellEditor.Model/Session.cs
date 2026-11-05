@@ -44,7 +44,7 @@ public sealed partial class Session
         _unreadable = loaded.Unreadable;
         _stringsReadOnly = loaded.StringsReadOnly;
         UseOptions(MapOptions.Read(store));
-        _search = new SearchIndex(game, _kinds, _strings);
+        _search = new SearchIndex(game, Exists, _kinds, _strings);
         _savedObjects = Describe();
     }
 
