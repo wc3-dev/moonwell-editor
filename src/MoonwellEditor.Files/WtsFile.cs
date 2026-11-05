@@ -99,6 +99,18 @@ public sealed class WtsFile
         return true;
     }
 
+    /// <summary>What entry <paramref name="number"/> holds now, for <see cref="Restore"/>.</summary>
+    public string[]? Held(int number) => Find(number)?.NewLines;
+
+    /// <summary>Puts back what <see cref="Held"/> gave, so an entry as read is written as its bytes were.</summary>
+    public void Restore(int number, string[]? held)
+    {
+        if (Find(number) is { } entry)
+        {
+            entry.NewLines = held;
+        }
+    }
+
     /// <summary>The file's bytes: as read, except for the text of entries that were set.</summary>
     public byte[] ToBytes()
     {

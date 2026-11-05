@@ -32,6 +32,26 @@ public sealed class DataSetTests(GameDataFixture fixture, ITestOutputHelper outp
         Assert.DoesNotContain(Tree(game, (GameDataSet.Custom, GameDataVersion.TFT)), entry => entry.Id == "fapo");
     }
 
+    [Fact]
+    public void An_object_the_set_leaves_out_is_neither_found_nor_a_user()
+    {
+        if (fixture.Data is not { } game)
+        {
+            output.WriteLine(fixture.Reason);
+            return;
+        }
+
+        var ability = game.Kind(ObjectKind.Unit).Object("ebsh")!.Values["uabi"].Split(',')[0];
+        foreach (var (option, found) in new (GameDataSet, GameDataVersion)?[] { null, (GameDataSet.Custom, GameDataVersion.RoC) }
+                     .Select(option => (option, option == null)))
+        {
+            using var map = MapWith(option);
+            var session = Session.Open(MapFolder.Open(map.Folder), game);
+            Assert.Equal(found, session.Search("ebsh", 50).Any(hit => hit.Id == "ebsh"));
+            Assert.Equal(found, session.UsedBy(ObjectKind.Ability, ability).Any(user => user.Id == "ebsh"));
+        }
+    }
+
     // The Shaman's hit points under the option (null: the map has no info file, so the base tables).
     private static string HitPoints(GameData.GameData game, (GameDataSet Set, GameDataVersion Version)? option)
     {

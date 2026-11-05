@@ -63,13 +63,13 @@ const footman = {
   z: 0,
 };
 
-function scene(): MapSceneView {
+function scene(things: object[] = [footman]): MapSceneView {
   return {
     columns: 2,
     rows: 2,
     left: 0,
     bottom: 0,
-    things: [footman as PlacedThing],
+    things: things as PlacedThing[],
     regions: [],
     cameras: [],
     problems: [],
@@ -138,4 +138,16 @@ test("hovering moves the highlight and leaves the regions' lines alone", async (
   await fireEvent.pointerMove(screen.getByLabelText(t("main.map")), { clientX: 5, clientY: 5 });
   await waitFor(() => expect(fake.highlights).toBeGreaterThan(0));
   expect(fake.selectMarks).toBe(0);
+});
+
+test.each([
+  [24, t("app.folder.hostile")],
+  [27, t("app.folder.passive")],
+  [2, t("mapView.player", { number: 3 })],
+])("a unit owned by %i shows its owner, not the colour it takes", async (owner, shown) => {
+  fake.scenes.set("sd", Promise.resolve(scene([{ ...footman, kind: "Unit", player: 5, owner }])));
+  render(MapView, { mode: "sd" });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  await fireEvent.pointerMove(screen.getByLabelText(t("main.map")), { clientX: 5, clientY: 5 });
+  await waitFor(() => expect(screen.getByText(new RegExp(shown))).toBeTruthy());
 });

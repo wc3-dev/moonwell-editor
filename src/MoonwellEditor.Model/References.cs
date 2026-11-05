@@ -35,9 +35,8 @@ public sealed partial class Session
             // The standard objects the map leaves as they are, from the index.
             foreach (var (sourceId, fields) in _standardReferences.Of(each, kind, id))
             {
-                if (!originals.ContainsKey(sourceId))
+                if (!originals.ContainsKey(sourceId) && data.Object(sourceId) is { } standard && Exists(standard))
                 {
-                    var standard = data.Object(sourceId)!;
                     result.Add(new Reference(each, sourceId, standard.Name, fields));
                 }
             }
@@ -46,6 +45,11 @@ public sealed partial class Session
             foreach (var found in map.Customs().Concat(originals.Values))
             {
                 var standard = data.Object(found.BaseId);
+                if (!found.Custom && standard != null && !Exists(standard))
+                {
+                    continue;
+                }
+
                 var view = resolver.View(found.Id, standard, found, null);
                 var fields = view.Fields
                     .Where(field => Names(field.ListOf, field.Value, kind, id))

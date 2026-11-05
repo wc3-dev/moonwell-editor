@@ -159,7 +159,7 @@ public sealed class MapSceneTests(ITestOutputHelper output)
     [Fact]
     public void A_things_kind_goes_over_the_bridge_by_name()
     {
-        var thing = new PlacedThing(1, ThingKind.StartLocation, "sloc", "", null, 0, 0, 0, 0, 1, 1, 1, null, null, 0, 0);
+        var thing = new PlacedThing(1, ThingKind.StartLocation, "sloc", "", null, 0, 0, 0, 0, 1, 1, 1, null, null, 0, 0, 0);
 
         var json = System.Text.Json.JsonSerializer.Serialize(
             thing, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));

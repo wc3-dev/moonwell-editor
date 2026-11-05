@@ -49,12 +49,15 @@ internal sealed class SearchIndex
     private const int FieldOther = 12;
 
     private readonly GameData.GameData _game;
+    private readonly Func<StandardObject, bool> _exists;
     private readonly Dictionary<ObjectKind, Dictionary<string, ObjectEntryText>> _objects = [];
     private readonly List<FieldEntryText> _fields = [];
 
-    public SearchIndex(GameData.GameData game, Dictionary<ObjectKind, MapKind> maps, WtsFile? strings)
+    public SearchIndex(
+        GameData.GameData game, Func<StandardObject, bool> exists, Dictionary<ObjectKind, MapKind> maps, WtsFile? strings)
     {
         _game = game;
+        _exists = exists;
         foreach (var kind in Enum.GetValues<ObjectKind>())
         {
             foreach (var field in game.Kind(kind).Fields)
@@ -86,7 +89,7 @@ internal sealed class SearchIndex
             }
 
             var originals = map.Originals();
-            foreach (var standard in data.Objects)
+            foreach (var standard in data.Objects.Where(_exists))
             {
                 entries[standard.Id] = Make(kind, data, resolver, standard, originals.GetValueOrDefault(standard.Id), standard.Id);
             }
@@ -101,7 +104,7 @@ internal sealed class SearchIndex
         var entries = _objects[kind];
         var found = map.Find(id);
         var standard = found is { Custom: true } ? data.Object(found.BaseId) : data.Object(id);
-        if (found is not { Custom: true } && standard == null)
+        if (found is not { Custom: true } && (standard == null || !_exists(standard)))
         {
             entries.Remove(id);
             return;

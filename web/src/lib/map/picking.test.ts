@@ -46,6 +46,7 @@ const unit: PlacedThing = {
   model: "Footman.mdl",
   texture: null,
   player: 0,
+  owner: 0,
   tint: 0xffffff,
   variation: 0,
   shadow: null,

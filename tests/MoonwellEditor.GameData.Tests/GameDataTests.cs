@@ -355,6 +355,30 @@ public sealed class GameDataTests : IClassFixture<GameDataFixture>
         Assert.Equal("420", FootmanHitPoints(cache => cache["Stamp"] = "build 00000000000000000000000000000000"));
     }
 
+    [Fact]
+    public void A_cache_that_cannot_be_written_still_gives_the_data()
+    {
+        if (Skipped(out _))
+        {
+            return;
+        }
+
+        // A folder where the cache's file goes makes the move onto it fail, as a held or read-only file does.
+        var folder = Path.Combine(Path.GetTempPath(), "MoonwellEditor.GameData.Tests", Guid.NewGuid().ToString("N"));
+        var name = Path.GetFileName(Directory.GetFiles(_fixture.Cache, "*.json").Single());
+        Directory.CreateDirectory(Path.Combine(folder, name));
+        try
+        {
+            var data = GameData.Load(_fixture.Folder, folder);
+            Assert.Equal("420", data.Kind(ObjectKind.Unit).Object("hfoo")!.Values["uhpm"]);
+            Assert.Empty(Directory.GetFiles(folder));
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
     /// <summary>
     /// The footman's hit points after a load from a copy of the fixture's cache with the footman's hit points set to
     /// 999 and <paramref name="change"/> made to it.

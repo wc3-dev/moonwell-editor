@@ -40,7 +40,7 @@ public static class GameText
     private static IEnumerable<(string Section, string Key, string Value)> Lines(string text)
     {
         var section = "";
-        foreach (var raw in text.Split('\n'))
+        foreach (var raw in text.TrimStart('﻿').Split('\n'))
         {
             var line = raw.Trim();
             if (line.StartsWith('['))

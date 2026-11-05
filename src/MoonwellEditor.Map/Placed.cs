@@ -45,6 +45,7 @@ public enum ThingKind
 /// <param name="Model">Its model's game path, as object data writes it; null for a marker (no such type, no model).</param>
 /// <param name="Texture">The texture its model's replaceable texture takes (a tree's), or null.</param>
 /// <param name="Player">The player whose colour its team colour takes, 0 for player 1; -1 for none.</param>
+/// <param name="Owner">The player who owns it, 0 for player 1, 24 for Neutral Hostile, 27 for Neutral Passive; -1 for none.</param>
 /// <param name="Tint">Its tint, 0xRRGGBB.</param>
 /// <param name="Variation">Its variation, from its file: which of its model's shapes it is.</param>
 /// <param name="Shadow">A unit's shadow image in Classic; null for none (a building's shadow is baked into the map).</param>
@@ -64,6 +65,7 @@ public sealed record PlacedThing(
     string? Model,
     string? Texture,
     int Player,
+    int Owner,
     int Tint,
     int Variation = 0,
     UnitShadow? Shadow = null);
@@ -181,6 +183,7 @@ public static class Placed
                 look == null ? null : Model(look, prefix + "fil", prefix + "var", doodad.Variation, mode),
                 string.IsNullOrEmpty(texture) ? null : texture,
                 -1,
+                -1,
                 tint,
                 doodad.Variation));
         }
@@ -196,7 +199,7 @@ public static class Placed
                 things.Add(new PlacedThing(
                     things.Count + 1, ThingKind.StartLocation, id,
                     Texts.Get("app.mapView.startLocation", ("player", unit.OwnerId + 1)), null,
-                    unit.Position.X, unit.Position.Y, ground, unit.Rotation, 1, 1, 1, null, null, unit.OwnerId, 0xFFFFFF,
+                    unit.Position.X, unit.Position.Y, ground, unit.Rotation, 1, 1, 1, null, null, unit.OwnerId, unit.OwnerId, 0xFFFFFF,
                     unit.Variation));
                 continue;
             }
@@ -224,6 +227,7 @@ public static class Placed
                 look == null ? null : Model(look, item ? "ifil" : "umdl", null, 0, mode),
                 null,
                 item ? -1 : player,
+                item ? -1 : unit.OwnerId,
                 Tint(look, prefix + "clr", prefix + "clg", prefix + "clb", mode, 0),
                 unit.Variation,
                 item || look == null ? null : ShadowOf(look, mode)));
@@ -284,17 +288,24 @@ public static class Placed
             return null;
         }
 
+        var count = variations == null ? 1 : (int)Number(view, variations, mode, 0, 1f);
+        return VariationOf(path, count, variation);
+    }
+
+    // A model path with its variation's number before the extension when there is more than one, and .mdl when it has
+    // none of the model extensions.
+    internal static string VariationOf(string path, int count, int variation)
+    {
         var extension = Path.GetExtension(path);
-        if (extension is not (".mdl" or ".mdx" or ".MDL" or ".MDX"))
-        {
-            extension = ".mdl";
-        }
-        else
+        if (extension.Equals(".mdl", StringComparison.OrdinalIgnoreCase) || extension.Equals(".mdx", StringComparison.OrdinalIgnoreCase))
         {
             path = path[..^extension.Length];
         }
+        else
+        {
+            extension = ".mdl";
+        }
 
-        var count = variations == null ? 1 : (int)Number(view, variations, mode, 0, 1f);
         return count > 1 ? path + variation.ToString(CultureInfo.InvariantCulture) + extension : path + extension;
     }
 

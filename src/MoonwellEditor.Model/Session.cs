@@ -43,8 +43,8 @@ public sealed partial class Session
         _stamp = loaded.Stamp;
         _unreadable = loaded.Unreadable;
         _stringsReadOnly = loaded.StringsReadOnly;
-        ReadOptions();
-        _search = new SearchIndex(game, _kinds, _strings);
+        UseOptions(MapOptions.Read(store));
+        _search = new SearchIndex(game, Exists, _kinds, _strings);
         _savedObjects = Describe();
     }
 
@@ -68,9 +68,9 @@ public sealed partial class Session
     public MapOptions? Options { get; private set; }
 
     // Read at open and on reload, as the info file may have changed.
-    private void ReadOptions()
+    private void UseOptions(MapOptions? options)
     {
-        Options = MapOptions.Read(_store);
+        Options = options;
         _valueSet = Options is { Values: not "base" } ? Options.Values : null;
         _objectSet = Options?.Objects ?? "base";
     }

@@ -22,7 +22,17 @@ public sealed partial class Session
     /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved"). After a save that failed part way it
     /// is true until a save writes everything, as the map on disk is then partly old and partly new.
     /// </summary>
-    public bool Dirty => _partlySaved || (_history.Dirty && (ChangedObjects() > 0 || TriggersChanged()));
+    public bool Dirty => DirtyWith(ChangedObjects);
+
+    /// <summary><see cref="Dirty"/> and <see cref="ChangedObjects"/> at once, comparing the objects once.</summary>
+    public (bool Dirty, int ChangedObjects) Standing()
+    {
+        var changed = ChangedObjects();
+        return (DirtyWith(() => changed), changed);
+    }
+
+    private bool DirtyWith(Func<int> changedObjects) =>
+        _partlySaved || (_history.Dirty && (changedObjects() > 0 || TriggersChanged()));
 
     /// <summary>Undoes the last edit; false when there is none.</summary>
     public bool Undo() => Reindex(_history.Undo());
@@ -100,16 +110,17 @@ public sealed partial class Session
     }
 
     /// <summary>
-    /// The id <see cref="Create"/> would give a new object based on <paramref name="baseId"/> when given none: World
-    /// Editor's next free id. Nothing is made.
+    /// The id <see cref="Create"/> would give a new object based on <paramref name="baseId"/> when given none, or
+    /// <see cref="Copy"/> a copy of the custom object <paramref name="baseId"/>: World Editor's next free id. Nothing is
+    /// made.
     /// </summary>
     /// <exception cref="EditException">
-    /// <c>noObject</c> (no standard object <paramref name="baseId"/>) or <c>idTaken</c> (every id is taken).
+    /// <c>noObject</c> (no object <paramref name="baseId"/>) or <c>idTaken</c> (every id is taken).
     /// </exception>
     public string NextId(ObjectKind kind, string baseId)
     {
         var data = _game.Kind(kind);
-        if (data.Object(baseId) == null)
+        if (data.Object(baseId) == null && _kinds[kind].Find(baseId) == null)
         {
             throw new EditException(ErrorCode.NoObject, Texts.Get("app.error.noStandardObject", ("kind", Kinds.Key(kind)), ("id", baseId)));
         }
@@ -131,7 +142,7 @@ public sealed partial class Session
         var (map, data, found, _) = Locate(kind, fromId);
         RefuseReadOnly(map, found);
         var baseId = found is { Custom: true } ? found.BaseId : fromId;
-        var newId = NewId(kind, map, data, baseId, id);
+        var newId = NewId(kind, map, data, fromId, id);
         var edit = new Edit();
         edit.Touch(kind, newId);
         foreach (var skin in new[] { false, true })
@@ -483,12 +494,13 @@ public sealed partial class Session
 
         var strings = _strings;
         var entry = number!.Value;
+        var held = strings.Held(entry);
         if (!strings.Set(entry, text.Value))
         {
             throw new EditException(ErrorCode.BadText, $"war3map.wts cannot hold a line that is only \"}}\" (in {reference.Value}).");
         }
 
-        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Set(entry, old)));
+        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Restore(entry, held)));
         return true;
     }
 
@@ -657,10 +669,11 @@ public sealed partial class Session
     }
 
     /// <summary>
-    /// A new object's id: the one the user typed, checked, or World Editor's next free one. An id is taken by any of
-    /// the kind's standard or custom objects.
+    /// A new object's id: the one the user typed, checked, or World Editor's next free one, with the letter of
+    /// <paramref name="like"/> (a unit is a hero by its id). An id is taken by any of the kind's standard or custom
+    /// objects.
     /// </summary>
-    private static string NewId(ObjectKind kind, MapKind map, KindData data, string baseId, string? id)
+    private static string NewId(ObjectKind kind, MapKind map, KindData data, string like, string? id)
     {
         var taken = new HashSet<string>(data.Objects.Select(obj => obj.Id), StringComparer.Ordinal);
         taken.UnionWith(map.Customs().Select(custom => custom.Id));
@@ -679,7 +692,7 @@ public sealed partial class Session
             return id;
         }
 
-        var letter = ObjectIds.Letter(kind, baseId);
+        var letter = ObjectIds.Letter(kind, like);
         return ObjectIds.Next(letter, taken.Contains)
             ?? throw new EditException(ErrorCode.IdTaken, Texts.Get("app.error.idsUsedUp", ("first", $"{letter}000"), ("last", $"{letter}ZZZ")));
     }

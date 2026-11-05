@@ -346,6 +346,9 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal("h004", session.Copy(ObjectKind.Unit, "h000", null));
         Assert.Equal("h005", session.Copy(ObjectKind.Unit, "hfoo", null));
         Assert.Equal("H001", session.Copy(ObjectKind.Unit, "H000", null));
+        // A unit is a hero by its id, so a copy of a hero based on a peasant is a hero too.
+        session.Create(ObjectKind.Unit, "hpea", "H00P");
+        Assert.Equal("H002", session.Copy(ObjectKind.Unit, "H00P", null));
         Assert.Equal("A00A", session.Copy(ObjectKind.Ability, "A000", "A00A"));
         var copy = session.Object(ObjectKind.Unit, "h004")!;
         Assert.Equal("hpea", copy.BaseId);
@@ -383,6 +386,7 @@ public sealed class EditTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal("h001", session.NextId(ObjectKind.Unit, "hfoo"));
         Assert.Equal("H000", session.NextId(ObjectKind.Unit, "Hpal"));
         Assert.Equal("A001", session.NextId(ObjectKind.Ability, "AHhb"));
+        Assert.Equal("h001", session.NextId(ObjectKind.Unit, "h000"));
         Assert.False(session.Dirty);
 
         Assert.Equal(session.NextId(ObjectKind.Unit, "hfoo"), session.Create(ObjectKind.Unit, "hfoo", null));

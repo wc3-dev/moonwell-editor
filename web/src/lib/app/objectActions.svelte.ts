@@ -85,7 +85,7 @@ export class ObjectActions {
     let id = "";
     let error = "";
     try {
-      id = await nextId(asked.kind, asked.baseId);
+      id = await nextId(asked.kind, asked.from?.id ?? asked.baseId);
     } catch (problem) {
       error = errorText(problem);
     }

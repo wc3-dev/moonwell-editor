@@ -65,6 +65,7 @@ describe("thingBatches", () => {
     model: "units\\human\\Footman\\Footman.mdl",
     texture: null,
     player: 1,
+    owner: 1,
     tint: 0xff8000,
     variation: 4,
     shadow: null,

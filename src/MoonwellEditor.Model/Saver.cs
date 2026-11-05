@@ -93,9 +93,11 @@ public sealed partial class Session
     public void Reload()
     {
         Loaded loaded;
+        MapOptions? options;
         try
         {
             loaded = Load(_store, _read);
+            options = MapOptions.Read(_store);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or MapArchiveException)
         {
@@ -105,7 +107,7 @@ public sealed partial class Session
         _kinds = loaded.Kinds;
         _strings = loaded.Strings;
         _triggers = null;
-        ReadOptions();
+        UseOptions(options);
         _problems = loaded.Problems;
         _baseline = loaded.Baseline;
         _stamp = loaded.Stamp;

@@ -214,9 +214,11 @@ public sealed class CommandTableTests(GameDataFixture fixture, ITestOutputHelper
     [InlineData("terminalWrite", true)]
     [InlineData("terminalResize", true)]
     [InlineData("terminalClose", true)]
+    [InlineData("closeAsking", true)]
+    [InlineData("closeWindow", false)]
     [InlineData("tree", false)]
     [InlineData("nope", false)]
-    public void Terminal_commands_run_beside_the_queue(string command, bool alongside) =>
+    public void Terminal_commands_and_closeAsking_run_beside_the_queue(string command, bool alongside) =>
         Assert.Equal(alongside, Commands.RunsAlongside(command));
 
     [Fact]

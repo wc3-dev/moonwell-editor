@@ -31,7 +31,8 @@ public sealed class MainForm : Form
     private readonly Bridge _bridge;
 
     // The page's requests are answered one at a time, in the order they came. The terminal's have a line of their own,
-    // so what is typed never waits behind a slow command, and stays in order.
+    // so what is typed never waits behind a slow command, and stays in order; so does closeAsking, which the window
+    // waits for (see _pageWait).
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
     private readonly OrderedLine _terminalLine;
 
@@ -121,11 +122,25 @@ public sealed class MainForm : Form
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
 
+        // Without the page (no WebView2 runtime, say) there is nothing to show: the window says why and closes.
         Load += async (_, _) =>
         {
             _home.Watch();
             _ = _commands.StartLoading();
-            await StartPage();
+            try
+            {
+                await StartPage();
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(
+                    this,
+                    Texts.Get("app.window.pageNotLoaded", ("error", exception.Message)),
+                    Texts.Get("app.name"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                Close();
+            }
         };
     }
 
@@ -259,7 +274,7 @@ public sealed class MainForm : Form
         }
 
         var pageLoaded = _pageLoaded && _web.CoreWebView2 != null;
-        if (_closeGuard.Closing(_commands.Dirty, pageLoaded) == CloseStep.Close)
+        if (_closeGuard.Closing(Dirty(), pageLoaded) == CloseStep.Close)
         {
             _pageWait.Stop();
             return;
@@ -272,9 +287,23 @@ public sealed class MainForm : Form
             return;
         }
 
-        Post(Bridge.Event(BridgeEvents.CloseRequested, new CloseRequest(_commands.Dirty)));
+        Post(Bridge.Event(BridgeEvents.CloseRequested, new CloseRequest(Dirty())));
         _pageWait.Stop();
         _pageWait.Start();
+    }
+
+    // The map is read on the window's thread while a command may be changing it, which can throw; a read that fails
+    // counts as unsaved, so the close asks.
+    private bool Dirty()
+    {
+        try
+        {
+            return _commands.Dirty;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     // The page did not say it is handling the close (it failed to load, or is broken): the window closes, or asks the
@@ -282,7 +311,7 @@ public sealed class MainForm : Form
     private void AskIfPageSilent()
     {
         _pageWait.Stop();
-        var step = _closeGuard.PageSilent(_commands.Dirty);
+        var step = _closeGuard.PageSilent(Dirty());
         if (step == CloseStep.Close)
         {
             _closeGuard.Approve();
@@ -309,7 +338,8 @@ public sealed class MainForm : Form
         }
     }
 
-    // Runs an action on the window's thread, from a command's background thread.
+    // Runs an action on the window's thread, from a command's or a shell's background thread. The window may close
+    // between the check and the call, which then throws.
     private void OnWindowThread(Action action)
     {
         if (IsDisposed || !IsHandleCreated)
@@ -317,25 +347,24 @@ public sealed class MainForm : Form
             return;
         }
 
-        BeginInvoke(action);
+        try
+        {
+            BeginInvoke(action);
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     // Tells the page about something that happened on a background thread.
-    private void Notify<T>(BridgeEvent<T> @event, T payload)
-    {
-        if (IsDisposed || !IsHandleCreated)
-        {
-            return;
-        }
-
-        BeginInvoke(() =>
+    private void Notify<T>(BridgeEvent<T> @event, T payload) =>
+        OnWindowThread(() =>
         {
             if (_web.CoreWebView2 != null)
             {
                 Post(Bridge.Event(@event, payload));
             }
         });
-    }
 
     private static WebView2 NewWeb(Color background) =>
         new() { Dock = DockStyle.Fill, DefaultBackgroundColor = background };
@@ -493,7 +522,7 @@ public sealed class MainForm : Form
                     200,
                     "OK",
                     $"Content-Type: {(icon ? "image/png" : "application/octet-stream")}\r\n"
-                    + "Access-Control-Allow-Origin: *\r\nCache-Control: max-age=3600");
+                    + "Access-Control-Allow-Origin: *\r\nCache-Control: no-store");
             deferral.Complete();
         }));
     }
