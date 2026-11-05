@@ -578,7 +578,7 @@ public sealed class TriggerScript : MapScriptBuilder
         if (!string.IsNullOrEmpty(definition.Description))
         {
             lines.Add("//");
-            lines.AddRange(definition.Description.Replace("\r\n", "\n").Split('\n').Select(line => "// " + line));
+            lines.AddRange(TriggerJass.Comment(definition.Description));
         }
 
         lines.Add(Line);

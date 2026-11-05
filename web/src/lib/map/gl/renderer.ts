@@ -159,8 +159,8 @@ export class MapRenderer {
     this.markers.draw(viewProjection, true);
     const pixel = new Uint8Array(4);
     gl.readPixels(
-      Math.round(px),
-      Math.round(height - py - 1),
+      Math.floor(px),
+      height - 1 - Math.floor(py),
       1,
       1,
       gl.RGBA,

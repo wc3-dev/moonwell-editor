@@ -69,6 +69,7 @@ export const hasScripts = (): boolean => scripts.length > 0;
 export async function refresh(): Promise<void> {
   try {
     tree = await queued(triggerTree);
+    const before = active;
     const now = matched(scripts, tree.items, active);
     const gone = scripts.filter((script) => !now.list.some((each) => each.id === script.id));
     scripts = now.list;
@@ -80,6 +81,8 @@ export async function refresh(): Promise<void> {
     const view = await editor;
     for (const script of gone) await view.close(script.id);
     for (const script of now.list) await view.setText(script.id, await textOf(script));
+    // A script opened meanwhile is the one to show.
+    if (active !== before) return;
     if (now.active !== null && now.active !== active) await activate(now.active);
     active = now.active;
   } catch (error) {

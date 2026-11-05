@@ -270,6 +270,25 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_trigger_converted_to_text_has_its_comment_written_as_a_gui_triggers()
+    {
+        if (Map("Maps/FrozenThrone/Scenario/(6)BomberCommand.w3x") is not var (document, script, info, units))
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var custom = document.Tree().First(item => item.Kind == TriggerItemKind.Custom);
+        document.SetOptions(custom.Id, null, null, null, "First\r\r\nSecond");
+
+        var written = TriggerScript.Write(script, document, info, units, out var problem);
+
+        var end = script.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        Assert.Null(problem);
+        Assert.Contains($"{end}// First{end}// Second{end}", written);
+    }
+
+    [Fact]
     public void Writing_again_gives_the_same_script_with_banners_in_the_custom_code()
     {
         if (Map(InstallMaps.WarChasers) is not var (document, script, info, units))

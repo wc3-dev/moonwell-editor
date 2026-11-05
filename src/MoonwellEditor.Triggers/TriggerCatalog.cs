@@ -422,21 +422,21 @@ public sealed partial class TriggerCatalog
         var first = true;
         foreach (Match match in ArgumentPattern().Matches(text))
         {
-            AddText(text[position..match.Index]);
+            AddText(text[position..match.Index], true);
             parts.Add(new SentencePart(match.Value[1..], argument++));
             position = match.Index + match.Length;
         }
 
-        AddText(text[position..]);
+        AddText(text[position..], false);
         return parts;
 
-        void AddText(string gap)
+        void AddText(string gap, bool beforeArgument)
         {
             var pieces = gap.Trim(',', '`').Split("\",\"");
             for (var i = 0; i < pieces.Length; i++)
             {
                 var piece = GameText.Unquoted(pieces[i].TrimStart('"')).TrimEnd('"');
-                var titleFirst = first && i == 0 && pieces.Length + argument > 1 && piece == Title(title);
+                var titleFirst = first && i == 0 && (pieces.Length > 1 || beforeArgument) && piece == Title(title);
                 if (piece.Length > 0 && !titleFirst)
                 {
                     parts.Add(new SentencePart(piece));
