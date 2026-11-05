@@ -168,7 +168,8 @@ const named = $derived.by(() => {
 });
 let error = $state("");
 
-const keyOf = (field: FieldView) => `${field.id}:${field.level}`;
+// A text's key names its object, so a text typed for one object never shows in or goes to another.
+const keyOf = (field: FieldView) => `${view.kind}:${view.id}:${field.id}:${field.level}`;
 
 // The colours the game's own tooltips use, most used first (counted in the game's ability and item texts, Sven,
 // 2026-10-29), so they are kept at hand.
@@ -369,8 +370,7 @@ async function save(): Promise<string | null> {
   stopTyping?.();
   stopTyping = null;
   const edits = Object.entries(drafts).flatMap(([key, value]) => {
-    const [id, at] = key.split(":");
-    const field = view.fields.find((each) => each.id === id && String(each.level) === at);
+    const field = view.fields.find((each) => keyOf(each) === key);
     return field && (sent[key] ?? field.value) !== value ? [{ field, value }] : [];
   });
   if (edits.length === 0) return null;

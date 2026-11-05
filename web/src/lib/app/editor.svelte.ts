@@ -104,6 +104,7 @@ export class Editor {
         this.session.diskChanged ||
         this.objectActions.creating ||
         this.objectActions.deleting ||
+        this.objectActions.editingTooltip ||
         this.settingsOpen ||
         this.aboutOpen ||
         this.alphaOpen ||
@@ -178,7 +179,9 @@ export class Editor {
     this.objects.show(each, id);
   };
 
+  // Not while a dialog is open: the tooltip editor's texts belong to the object it shows.
   walk = async (by: number): Promise<void> => {
+    if (this.#dialogOpen) return;
     const place = this.history.move(by, this.pages.details?.scrollPosition());
     if (!place) return;
     await this.objects.show(place.kind, place.id, false);
