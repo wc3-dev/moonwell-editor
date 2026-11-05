@@ -690,13 +690,16 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
         var before = TriggerJass.Identifier(custom.Name);
         document.SetCode(
             custom.Id,
-            document.CodeOf(custom.Id) + $"\ncall EnableTrigger(gg_trg_{before}_Bar)\ncall InitTrig_{before}_Bar()\n");
+            document.CodeOf(custom.Id) + $"\ncall EnableTrigger(gg_trg_{before}_Bar)\ncall InitTrig_{before}_Bar()\n"
+                + $"call Trig_{before}_Bar_Actions()\ncall Trig_{before}_Actions()\n");
 
         document.Rename(custom.Id, "Renamed Here");
 
         Assert.Contains($"gg_trg_{before}_Bar", document.CodeOf(custom.Id));
         Assert.Contains($"InitTrig_{before}_Bar", document.CodeOf(custom.Id));
+        Assert.Contains($"Trig_{before}_Bar_Actions", document.CodeOf(custom.Id));
         Assert.Contains("InitTrig_Renamed_Here", document.CodeOf(custom.Id));
+        Assert.Contains("call Trig_Renamed_Here_Actions()", document.CodeOf(custom.Id));
     }
 
     [Fact]
