@@ -24,6 +24,15 @@ public sealed class GameTextTests
     }
 
     [Fact]
+    public void A_file_that_starts_with_a_byte_order_mark_reads_its_first_line()
+    {
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes("[TileSets]\r\nL=Lordaeron\r\n")).ToArray();
+
+        Assert.Equal("Lordaeron", GameText.Entry(Encoding.UTF8.GetString(bytes), "TileSets", "L"));
+        Assert.Equal("Lordaeron", GameText.Strings(bytes)["L"]);
+    }
+
+    [Fact]
     public void An_entry_not_in_its_section_is_null()
     {
         Assert.Null(GameText.Entry(WorldEditData, "TileSets", "X"));
