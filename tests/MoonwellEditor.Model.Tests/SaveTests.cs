@@ -396,6 +396,28 @@ public sealed class SaveTests(GameDataFixture fixture, ITestOutputHelper output)
         Assert.Equal("420", Value(session, ObjectKind.Unit, "hfoo", "uhpm", 0));
     }
 
+    [Fact]
+    public void Undoing_a_strings_edit_gives_the_entry_back_as_it_was_read()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        // An entry whose last line ends in \n alone, in a file of \r\n.
+        using var map = TempMap.Of("we-3.0");
+        var strings = Path.Combine(map.Folder, "war3map.wts");
+        File.WriteAllText(strings, File.ReadAllText(strings).Replace("{\r\nUnit\r\n}", "{\r\nUnit\n}"));
+        var bytes = File.ReadAllBytes(strings);
+        var session = Open(map, game);
+
+        session.Set(ObjectKind.Unit, "h000", "unam", 0, "Grunt");
+        Assert.NotEqual(bytes, session.Strings!.ToBytes());
+        Assert.True(session.Undo());
+
+        Assert.Equal(bytes, session.Strings!.ToBytes());
+    }
+
     private static Session Open(TempMap map, GameData.GameData game) => Session.Open(MapFolder.Open(map.Folder), game);
 
     private static string Value(Session session, ObjectKind kind, string id, string field, int level) =>

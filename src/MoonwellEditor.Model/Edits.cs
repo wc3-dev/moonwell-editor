@@ -494,12 +494,13 @@ public sealed partial class Session
 
         var strings = _strings;
         var entry = number!.Value;
+        var held = strings.Held(entry);
         if (!strings.Set(entry, text.Value))
         {
             throw new EditException(ErrorCode.BadText, $"war3map.wts cannot hold a line that is only \"}}\" (in {reference.Value}).");
         }
 
-        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Set(entry, old)));
+        edit.Done(new Step(() => strings.Set(entry, text.Value), () => strings.Restore(entry, held)));
         return true;
     }
 
