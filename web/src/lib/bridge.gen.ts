@@ -663,11 +663,11 @@ export type NewTriggerItem = {
   id: number;
 };
 
-/** The standard object a new id would be based on. */
+/** The object a new id would be based on, or a copy made of. */
 export type NextIdArgs = {
   /** Its kind. */
   kind: Kind;
-  /** The standard object. */
+  /** The standard object, or the custom object copied. */
   baseId: string;
 };
 
