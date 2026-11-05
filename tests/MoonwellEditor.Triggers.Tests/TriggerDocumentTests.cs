@@ -6,6 +6,43 @@ namespace MoonwellEditor.Triggers.Tests;
 public sealed class TriggerDocumentTests(ITestOutputHelper output)
 {
     [Fact]
+    public void An_old_format_file_keeps_each_triggers_custom_text()
+    {
+        var catalog = InstallMaps.Catalog;
+        if (catalog == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var triggers = new MapTriggers(MapTriggersFormatVersion.v7, null);
+        triggers.TriggerItems.Add(new TriggerCategoryDefinition { Name = "Old" });
+        triggers.TriggerItems.Add(new TriggerDefinition { Name = "One", IsCustomTextTrigger = true, IsEnabled = true });
+        triggers.TriggerItems.Add(new TriggerDefinition { Name = "Two", IsCustomTextTrigger = true, IsEnabled = true });
+        var custom = new MapCustomTextTriggers(MapCustomTextTriggersFormatVersion.v1, null)
+        {
+            GlobalCustomScriptComment = "",
+            GlobalCustomScriptCode = new CustomTextTrigger { Code = "" },
+        };
+        custom.CustomTextTriggers.Add(new CustomTextTrigger { Code = "// one" });
+        custom.CustomTextTriggers.Add(new CustomTextTrigger { Code = "// two" });
+
+        var document = TriggerDocument.Read(Bytes(writer => writer.Write(triggers)), Bytes(writer => writer.Write(custom)), catalog);
+
+        Assert.Equal(["// one", "// two"], document.Tree()
+            .Where(item => item.Kind == TriggerItemKind.Custom).Select(item => document.CodeOf(item.Id)));
+    }
+
+    private static byte[] Bytes(Action<BinaryWriter> write)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream);
+        write(writer);
+        writer.Flush();
+        return stream.ToArray();
+    }
+
+    [Fact]
     public void Every_map_of_the_install_comes_back_the_same_bytes()
     {
         var catalog = InstallMaps.Catalog;

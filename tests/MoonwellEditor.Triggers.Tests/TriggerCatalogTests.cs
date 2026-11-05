@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.RegularExpressions;
+
 namespace MoonwellEditor.Triggers.Tests;
 
 public sealed class TriggerCatalogTests(ITestOutputHelper output)
@@ -50,6 +53,26 @@ public sealed class TriggerCatalogTests(ITestOutputHelper output)
 
         Assert.Equal("Set ", set.Sentence[0].Text);
         Assert.Equal(0, set.Sentence[1].Argument);
+    }
+
+    [Fact]
+    public void A_sentence_that_starts_with_its_title_before_an_argument_drops_it()
+    {
+        if (InstallMaps.ReadGame(@"UI\TriggerData.txt") is not { } data)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var text = Encoding.UTF8.GetString(data);
+        var key = "_TriggerRegisterTimerEventPeriodic_Parameters=";
+        var changed = Regex.Replace(text, "(?m)^" + key + @"[^\r\n]*", key + "\"Periodic Event\",~Time");
+        Assert.NotEqual(text, changed);
+
+        var catalog = TriggerCatalog.Read(path =>
+            path == @"UI\TriggerData.txt" ? Encoding.UTF8.GetBytes(changed) : InstallMaps.ReadGame(path));
+
+        Assert.Equal([new SentencePart("Time", 0)], catalog.Event("TriggerRegisterTimerEventPeriodic")!.Sentence);
     }
 
     [Fact]
