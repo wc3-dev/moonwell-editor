@@ -111,4 +111,18 @@ describe("Blender's keys and mouse", () => {
     expect(all.distance).toBeGreaterThan(3464);
     expect([all.yaw, all.pitch]).toEqual([view.yaw, view.pitch]);
   });
+
+  it("Home on the largest map sees its far edge, and the wheel zooms on from there", () => {
+    // 480 tiles across, as the game's largest maps are, seen at the game's own 56 degrees.
+    const side = 480 * 128;
+    const game: View = { ...view, yaw: 0, pitch: (56 * Math.PI) / 180 };
+    const all = framed(game, -side / 2, -side / 2, side / 2, side / 2);
+    const { view: look, projection } = matrices(all, 800, 600);
+    const clip = vec4.transformMat4(vec4.create(), [0, side / 2, 0, 1], look);
+    vec4.transformMat4(clip, clip, projection);
+    expect((clip[2] ?? 0) / (clip[3] ?? 1)).toBeLessThan(1);
+    const nearer = zoomed(all, 1).distance;
+    expect(nearer).toBeCloseTo(all.distance * 0.88, 0);
+    expect(zoomed(all, -1).distance).toBe(all.distance);
+  });
 });
