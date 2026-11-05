@@ -4,6 +4,7 @@ using MoonwellEditor.Files;
 using MoonwellEditor.Triggers;
 using War3Net.Build.Extensions;
 using War3Net.Build.Import;
+using War3Net.IO.Mpq;
 using Xunit.Abstractions;
 
 namespace MoonwellEditor.Model.Tests;
@@ -38,6 +39,38 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         var target = Path.Combine(_folder, Path.GetFileName(path));
         File.WriteAllBytes(target, files.Read(path, "sd")!);
         return (target, TriggerCatalog.Read(name => files.Read(name, "sd")));
+    }
+
+    // The install's trigger catalog; null without an install.
+    private TriggerCatalog? Catalog()
+    {
+        if (game.Data == null || GameInstall.Find() is not { } folder)
+        {
+            output.WriteLine(game.Reason);
+            return null;
+        }
+
+        using var files = GameFiles.Open(folder);
+        return TriggerCatalog.Read(name => files.Read(name, "sd"));
+    }
+
+    // A folder map with these files of a map of the install; null without an install.
+    private (string Folder, TriggerCatalog Catalog)? Unpacked(string path, params string[] names)
+    {
+        if (Copy(path) is not var (archive, catalog))
+        {
+            return null;
+        }
+
+        var folder = Path.Combine(_folder, "folder");
+        Directory.CreateDirectory(folder);
+        var store = MapStore.Open(archive);
+        foreach (var name in names)
+        {
+            File.WriteAllBytes(Path.Combine(folder, name), store.Read(name)!);
+        }
+
+        return (folder, catalog);
     }
 
     private static int Category(TriggerDocument document) =>
@@ -285,5 +318,129 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
 
         Assert.False(session.Dirty);
         Assert.DoesNotContain(session.Triggers(catalog).Tree(), item => item.Name == "Untitled Trigger 001");
+    }
+
+    [Fact]
+    public void A_map_info_that_cannot_be_read_leaves_the_script_and_the_save_says_so()
+    {
+        if (Copy(WarChasers) is not var (path, catalog))
+        {
+            return;
+        }
+
+        MapStore.Open(path).Write([("war3map.w3i", new byte[] { 1, 2, 3 })]);
+        var script = MapStore.Open(path).Read("war3map.j");
+        var session = Session.Open(MapStore.Open(path), game.Data!);
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
+        session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "500");
+
+        var report = session.Save();
+
+        Assert.Equal(["war3map.w3u", "war3map.wtg", "war3map.wct"], report.Written);
+        Assert.Contains("war3map.w3i could not be read", report.Note);
+        Assert.Equal(script, MapStore.Open(path).Read("war3map.j"));
+        Assert.False(session.Dirty);
+    }
+
+    [Fact]
+    public void Triggers_are_read_only_when_the_script_or_imports_are_under_another_locale()
+    {
+        if (Catalog() is not { } catalog)
+        {
+            return;
+        }
+
+        var made = TriggerDocument.Read(null, null, catalog);
+        made.Add(TriggerItemKind.Trigger, -1);
+        Directory.CreateDirectory(_folder);
+        var path = Path.Combine(_folder, "localized.w3x");
+        var german = (MpqLocale)0x407;
+        var files = new List<MpqFile>
+        {
+            MpqFile.New(new MemoryStream(made.TriggerBytes()!), "war3map.wtg"),
+            MpqFile.New(new MemoryStream(made.CustomTextBytes()!), "war3map.wct"),
+            MpqFile.New(new MemoryStream("function main takes nothing returns nothing\nendfunction\n"u8.ToArray()), "war3map.j", german),
+        };
+        using (var archive = new MemoryStream())
+        {
+            MpqArchive.Create(archive, files, new MpqArchiveCreateOptions(), leaveOpen: true).Dispose();
+            File.WriteAllBytes(path, archive.ToArray());
+        }
+
+        var document = Session.Open(MapStore.Open(path), game.Data!).Triggers(catalog);
+
+        Assert.True(document.ReadOnly);
+        Assert.Contains("war3map.j", document.Problem);
+    }
+
+    [Fact]
+    public void An_undo_after_a_save_writes_the_layout_back()
+    {
+        if (Copy(WarChasers) is not var (path, catalog))
+        {
+            return;
+        }
+
+        var session = Session.Open(MapStore.Open(path), game.Data!);
+        var id = session.Triggers(catalog).Tree().First(item => item.Kind == TriggerItemKind.Trigger).Id;
+        session.EditTriggers(catalog, each =>
+        {
+            each.SetPlaces([new CardMove(id, 120, 60)]);
+            return 0;
+        });
+        session.Save();
+
+        Assert.True(session.Undo());
+
+        Assert.True(session.Dirty);
+        Assert.Equal([TriggerDocument.LayoutFile], session.Save().Written);
+        var again = Session.Open(MapStore.Open(path), game.Data!);
+        var parent = again.Triggers(catalog).Tree().First(item => item.Id == id).Parent;
+        Assert.Null(again.Triggers(catalog).Cards(parent, again).Single(each => each.Id == id).Place);
+    }
+
+    [Fact]
+    public void An_undo_after_a_save_writes_the_trigger_files_back_on_a_map_that_had_none()
+    {
+        if (Catalog() is not { } catalog)
+        {
+            return;
+        }
+
+        using var map = TempMap.Of("we-3.0");
+        var session = Session.Open(MapStore.Open(map.Folder), game.Data!);
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, -1));
+        Assert.Equal(["war3map.wtg", "war3map.wct"], session.Save().Written);
+
+        Assert.True(session.Undo());
+
+        Assert.True(session.Dirty);
+        Assert.Equal(["war3map.wtg", "war3map.wct"], session.Save().Written);
+        var again = Session.Open(MapStore.Open(map.Folder), game.Data!).Triggers(catalog);
+        Assert.Null(again.Problem);
+        Assert.DoesNotContain(again.Tree(), item => item.Name == "Untitled Trigger 001");
+    }
+
+    [Fact]
+    public void A_script_a_failed_save_did_not_write_is_written_by_the_next_save()
+    {
+        if (Unpacked(WarChasers, "war3map.w3i", "war3map.wtg", "war3map.wct", "war3map.j", "war3mapUnits.doo")
+            is not var (folder, catalog))
+        {
+            return;
+        }
+
+        var session = Session.Open(MapStore.Open(folder), game.Data!);
+        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
+        var script = Path.Combine(folder, "war3map.j");
+        using (File.Open(script, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Assert.Throws<MapFileException>(() => session.Save());
+        }
+
+        session.Save();
+
+        Assert.Contains("gg_trg_Untitled_Trigger_001", File.ReadAllText(script));
+        Assert.False(session.Dirty);
     }
 }
