@@ -60,7 +60,8 @@ export function matrices(
       fieldOfView,
       width / Math.max(height, 1),
       near,
-      far,
+      // From Home's distance a large map's far edge lies past `far`.
+      Math.max(far, view.distance * 2),
     ),
   };
 }
@@ -99,10 +100,8 @@ export function panned(view: View, right: number, ahead: number): View {
 
 /** The view nearer by `steps` (a wheel's notch is one), or further for fewer than none. */
 export function zoomed(view: View, steps: number): View {
-  return {
-    ...view,
-    distance: Math.min(Math.max(view.distance * 0.88 ** steps, closest), furthest),
-  };
+  const distance = Math.max(view.distance * 0.88 ** steps, closest);
+  return { ...view, distance: Math.min(distance, Math.max(furthest, view.distance)) };
 }
 
 /** The view turned by `yaw` and tilted by `pitch`, in radians. */

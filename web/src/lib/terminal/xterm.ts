@@ -59,9 +59,6 @@ export function openTerminal(element: HTMLElement, { colors, ontype }: Options):
     return { columns: size.cols, rows: size.rows };
   };
 
-  // The font comes late the first time, and its width sets how many columns fit.
-  document.fonts?.ready.then(fit);
-
   return {
     write: (text) => terminal.write(text),
     fit,

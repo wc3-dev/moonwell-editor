@@ -83,6 +83,10 @@ export class Terminals {
     if (!tab) return;
     try {
       const started = await startTerminal(tab.shell, size.columns, size.rows);
+      if (!this.#tab(key)) {
+        closeTerminal(started.id);
+        return;
+      }
       tab.id = started.id;
       tab.name = started.name;
       this.#writers.set(started.id, write);
