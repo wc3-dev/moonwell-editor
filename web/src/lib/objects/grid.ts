@@ -196,7 +196,7 @@ export function cellField(info: FieldDescription, column: Column, cell: TableCel
     warning: cell.warning,
     modes: null,
     asset: null,
-    meta: null,
+    meta: info.meta || null,
     data: 0,
     maxLength: null,
   };

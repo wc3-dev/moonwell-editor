@@ -1,17 +1,17 @@
 /**
  * The map view's textures: the game's DDS files go to the graphics card still compressed where WebGL takes their
  * compression (DXT1, DXT3, DXT5 through WEBGL_compressed_texture_s3tc; ATI2, an HD normal map's two channels, through
- * EXT_texture_compression_rgtc), with the mipmaps the file holds; any other DDS is decoded here, and so is a BLP
- * (war3-model's decoder).
+ * EXT_texture_compression_rgtc), with the mipmaps the file holds; where the card takes none they are decoded here, and
+ * so is a BLP (war3-model's decoder). dds-parser reads only those four, so an uncompressed or DX10 DDS is not drawn.
  */
-import { decodeDds, parseHeaders } from "dds-parser";
+import { type DdsFormat, decodeDds, parseHeaders } from "dds-parser";
 import { decodeBLP, getBLPImageData } from "war3-model";
 
 /** A DDS file's size, compression and images (the largest first). */
 export type DdsInfo = {
   width: number;
   height: number;
-  format: "dxt1" | "dxt3" | "dxt5" | "ati2" | "other";
+  format: DdsFormat;
   images: { offset: number; length: number; width: number; height: number }[];
 };
 
@@ -24,11 +24,10 @@ export function ddsInfo(bytes: Uint8Array): DdsInfo | null {
       bytes.byteOffset + bytes.byteLength,
     ) as ArrayBuffer;
     const info = parseHeaders(own);
-    const format = ["dxt1", "dxt3", "dxt5", "ati2"].includes(info.format) ? info.format : "other";
     return {
       width: info.shape.width,
       height: info.shape.height,
-      format,
+      format: info.format,
       // dds-parser halves a side down to 0 on a sheet that is not square; WebGL wants every side at least 1.
       images: info.images.map((image) => ({
         offset: image.offset,
@@ -110,7 +109,6 @@ export function makeGroundTexture(
       dxt3: s3tc.COMPRESSED_RGBA_S3TC_DXT3_EXT,
       dxt5: s3tc.COMPRESSED_RGBA_S3TC_DXT5_EXT,
       ati2: undefined,
-      other: undefined,
     }[info.format];
   if (info && format) {
     const extended = info.width === info.height * 2;
@@ -196,7 +194,7 @@ export function decodedImage(
   try {
     const info = ddsInfo(bytes);
     const top = info?.images[0];
-    if (info && top && info.format !== "other") {
+    if (info && top) {
       const pixels = new Uint8Array(
         decodeDds(
           bytes.subarray(top.offset, top.offset + top.length),
@@ -266,7 +264,6 @@ function ddsTexture(
     dxt3: s3tc?.COMPRESSED_RGBA_S3TC_DXT3_EXT,
     dxt5: s3tc?.COMPRESSED_RGBA_S3TC_DXT5_EXT,
     ati2: rgtc?.COMPRESSED_RED_GREEN_RGTC2_EXT,
-    other: undefined,
   }[info.format];
   if (format) {
     const texture = gl.createTexture();

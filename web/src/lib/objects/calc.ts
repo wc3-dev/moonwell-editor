@@ -58,7 +58,7 @@ export function calculate(text: string, current = 0): number | null {
   return value !== null && at === tokens.length && Number.isFinite(value) ? value : null;
 }
 
-/** True when the text is more than a plain number: arithmetic to work out. */
+/** True when the text is more than a plain number (`1e-5` is one): arithmetic to work out. */
 export function isArithmetic(text: string): boolean {
-  return !/^\s*[-+]?(\d+\.?\d*|\.\d+)\s*$/.test(text) && /[-+*/x×()]/.test(text);
+  return !/^\s*[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?\s*$/i.test(text) && /[-+*/x×()]/.test(text);
 }

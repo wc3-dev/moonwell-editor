@@ -17,11 +17,11 @@ let measured = "";
 
 function measure(): void {
   const size = view?.fit();
-  if (!size) return;
+  if (!size || tab.id === null) return;
   const now = `${size.columns}x${size.rows}`;
   if (now === measured) return;
   measured = now;
-  if (tab.id !== null) resizeTerminal(tab.id, size.columns, size.rows);
+  resizeTerminal(tab.id, size.columns, size.rows);
 }
 
 onMount(() => {
@@ -37,7 +37,11 @@ onMount(() => {
     });
     const size = view.fit() ?? { columns: 120, rows: 30 };
     measured = `${size.columns}x${size.rows}`;
-    terminals.start(tab.key, size, (text) => view?.write(text));
+    // The font comes late the first time, and its width sets how many columns fit.
+    void Promise.all([
+      terminals.start(tab.key, size, (text) => view?.write(text)),
+      document.fonts?.ready,
+    ]).then(measure);
   });
   const resized = new ResizeObserver(measure);
   resized.observe(element);

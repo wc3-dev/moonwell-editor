@@ -114,11 +114,16 @@ public sealed partial class TriggerDocument
 
         var document = new TriggerDocument(
             catalog, parsedTriggers, parsedCustom, triggers != null, customText != null, null, false);
+        var oldFormat = parsedTriggers.SubVersion == null && triggers != null;
+        if (oldFormat)
+        {
+            document.NumberItems();
+        }
+
         problem = document.Pair(customText != null) ?? document.Exact(triggers, customText);
-        if (problem == null && parsedTriggers.SubVersion == null && triggers != null)
+        if (problem == null && oldFormat)
         {
             problem = Texts.Get("app.triggers.oldFormat");
-            document.NumberItems();
         }
 
         problem ??= writeProblem;

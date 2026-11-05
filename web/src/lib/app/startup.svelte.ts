@@ -10,6 +10,7 @@ import {
   startup,
 } from "../api.ts";
 import { loadAssetNames } from "../assetNames.svelte.ts";
+import { forgetAssetLists } from "../assets.ts";
 import { call, on } from "../bridge.ts";
 import { errorText } from "../errors.ts";
 import { setPref, watchSettings } from "../prefs.svelte.ts";
@@ -31,6 +32,7 @@ export class Startup {
 
   readonly #session: MapSession;
   #gameDataReady = false;
+  #ready = false;
   /** The folder the user chose, until it has loaded and is written to `settings.json`. */
   #chosen: string | null = null;
 
@@ -102,17 +104,22 @@ export class Startup {
       this.#chosen = null;
       setPref("gameFolder", this.data.source);
     }
-    if (this.view === "ready" && !this.#gameDataReady) {
+    // Each install that loads (the first, or another chosen later) brings its own lists.
+    const ready = this.view === "ready";
+    if (ready && !this.#ready) {
+      this.#whenReady(!this.#gameDataReady);
       this.#gameDataReady = true;
-      this.#whenReady();
     }
+    this.#ready = ready;
   }
 
-  /** The choice lists, and the map the app was started with, if any. */
-  async #whenReady(): Promise<void> {
+  /** The choice lists, and the first time the map the app was started with, if any. */
+  async #whenReady(first: boolean): Promise<void> {
     try {
+      forgetAssetLists();
       this.choices = await choices();
       void loadAssetNames();
+      if (!first) return;
       const started = await startup();
       const path = started.map;
       if (path) await this.#session.openWith(() => openMap({ path }));

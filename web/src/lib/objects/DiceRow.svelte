@@ -10,8 +10,10 @@
  */
 import ChevronDown from "@lucide/svelte/icons/chevron-down";
 import ChevronRight from "@lucide/svelte/icons/chevron-right";
+import { onDestroy } from "svelte";
 import type { ChoiceList, FieldView, Kind } from "../api.ts";
 import { t } from "../text.ts";
+import { typing } from "../typing.ts";
 import { type DiceFields, parseRange, rangeEdits, rangeOf, rangeText } from "./dice.ts";
 import FieldRow from "./FieldRow.svelte";
 import type { Lookup } from "./fields.ts";
@@ -68,6 +70,8 @@ const totalSelected = $derived(!disabled && selected === `${fields.base.id}:tota
 const parts = $derived([fields.base, fields.dice, fields.sides]);
 const changed = $derived(parts.some((field) => field.changed));
 const range = $derived(rangeOf(fields));
+// Every answer brings new field objects; only the range's text changing counts as a change.
+const shown = $derived(rangeText(range));
 const standard = $derived(
   rangeText(
     rangeOf({
@@ -83,11 +87,24 @@ let draft = $state<string | null>(null);
 let error = $state("");
 // A range changed elsewhere (an edit of one of the three, undo) replaces what was typed.
 $effect(() => {
-  void range.min;
-  void range.max;
-  draft = null;
+  void shown;
+  setDraft(null);
   error = "";
 });
+
+// While a range is typed and not sent, a save (or opening another map, reloading, closing) sends it first.
+let stopTyping: (() => void) | null = null;
+
+function setDraft(text: string | null): void {
+  draft = text;
+  if (text !== null && !stopTyping) stopTyping = typing(() => commit());
+  if (text === null && stopTyping) {
+    stopTyping();
+    stopTyping = null;
+  }
+}
+
+onDestroy(() => stopTyping?.());
 
 async function commit(): Promise<void> {
   if (draft === null) return;
@@ -98,13 +115,13 @@ async function commit(): Promise<void> {
   }
   const edits = rangeEdits(fields, typed);
   if (edits.length === 0) {
-    draft = null;
+    setDraft(null);
     error = "";
     return;
   }
   const problem = await onfields(edits);
   error = problem ?? "";
-  if (problem === null) draft = null;
+  if (problem === null) setDraft(null);
 }
 
 function onkey(event: KeyboardEvent): void {
@@ -114,7 +131,7 @@ function onkey(event: KeyboardEvent): void {
   } else if (event.key === "Escape" && (draft !== null || error)) {
     event.preventDefault();
     event.stopPropagation();
-    draft = null;
+    setDraft(null);
     error = "";
   }
 }
@@ -180,14 +197,14 @@ async function resetAll(): Promise<void> {
           : totalSelected
             ? 'border-transparent bg-field'
             : 'border-transparent bg-transparent hover:border-dashed hover:border-muted'} {changed ? 'text-changed' : 'text-normal'}"
-        value={draft ?? rangeText(range)}
+        value={draft ?? shown}
         placeholder="0"
         data-field="{fields.base.id}:total"
         aria-label={label}
         aria-invalid={!!error}
         title={changed ? t("field.standard", { value: standard }) : undefined}
         oninput={(event) => {
-          draft = event.currentTarget.value;
+          setDraft(event.currentTarget.value);
           error = "";
         }}
         onkeydown={onkey}
@@ -206,7 +223,7 @@ async function resetAll(): Promise<void> {
       {/if}
     {:else}
       <span class="px-1.5 py-px font-mono text-mono {changed ? 'text-changed' : 'text-normal'}"
-        >{rangeText(range)}</span
+        >{shown}</span
       >
     {/if}
   </span>

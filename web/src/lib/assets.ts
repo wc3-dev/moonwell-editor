@@ -18,6 +18,11 @@ export function listOf(kind: "icon" | "model", mode: string): Promise<AssetList>
   return asked;
 }
 
+/** Drops the lists asked for, so the next ask reads the install loaded since. */
+export function forgetAssetLists(): void {
+  lists.clear();
+}
+
 /** The paths that hold every word of the query, ignoring case and either slash; at most `limit`, in order. */
 export function matching(paths: string[], query: string, limit: number): string[] {
   const words = query.toLowerCase().replaceAll("/", "\\").split(/\s+/).filter(Boolean);

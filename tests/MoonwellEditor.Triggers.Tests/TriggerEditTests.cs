@@ -57,6 +57,22 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_new_trigger_takes_no_name_another_has_in_the_script()
+    {
+        var document = LostTemple();
+        if (document == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        document.Rename(document.Add(TriggerItemKind.Trigger, Initialization(document)), "Untitled_Trigger_001");
+        var id = document.Add(TriggerItemKind.Trigger, Initialization(document));
+
+        Assert.Equal("Untitled Trigger 002", document.Tree().Single(item => item.Id == id).Name);
+    }
+
+    [Fact]
     public void A_new_trigger_has_an_entry_in_the_custom_text_file_a_comment_has_none()
     {
         var document = LostTemple();
@@ -553,6 +569,52 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
 
         parts = document.Trigger(id, new Names()).Actions[0].Sentence.Where(part => part.Parameter != null).ToList();
         Assert.Equal(ParameterKind.None, parts[1].Parameter!.Kind);
+    }
+
+    [Fact]
+    public void A_real_is_only_what_the_script_can_write()
+    {
+        var document = LostTemple();
+        if (document == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var category = Initialization(document);
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var wait = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
+
+        foreach (var bad in new[] { "1e5", "NaN", "Infinity", "-Infinity", " 2" })
+        {
+            Assert.Throws<TriggerEditException>(() => document.SetParameter(id, wait + "/p0", new ParamInput(ParameterKind.Value, bad)));
+            Assert.Throws<TriggerEditException>(() => document.AddVariable(new VariableInput("Delay", "real", false, 1, bad), category));
+        }
+
+        foreach (var good in new[] { "1.5", "-2", ".5", "3." })
+        {
+            document.SetParameter(id, wait + "/p0", new ParamInput(ParameterKind.Value, good));
+        }
+    }
+
+    [Fact]
+    public void A_variable_can_be_renamed_by_case_alone()
+    {
+        var document = LostTemple();
+        if (document == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var category = Initialization(document);
+        var variable = document.AddVariable(new VariableInput("delay", "real", false, 1, ""), category);
+        document.AddVariable(new VariableInput("Pause", "real", false, 1, ""), category);
+
+        document.SetVariable(variable, new VariableInput("Delay", "real", false, 1, ""));
+
+        Assert.Equal("Delay", document.Variables().Single(each => each.Id == variable).Name);
+        Assert.Throws<TriggerEditException>(() => document.SetVariable(variable, new VariableInput("pause", "real", false, 1, "")));
     }
 
     [Fact]

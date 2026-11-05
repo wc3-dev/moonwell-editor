@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { EditorView } from "@codemirror/view";
 import {
   cleanup,
   createEvent,
@@ -9,13 +10,15 @@ import {
   within,
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { FakeApp, Refusal } from "../../test/fakeApp.ts";
+import { FakeApp, later, Refusal } from "../../test/fakeApp.ts";
 import { fakeLayout } from "../../test/fakeLayout.ts";
 import { CommandQueue } from "../app/commandQueue.ts";
+import { answer, picking } from "../map/pick.svelte.ts";
 import { t } from "../text.ts";
 import type {
   CardView,
   FunctionView,
+  ParameterView,
   TriggerTreeItem,
   TriggerTreeView,
   TriggerView,
@@ -903,6 +906,23 @@ describe("the header", () => {
     );
   });
 
+  test("code sent before the comment's answer keeps the comment", async () => {
+    const first = later(null);
+    let asked = 0;
+    const app = await open({ triggerHeader: () => (++asked === 1 ? first.answer : null) });
+    const comment = await screen.findByRole("textbox", { name: t("triggers.comment") });
+    comment.focus();
+    await fireEvent.input(comment, { target: { value: "New top" } });
+    await fireEvent.change(comment);
+    const code = screen.getByRole("textbox", { name: t("triggers.code") });
+    const view = EditorView.findFromDOM(code);
+    view?.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: "// new" } });
+    await fireEvent.blur(code);
+    first.release();
+    await waitFor(() => expect(asked).toBe(2));
+    expect(app.args("triggerHeader")).toEqual({ comment: "New top", code: "// new" });
+  });
+
   test("it opens in the Script Editor", async () => {
     await open();
     await fireEvent.click(
@@ -931,5 +951,79 @@ describe("what the map's triggers say", () => {
     const asked = app.count("triggerCards");
     await fireEvent.click(screen.getByRole("button", { name: t("triggers.new.comment") }));
     await waitFor(() => expect(app.count("triggerCards")).toBeGreaterThan(asked));
+  });
+});
+
+describe("a pick on the map", () => {
+  const unit: ParameterView = {
+    path: "0/p0",
+    type: "unit",
+    name: "Unit",
+    kind: "none",
+    value: "",
+    text: "Unit",
+    typed: "",
+    function: null,
+    index: null,
+  };
+  const kill: FunctionView = {
+    ...action("0", "Kill Unit"),
+    sentence: [
+      { text: "Kill ", parameter: null },
+      { text: "Unit", parameter: unit },
+    ],
+  };
+  const killing: TriggerView = { ...trigger, actions: [kill] };
+
+  test("one the app refuses says why", async () => {
+    const app = await open({
+      trigger: killing,
+      triggerCards: [card(2, "Start", "trigger", killing)],
+      triggerParameter: new Refusal("failed", "No such unit"),
+    });
+    await showCards(app);
+    await fireEvent.click(screen.getByRole("button", { name: "Unit" }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: t("triggers.parameter.pick") }),
+    );
+
+    answer({
+      kind: "unit",
+      name: "Footman",
+      ref: "gg_unit_hfoo_0001",
+      typeId: "hfoo",
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+
+    await waitFor(() => expect(notices).toContainEqual(["No such unit", true]));
+  });
+
+  test("one still waiting when the editor goes with its map is cancelled", async () => {
+    const app = await open({
+      trigger: killing,
+      triggerCards: [card(2, "Start", "trigger", killing)],
+    });
+    await showCards(app);
+    await fireEvent.click(screen.getByRole("button", { name: "Unit" }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: t("triggers.parameter.pick") }),
+    );
+
+    cleanup();
+    expect(picking.kind).toBeNull();
+    answer({
+      kind: "unit",
+      name: "Footman",
+      ref: "gg_unit_hfoo_0001",
+      typeId: "hfoo",
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+    await settled();
+
+    expect(app.count("triggerParameter")).toBe(0);
   });
 });

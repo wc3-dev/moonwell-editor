@@ -16,7 +16,7 @@ type FakeView = {
   ontype: (text: string) => void;
 };
 
-const fake = vi.hoisted(() => ({ views: [] as FakeView[] }));
+const fake = vi.hoisted(() => ({ views: [] as FakeView[], size: { columns: 100, rows: 24 } }));
 
 vi.mock("./lib/terminal/xterm.ts", () => ({
   openTerminal(
@@ -33,7 +33,7 @@ vi.mock("./lib/terminal/xterm.ts", () => ({
     fake.views.push(view);
     return {
       write: (text: string) => view.written.push(text),
-      fit: () => ({ columns: 100, rows: 24 }),
+      fit: () => ({ ...fake.size }),
       focus: () => view.focused++,
       setColors: (colors: TerminalColors) => (view.colors = colors),
       dispose: () => (view.disposed = true),
@@ -147,6 +147,25 @@ describe("a shell's text", () => {
     await waitFor(() => expect(fake.views[0]?.written).toEqual(["early"]));
   });
 
+  test("the shell is told the size the terminal takes once its font has come", async () => {
+    let fontCame = () => {};
+    const ready = new Promise<void>((resolve) => {
+      fontCame = resolve;
+    });
+    Object.defineProperty(document, "fonts", { configurable: true, value: { ready } });
+    try {
+      const app = await openWithTerminal();
+      fake.size = { columns: 90, rows: 24 };
+      fontCame();
+      await waitFor(() =>
+        expect(app.args("terminalResize")).toEqual({ id: 1, columns: 90, rows: 24 }),
+      );
+    } finally {
+      Reflect.deleteProperty(document, "fonts");
+      fake.size = { columns: 100, rows: 24 };
+    }
+  });
+
   test("what is typed goes to its shell, in order", async () => {
     const app = await openWithTerminal();
     fake.views[0]?.ontype("d");
@@ -212,6 +231,17 @@ describe("tabs", () => {
     expect(tabs()).toHaveLength(1);
     expect(tabs()[0]?.getAttribute("aria-selected")).toBe("true");
     await waitFor(() => expect(fake.views[1]?.disposed).toBe(true));
+  });
+
+  test("closing a tab while its shell starts ends the shell once it has", async () => {
+    const start = later({ id: 7, shell: "pwsh", name: "PowerShell 7" });
+    fake.views.length = 0;
+    const app = await openApp({ ...terminalAnswers(), terminalStart: () => start.answer });
+    await toggle();
+    await waitFor(() => expect(app.count("terminalStart")).toBe(1));
+    await fireEvent.click(within(tabs()[0] as HTMLElement).getByRole("button"));
+    start.release();
+    await waitFor(() => expect(app.args("terminalClose")).toEqual({ id: 7 }));
   });
 
   test("closing the last tab hides the panel, and the next opening starts anew", async () => {

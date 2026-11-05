@@ -1,4 +1,6 @@
 import { errorText } from "../errors.ts";
+import { answer, pickOnMap } from "../map/pick.svelte.ts";
+import type { PickKind } from "../map/picking.ts";
 import type { OpenScript } from "../scripts/openScripts.ts";
 import { t } from "../text.ts";
 import type { MenuItem } from "../ui/ContextMenu.svelte";
@@ -354,6 +356,25 @@ export class TriggerState {
     await this.#queued(() => setParameter(owner, path, kind, value));
     await this.#reloadCard(owner);
   };
+
+  /** Asks the map for a thing of `kind`, which then fills the parameter at `path`. The dialog hides meanwhile. */
+  pick = async (path: string, kind: PickKind): Promise<void> => {
+    this.picking = true;
+    const picked = await pickOnMap(kind);
+    this.picking = false;
+    if (!picked) return;
+    try {
+      if (kind === "point") await this.setPoint(path, picked.x, picked.y);
+      else if (picked.ref) await this.setParameterValue(path, "variable", picked.ref);
+    } catch (error) {
+      this.notice(errorText(error), true);
+    }
+  };
+
+  /** The editor is going, with its map: a pick it still waits for is cancelled. */
+  end(): void {
+    if (this.picking) answer(null);
+  }
 
   setPoint = async (path: string, x: number, y: number): Promise<void> => {
     const owner = this.parameters.owner;

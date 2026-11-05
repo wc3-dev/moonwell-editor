@@ -2,6 +2,7 @@
 import { waitFor } from "@testing-library/svelte";
 import { afterEach, expect, test } from "vitest";
 import { arena, FakeApp, gameReady, Refusal } from "../../test/fakeApp.ts";
+import { listOf } from "../assets.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
 import { MapSession } from "./mapSession.svelte.ts";
@@ -54,6 +55,27 @@ test("once it is ready the choice lists come and the started map opens, once", a
   expect(app.count("openMap")).toBe(1);
   expect(app.count("choices")).toBe(1);
   expect(startup.choices).toEqual({ team: { values: [] } });
+});
+
+test("another install, once loaded, brings its own lists and names", async () => {
+  const app = new FakeApp({
+    startup: { map: "C:/Maps/Arena" },
+    openMap: arena,
+    tree: [],
+    assetList: { ready: true, error: null, paths: [] },
+  });
+  const { session } = started();
+  await waitFor(() => expect(session.map).toEqual(arena));
+  await listOf("icon", "hd");
+  const other = { ...gameReady, source: "D:/Other" };
+  await app.emit("gameData", { ...other, loaded: false, version: 2 });
+  await app.emit("gameData", { ...other, version: 3 });
+  await app.idle();
+  await listOf("icon", "hd");
+  expect(app.count("choices")).toBe(2);
+  expect(app.count("assetNames")).toBe(2);
+  expect(app.count("assetList")).toBe(2);
+  expect(app.count("openMap")).toBe(1);
 });
 
 test("a choice list that fails shows where a map's problem would", async () => {

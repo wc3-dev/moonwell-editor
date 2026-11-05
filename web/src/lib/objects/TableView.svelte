@@ -178,12 +178,14 @@ $effect(() => {
 });
 
 // When the rows or columns change (a fetch after an edit, undo or redo, a sort, a column added or removed), the
-// selection moves with its objects and columns; one that is gone keeps its place, pulled inside the table.
+// selection moves with its objects and columns; one that is gone keeps its place, pulled inside the table, and from
+// then on is kept by the objects it lands on.
 $effect(() => {
   const list = rows;
   const cols = shown?.columns ?? [];
   untrack(() => {
     const next = relocateSelection(kept, list, cols);
+    kept = next ? selectionRef(next, list, cols) : null;
     if (!sameSelection(next, selection)) selection = next;
   });
 });
