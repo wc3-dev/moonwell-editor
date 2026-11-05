@@ -41,9 +41,9 @@ public sealed record CreateObjectArgs(ObjectKind Kind, string BaseId, string? Id
 /// <param name="Id">Its id; left out or null for the next free one.</param>
 public sealed record CopyObjectArgs(ObjectKind Kind, string FromId, string? Id = null);
 
-/// <summary>The standard object a new id would be based on.</summary>
+/// <summary>The object a new id would be based on, or a copy made of.</summary>
 /// <param name="Kind">Its kind.</param>
-/// <param name="BaseId">The standard object.</param>
+/// <param name="BaseId">The standard object, or the custom object copied.</param>
 public sealed record NextIdArgs(ObjectKind Kind, string BaseId);
 
 /// <summary>A map to open.</summary>

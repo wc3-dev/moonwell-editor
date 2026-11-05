@@ -17,8 +17,10 @@ afterEach(() => {
 
 const standard = { ...knightEntry, id: "hkni", baseId: null, changed: false };
 
+let app: FakeApp;
+
 async function actions(): Promise<ObjectActions> {
-  new FakeApp({ tree: [footmanEntry, knightEntry, standard], object: unit(footmanEntry) });
+  app = new FakeApp({ tree: [footmanEntry, knightEntry, standard], object: unit(footmanEntry) });
   const queue = new CommandQueue();
   const notices = new Notices();
   const pages = new Pages();
@@ -86,4 +88,11 @@ test("Paste waits for a copy of the same kind", async () => {
   each.clip("unit", "h000");
   const pasted = t("menu.pasteObject", { name: "Footman" });
   expect(entry(each.menuItems("unit", "h001") ?? undefined, pasted)?.disabled).toBe(false);
+});
+
+test("a paste's id is asked for like the object copied, as a unit is a hero by its id", async () => {
+  const each = await actions();
+  each.clip("unit", "h001");
+  await each.paste();
+  expect(app.args("nextId")).toEqual({ kind: "unit", baseId: "h001" });
 });
