@@ -300,6 +300,28 @@ describe("the history", () => {
     await waitFor(() => expect(selectedRow()).toContain("Knight"));
   });
 
+  test("stays where it is while the tooltip editor is open, so its texts stay with their object", async () => {
+    await twoShown();
+    await waitFor(() =>
+      expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Name" }).value).toBe("Knight"),
+    );
+    await fireEvent.contextMenu(screen.getByRole("treeitem", { name: /Knight/ }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: t("menu.editTooltip") }));
+    await screen.findByRole("dialog", {
+      name: new RegExp(t("tooltipEditor.title", { name: "Knight" })),
+    });
+
+    await fireEvent.mouseUp(document.body, { button: 3 });
+    await press("ArrowLeft", { altKey: true });
+    const back = screen.getByRole("button", { name: t("titleBar.back") });
+    await fireEvent.pointerDown(back, { button: 0 });
+    await fireEvent.pointerUp(back, { button: 0 });
+    await settled();
+
+    expect(selectedRow()).toContain("Knight");
+    screen.getByRole("dialog", { name: new RegExp(t("tooltipEditor.title", { name: "Knight" })) });
+  });
+
   test("the title bar's buttons walk it, and show what is there", async () => {
     await twoShown();
     const back = screen.getByRole<HTMLButtonElement>("button", { name: t("titleBar.back") });
