@@ -24,6 +24,7 @@ export type Cell = { row: number; col: number };
 export type Selection = { anchor: Cell; focus: Cell };
 
 const plainNumber = /^[-+]?(\d+\.?\d*|\.\d+)$/;
+const thousands = /^[-+]?\d{1,3}(,\d{3})+$/;
 
 /** The cells of the block between anchor and focus, row by row from the top left. */
 export function cellsOf(s: Selection): Cell[] {
@@ -321,21 +322,26 @@ function plainValue(
 
 /**
  * A number pasted with a decimal comma (`1,5`), as spreadsheets in many countries copy it, with a dot (`1.5`): only a
- * plain decimal with exactly one comma and no dot. Anything else is left as it is.
+ * plain decimal with exactly one comma and no dot. In a whole-number field a comma before exactly three digits
+ * separates thousands instead (`1,500` is 1500; Sven, 2026-11-05). Anything else is left as it is.
  */
-function decimalComma(value: string): string {
+function decimalComma(value: string, type: string): string {
+  if (type === "int" && thousands.test(value)) return value.replaceAll(",", "");
   if (value.split(",").length !== 2 || value.includes(".")) return value;
   const dotted = value.replace(",", ".");
   return plainNumber.test(dotted) ? dotted : value;
 }
 
-/** A pasted cell's value for a field: a number with a decimal comma read, yes/no and choices as `plainValue`. */
+/**
+ * A pasted cell's value for a field: a number with a decimal comma or thousands read, yes/no and choices as
+ * `plainValue`.
+ */
 function pastedValue(
   field: FieldDescription | undefined,
   value: string,
   choices: Record<string, ChoiceList> | null,
 ): Plain {
-  if (field && numberTypes.includes(field.type)) return { value: decimalComma(value) };
+  if (field && numberTypes.includes(field.type)) return { value: decimalComma(value, field.type) };
   return plainValue(field, value, choices);
 }
 
@@ -343,7 +349,8 @@ function pastedValue(
  * The edits that paste a block starting at a cell: down the shown rows and right across the columns, stopping at the
  * table's edge. An empty cell in the block is a gap: skipped for a column that is not text (`int`, `float`, `bool`,
  * `choice`, or a field not in `fields`), and written as "" for a `string`, `objectList` or `objectRef` column. A cell
- * that does not apply is skipped. A number with a decimal comma (`1,5`) is read as `1.5`; a yes/no or choice cell
+ * that does not apply is skipped. A number with a decimal comma (`1,5`) is read as `1.5`, and in a whole-number column a
+ * comma before exactly three digits as thousands (`1,500` as `1500`); a yes/no or choice cell
  * is read as the bar reads it (`Yes`, a choice's label). All or nothing: a cell of a read-only row that the paste
  * would write, or a value its field cannot take, is an error that names the first such cell.
  */

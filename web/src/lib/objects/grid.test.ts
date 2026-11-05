@@ -282,6 +282,17 @@ describe("pasteEdits", () => {
     expect(kept("1.5")).toBe("1.5");
   });
 
+  it("reads a comma before three digits as thousands in a whole-number column only", () => {
+    const pasted = (col: number, value: string) =>
+      (pasteEdits({ row: 0, col }, [[value]], rows(), columns, fields, null) as CellEdit[])[0]
+        ?.value;
+    expect(pasted(0, "1,500")).toBe("1500");
+    expect(pasted(0, "-12,345,678")).toBe("-12345678");
+    expect(pasted(0, "1,50")).toBe("1.50");
+    expect(pasted(0, "1,5000")).toBe("1.5000");
+    expect(pasted(1, "1,500")).toBe("1.500");
+  });
+
   it("skips an empty cell for a number column and writes it for a text column", () => {
     const block = [
       ["", "", ""],
