@@ -60,7 +60,7 @@ export function matrices(
       fieldOfView,
       width / Math.max(height, 1),
       near,
-      // Home stands back further than `far` from a large map, and its far edge is further still.
+      // From Home's distance a large map's far edge lies past `far`.
       Math.max(far, view.distance * 2),
     ),
   };
