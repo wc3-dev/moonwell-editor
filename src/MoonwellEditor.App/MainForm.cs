@@ -260,7 +260,7 @@ public sealed class MainForm : Form
         }
 
         var pageLoaded = _pageLoaded && _web.CoreWebView2 != null;
-        if (_closeGuard.Closing(_commands.Dirty, pageLoaded) == CloseStep.Close)
+        if (_closeGuard.Closing(Dirty(), pageLoaded) == CloseStep.Close)
         {
             _pageWait.Stop();
             return;
@@ -273,9 +273,23 @@ public sealed class MainForm : Form
             return;
         }
 
-        Post(Bridge.Event(BridgeEvents.CloseRequested, new CloseRequest(_commands.Dirty)));
+        Post(Bridge.Event(BridgeEvents.CloseRequested, new CloseRequest(Dirty())));
         _pageWait.Stop();
         _pageWait.Start();
+    }
+
+    // The map is read on the window's thread while a command may be changing it, which can throw; a read that fails
+    // counts as unsaved, so the close asks.
+    private bool Dirty()
+    {
+        try
+        {
+            return _commands.Dirty;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     // The page did not say it is handling the close (it failed to load, or is broken): the window closes, or asks the
@@ -283,7 +297,7 @@ public sealed class MainForm : Form
     private void AskIfPageSilent()
     {
         _pageWait.Stop();
-        var step = _closeGuard.PageSilent(_commands.Dirty);
+        var step = _closeGuard.PageSilent(Dirty());
         if (step == CloseStep.Close)
         {
             _closeGuard.Approve();

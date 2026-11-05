@@ -508,7 +508,7 @@ public sealed partial class Commands
         var session = _session;
         return session == null
             ? null
-            : new CurrentMap(Info(_store!, session), new SessionState(session.Dirty, session.ChangedObjects()));
+            : new CurrentMap(Info(_store!, session), StateOf(session));
     }
 
     private static MapInfo Info(IMapStore store, Session session)
@@ -721,8 +721,14 @@ public sealed partial class Commands
     private T Changed<T>(T result)
     {
         var session = Map();
-        SessionChanged?.Invoke(new SessionState(session.Dirty, session.ChangedObjects()));
+        SessionChanged?.Invoke(StateOf(session));
         return result;
+    }
+
+    private static SessionState StateOf(Session session)
+    {
+        var (dirty, changed) = session.Standing();
+        return new SessionState(dirty, changed);
     }
 
     private static CommandException BadRequest(string message) => new(ErrorCode.BadRequest, message);

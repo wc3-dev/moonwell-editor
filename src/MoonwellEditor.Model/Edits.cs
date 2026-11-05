@@ -22,7 +22,17 @@ public sealed partial class Session
     /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved"). After a save that failed part way it
     /// is true until a save writes everything, as the map on disk is then partly old and partly new.
     /// </summary>
-    public bool Dirty => _partlySaved || (_history.Dirty && (ChangedObjects() > 0 || TriggersChanged()));
+    public bool Dirty => DirtyWith(ChangedObjects);
+
+    /// <summary><see cref="Dirty"/> and <see cref="ChangedObjects"/> at once, comparing the objects once.</summary>
+    public (bool Dirty, int ChangedObjects) Standing()
+    {
+        var changed = ChangedObjects();
+        return (DirtyWith(() => changed), changed);
+    }
+
+    private bool DirtyWith(Func<int> changedObjects) =>
+        _partlySaved || (_history.Dirty && (changedObjects() > 0 || TriggersChanged()));
 
     /// <summary>Undoes the last edit; false when there is none.</summary>
     public bool Undo() => Reindex(_history.Undo());
