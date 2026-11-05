@@ -122,11 +122,25 @@ public sealed class MainForm : Form
         _pageWait.Tick += (_, _) => AskIfPageSilent();
         FormClosing += OnClosing;
 
+        // Without the page (no WebView2 runtime, say) there is nothing to show: the window says why and closes.
         Load += async (_, _) =>
         {
             _home.Watch();
             _ = _commands.StartLoading();
-            await StartPage();
+            try
+            {
+                await StartPage();
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(
+                    this,
+                    Texts.Get("app.window.pageNotLoaded", ("error", exception.Message)),
+                    Texts.Get("app.name"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                Close();
+            }
         };
     }
 

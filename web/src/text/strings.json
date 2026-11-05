@@ -173,6 +173,7 @@
   "app.triggers.unreadable": "The triggers could not be read: {reason}",
   "app.window.closeUnsaved": "The map has unsaved changes, and the page did not answer. Close the window and lose them?",
   "app.window.pageFailed": "The page stopped and could not be loaded again: {error}",
+  "app.window.pageNotLoaded": "The page could not be loaded: {error}",
   "app.windowTitle": "{path} — {app}",
   "ask.beforeClose": "Save them before closing the window?",
   "ask.beforeOpen": "Save them before opening another map?",
