@@ -36,6 +36,31 @@ public sealed class MapArchiveTests : IDisposable
         Path.Combine(Fixtures.Root, "we-heavy-archive", "ObjectEditorTest.w3x");
 
     [Fact]
+    public void A_trigger_script_or_imports_file_under_another_locale_may_not_be_written()
+    {
+        // A save writes under the neutral locale, beside the German copy the game reads in German.
+        var german = (MpqLocale)0x407;
+        var path = Path.Combine(_folder, "localized.w3x");
+        var names = new[] { "war3map.wtg", "war3map.wct", "war3map.j", @"scripts\war3map.j", "war3map.imp" };
+        var files = names.Select(name => MpqFile.New(new MemoryStream([1, 2, 3]), name, german)).ToList();
+        files.Add(MpqFile.New(new MemoryStream([1, 2, 3]), "war3map.w3i"));
+        using (var archive = new MemoryStream())
+        {
+            MpqArchive.Create(archive, files, new MpqArchiveCreateOptions(), leaveOpen: true).Dispose();
+            File.WriteAllBytes(path, archive.ToArray());
+        }
+
+        var map = MapArchive.Open(path);
+
+        foreach (var name in names)
+        {
+            Assert.Contains("0x0407", map.WriteProblem(name));
+        }
+
+        Assert.Null(map.WriteProblem("war3map.w3i"));
+    }
+
+    [Fact]
     public void Reads_the_files_of_an_archive()
     {
         var path = Copy(Sample, "Sample.w3x");

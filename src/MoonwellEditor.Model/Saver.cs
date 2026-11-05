@@ -77,6 +77,7 @@ public sealed partial class Session
         }
 
         var (written, backup, note) = _store.IsArchive ? SaveArchive(changes) : SaveFolder(changes, previous);
+        _partlySaved = false;
         _history.Saved();
         _savedObjects = Describe();
         return new SaveReport(written, backup, note.Length > 0 ? note : _scriptNote);
@@ -111,6 +112,7 @@ public sealed partial class Session
         _unreadable = loaded.Unreadable;
         _stringsReadOnly = loaded.StringsReadOnly;
         _history = new History();
+        _partlySaved = false;
         _search.Rebuild(_kinds, _strings);
         _savedObjects = Describe();
     }
@@ -148,7 +150,7 @@ public sealed partial class Session
                         Texts.Get("app.save.fileNotSaved", ("name", name), ("before", before), ("error", e.Message)), e);
                 }
 
-                _baseline[name] = bytes;
+                Wrote(name, bytes);
                 written.Add(name);
             }
         }
@@ -209,12 +211,21 @@ public sealed partial class Session
 
         foreach (var (name, bytes) in changes)
         {
-            _baseline[name] = bytes;
+            Wrote(name, bytes);
         }
 
         _stamp = TryStamp() ?? _stamp;
         Prune(backup, ArchiveBackupsKept);
         return ([.. changes.Select(change => change.Name)], backup, note);
+    }
+
+    // A file a save wrote is the one on disk now. Until the save has written them all, the map on disk is neither the
+    // state saved last nor this one, so it stays unsaved whatever is undone.
+    private void Wrote(string name, byte[] bytes)
+    {
+        _baseline[name] = bytes;
+        _triggers?.Written(name);
+        _partlySaved = true;
     }
 
     /// <summary>The map's stamp now; a map that cannot be read gives a <see cref="MapFileException"/>.</summary>

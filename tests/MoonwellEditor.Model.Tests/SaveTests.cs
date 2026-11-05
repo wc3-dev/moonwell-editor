@@ -270,6 +270,38 @@ public sealed class SaveTests(GameDataFixture fixture, ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_save_that_failed_part_way_stays_unsaved_after_an_undo()
+    {
+        if (Skipped(out var game))
+        {
+            return;
+        }
+
+        using var map = TempMap.Of("we-3.0");
+        var units = Path.Combine(map.Folder, "war3map.w3u");
+        var unitBytes = File.ReadAllBytes(units);
+        var session = Open(map, game);
+        session.Set(ObjectKind.Unit, "hfoo", "uhpm", 0, "500");
+        session.Set(ObjectKind.Unit, "h000", "unam", 0, "Knight");   // a TRIGSTR text: only war3map.wts changes
+
+        // war3map.w3u is written, then war3map.wts cannot be replaced.
+        using (File.Open(Path.Combine(map.Folder, "war3map.wts"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Assert.Throws<MapFileException>(() => session.Save());
+        }
+
+        Assert.NotEqual(unitBytes, File.ReadAllBytes(units));
+        Assert.True(session.Undo());
+        Assert.True(session.Undo());
+
+        // The edits are undone, but the map on disk still has the first one.
+        Assert.True(session.Dirty);
+        Assert.Equal(new[] { "war3map.w3u" }, session.Save().Written);
+        Assert.Equal(unitBytes, File.ReadAllBytes(units));
+        Assert.False(session.Dirty);
+    }
+
+    [Fact]
     public void Changed_objects_counts_objects_that_differ_from_the_last_save()
     {
         if (Skipped(out var game))

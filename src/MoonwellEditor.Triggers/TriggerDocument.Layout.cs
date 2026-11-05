@@ -53,6 +53,9 @@ public sealed partial class TriggerDocument
     // True once a place was changed, so the file is written.
     private bool _layoutTouched;
 
+    // True once a save wrote the file, so it is written again when an undo takes the places back.
+    private bool _layoutWritten;
+
     /// <summary>A card for everything directly in the category <paramref name="parent"/>, in the tree's order.</summary>
     public IReadOnlyList<CardView> Cards(int parent, ITriggerNames names)
     {
@@ -99,10 +102,12 @@ public sealed partial class TriggerDocument
         _layoutTouched = true;
     }
 
-    /// <summary>The bytes of the layout file; null when no place was changed, or nothing may be written.</summary>
+    /// <summary>
+    /// The bytes of the layout file; null when no place was changed and no save wrote it, or nothing may be written.
+    /// </summary>
     public byte[]? LayoutBytes()
     {
-        if (ReadOnly || !_layoutTouched)
+        if (ReadOnly || !(_layoutTouched || _layoutWritten))
         {
             return null;
         }

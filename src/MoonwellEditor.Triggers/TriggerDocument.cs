@@ -39,10 +39,12 @@ public sealed partial class TriggerDocument
     private const char Terminator = '\0';
 
     private readonly TriggerCatalog _catalog;
-    private readonly bool _hadTriggers;
-    private readonly bool _hadCustomText;
     private readonly MapTriggers _triggers;
     private readonly MapCustomTextTriggers _customText;
+
+    // True when the map has the file: it had it when read, or a save wrote it since.
+    private bool _hadTriggers;
+    private bool _hadCustomText;
 
     // The custom text of each trigger that is no comment, by the item's id. Kept as War3Net read it, as an empty one
     // may be null or empty; a trigger with no entry here is written with an empty one.
@@ -283,6 +285,17 @@ public sealed partial class TriggerDocument
         var same = (triggers == null || TriggerBytes()!.AsSpan().SequenceEqual(triggers))
             && (customText == null || CustomTextBytes()!.AsSpan().SequenceEqual(customText));
         return same ? null : Texts.Get("app.triggers.notExact");
+    }
+
+    /// <summary>
+    /// Records that a save wrote <paramref name="name"/>, one of the document's files. The map has it now, so an undo
+    /// back past the edit that made it still gives its bytes, and the save writes it back.
+    /// </summary>
+    public void Written(string name)
+    {
+        _hadTriggers |= name == TriggersFile;
+        _hadCustomText |= name == CustomTextFile;
+        _layoutWritten |= name == LayoutFile;
     }
 
     private bool Writable(string name)

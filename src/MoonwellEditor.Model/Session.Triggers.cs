@@ -40,7 +40,8 @@ public sealed partial class Session : ITriggerNames
                 triggers,
                 customText,
                 catalog,
-                _store.WriteProblem(TriggerDocument.TriggersFile) ?? _store.WriteProblem(TriggerDocument.CustomTextFile),
+                _store.WriteProblem(TriggerDocument.TriggersFile) ?? _store.WriteProblem(TriggerDocument.CustomTextFile)
+                    ?? _store.WriteProblem(ScriptName) ?? _store.WriteProblem(ScriptNameInFolder),
                 layout);
         }
 
@@ -128,8 +129,9 @@ public sealed partial class Session : ITriggerNames
     private bool Differs(string name, byte[]? bytes) =>
         bytes != null && !SameBytes(bytes, _baseline.GetValueOrDefault(name));
 
-    // The trigger files, added to what a save writes, and the script when they changed. Why a script could not be
-    // written is the save's note: the triggers are saved all the same, as World Editor saves a map with script errors.
+    // The trigger files, added to what a save writes, and the script before them when they changed: a save that fails
+    // between the two leaves the trigger files changed, so the next save writes the script again. Why a script could not
+    // be written is the save's note: the triggers are saved all the same, as World Editor saves a map with script errors.
     private void AddTriggerChanges(List<(string Name, byte[] Bytes)> changes)
     {
         _scriptNote = "";
@@ -138,24 +140,39 @@ public sealed partial class Session : ITriggerNames
             return;
         }
 
-        var script = TriggerFilesChanged();
+        if (TriggerFilesChanged())
+        {
+            AddScript(changes);
+        }
+
         AddChange(changes, TriggerDocument.TriggersFile, _triggers.TriggerBytes());
         AddChange(changes, TriggerDocument.CustomTextFile, _triggers.CustomTextBytes());
         AddChange(changes, TriggerDocument.LayoutFile, _triggers.LayoutBytes());
-        if (changes.Exists(change => change.Name == TriggerDocument.LayoutFile))
+
+        // Imports under another locale are left as they are: the map works without the places.
+        if (changes.Exists(change => change.Name == TriggerDocument.LayoutFile)
+            && _store.WriteProblem(ImportedFiles.MapFileName) == null)
         {
             AddChange(
                 changes,
                 ImportedFiles.MapFileName,
                 TriggerDocument.ImportsWithLayout(_baseline.GetValueOrDefault(ImportedFiles.MapFileName)));
         }
+    }
 
-        if (!script)
+    private void AddScript(List<(string Name, byte[] Bytes)> changes)
+    {
+        MapInfo? info;
+        try
         {
+            info = ReadInfo();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _scriptNote = Texts.Get("app.triggers.infoUnreadable", ("error", exception.Message));
             return;
         }
 
-        var info = ReadInfo();
         if (info == null)
         {
             _scriptNote = Texts.Get("app.triggers.noInfo");

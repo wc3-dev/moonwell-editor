@@ -626,12 +626,12 @@ public sealed class MapArchive : IMapStore
         }
     }
 
-    // The object and strings files the archive holds under a locale other than the neutral one, each with why it may
-    // not be written: a save writes a file under the neutral locale, so it would add a second copy beside that one.
+    // The known files the archive holds under a locale other than the neutral one, each with why it may not be
+    // written: a save writes a file under the neutral locale, so it would add a second copy beside that one.
     private static Dictionary<string, string> Localized(MpqArchive archive)
     {
         var problems = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in MapStore.ObjectAndStringFiles)
+        foreach (var name in KnownNames)
         {
             var hashed = MpqHash.GetHashedFileName(name);
             var locales = archive.EnumerateHashes()
@@ -706,7 +706,7 @@ public sealed class MapArchive : IMapStore
     /// <param name="Files">
     /// The files read, by name (letter case ignored); null for one the archive does not have.
     /// </param>
-    /// <param name="Problems">Why an object or strings file may not be written, by name (letter case ignored).</param>
+    /// <param name="Problems">Why a known file may not be written, by name (letter case ignored).</param>
     private sealed record Contents(
         string Stamp,
         byte[] PreArchive,

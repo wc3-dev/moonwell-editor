@@ -22,7 +22,7 @@ public interface IMapStore
     byte[]? ReadImport(string path) => null;
 
     /// <summary>
-    /// Why the map's object or strings file <paramref name="name"/> may not be written, or null when it may (an
+    /// Why the map's file <paramref name="name"/> may not be written, or null when it may (an
     /// archive that holds it under another locale than the neutral one; a folder has no such reason).
     /// </summary>
     string? WriteProblem(string name);

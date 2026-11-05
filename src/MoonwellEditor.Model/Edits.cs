@@ -13,12 +13,16 @@ public sealed partial class Session
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
+    // True after a save that failed part way, until a save writes everything or the map is reloaded.
+    private bool _partlySaved;
+
     /// <summary>
     /// True when the map differs from its files as opened or last saved: edits were made since and they changed an
     /// object (see <see cref="ChangedObjects"/>) or the triggers. An edit made and then undone, or changed back, leaves nothing unsaved
-    /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved").
+    /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved"). After a save that failed part way it
+    /// is true until a save writes everything, as the map on disk is then partly old and partly new.
     /// </summary>
-    public bool Dirty => _history.Dirty && (ChangedObjects() > 0 || TriggersChanged());
+    public bool Dirty => _partlySaved || (_history.Dirty && (ChangedObjects() > 0 || TriggersChanged()));
 
     /// <summary>Undoes the last edit; false when there is none.</summary>
     public bool Undo() => Reindex(_history.Undo());
