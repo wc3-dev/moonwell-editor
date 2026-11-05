@@ -31,7 +31,7 @@ import ColorPicker from "./ColorPicker.svelte";
 import RichText from "./RichText.svelte";
 import { keyAt, tokenOf, tokenParts } from "./richText.ts";
 import { formsFor, listedAbilities, type SlashSource, sourceOf, suggestions } from "./slash.ts";
-import { type NumberForm, placeholderNumber, textValues, tooltipOf } from "./tooltip.ts";
+import { byKey, type NumberForm, placeholderNumber, textValues, tooltipOf } from "./tooltip.ts";
 
 type Props = {
   view: ObjectView;
@@ -284,8 +284,9 @@ function describe(token: string): { label: string; title: string } {
   const found = (own ? insertable : (source?.keys ?? [])).find(
     (each) => each.key.toLowerCase() === (each.whole ? whole : parts.key.toLowerCase()),
   );
-  const named = found?.name ?? keyNames[parts.key] ?? keyNames[keyAt(parts)] ?? parts.key;
-  const value = own ? values[keyAt(parts)] : source?.values[keyAt(parts)];
+  const named =
+    found?.name ?? byKey(keyNames, parts.key) ?? byKey(keyNames, keyAt(parts)) ?? parts.key;
+  const value = byKey(own ? values : source?.values, keyAt(parts));
   const label = [
     own ? "" : `${source?.name ?? parts.id}: `,
     named,

@@ -113,6 +113,14 @@ export function isWhole(value: string | undefined): boolean {
   );
 }
 
+/** A value by its placeholder key in any case, as the game reads keys. */
+export function byKey<T>(record: Record<string, T> | undefined, key: string): T | undefined {
+  if (!record) return undefined;
+  if (Object.hasOwn(record, key)) return record[key];
+  const lower = key.toLowerCase();
+  return Object.entries(record).find(([each]) => each.toLowerCase() === lower)?.[1];
+}
+
 /**
  * Fills the `<id,Field>`, `<id,Field,.>` and `<id,Field,%>` placeholders whose id is one of `own` (the object's id and
  * base id; the game matches the id's case, not the key's) from `values`, keyed by the game's text key with its level
