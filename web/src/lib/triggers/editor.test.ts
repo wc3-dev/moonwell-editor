@@ -950,7 +950,10 @@ describe("a pick on the map", () => {
   };
   const kill: FunctionView = {
     ...action("0", "Kill Unit"),
-    sentence: [{ text: "Kill ", parameter: null }, { text: "Unit", parameter: unit }],
+    sentence: [
+      { text: "Kill ", parameter: null },
+      { text: "Unit", parameter: unit },
+    ],
   };
   const killing: TriggerView = { ...trigger, actions: [kill] };
 
@@ -962,22 +965,45 @@ describe("a pick on the map", () => {
     });
     await showCards(app);
     await fireEvent.click(screen.getByRole("button", { name: "Unit" }));
-    await fireEvent.click(await screen.findByRole("button", { name: t("triggers.parameter.pick") }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: t("triggers.parameter.pick") }),
+    );
 
-    answer({ kind: "unit", name: "Footman", ref: "gg_unit_hfoo_0001", typeId: "hfoo", x: 0, y: 0, z: 0 });
+    answer({
+      kind: "unit",
+      name: "Footman",
+      ref: "gg_unit_hfoo_0001",
+      typeId: "hfoo",
+      x: 0,
+      y: 0,
+      z: 0,
+    });
 
     await waitFor(() => expect(notices).toContainEqual(["No such unit", true]));
   });
 
   test("one still waiting when the editor goes with its map is cancelled", async () => {
-    const app = await open({ trigger: killing, triggerCards: [card(2, "Start", "trigger", killing)] });
+    const app = await open({
+      trigger: killing,
+      triggerCards: [card(2, "Start", "trigger", killing)],
+    });
     await showCards(app);
     await fireEvent.click(screen.getByRole("button", { name: "Unit" }));
-    await fireEvent.click(await screen.findByRole("button", { name: t("triggers.parameter.pick") }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: t("triggers.parameter.pick") }),
+    );
 
     cleanup();
     expect(picking.kind).toBeNull();
-    answer({ kind: "unit", name: "Footman", ref: "gg_unit_hfoo_0001", typeId: "hfoo", x: 0, y: 0, z: 0 });
+    answer({
+      kind: "unit",
+      name: "Footman",
+      ref: "gg_unit_hfoo_0001",
+      typeId: "hfoo",
+      x: 0,
+      y: 0,
+      z: 0,
+    });
     await settled();
 
     expect(app.count("triggerParameter")).toBe(0);
