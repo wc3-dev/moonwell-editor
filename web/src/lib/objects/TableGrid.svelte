@@ -141,6 +141,8 @@ let editor: { commit(): Promise<boolean>; cancel(): void } | undefined = $state(
 let editBox: HTMLDivElement | undefined = $state();
 // True while the mouse button is down after a click on a cell: moving over cells makes the block.
 let dragging = false;
+// The button can come up while an edit is still being sent, before the click takes effect.
+let pressed = false;
 
 const edited = $derived.by(() => {
   if (!editing) return null;
@@ -356,12 +358,13 @@ function cellDown(event: MouseEvent, at: Cell): void {
   if (event.button !== 0) return;
   event.preventDefault(); // no text selection; the grid takes the focus
   const extend = event.shiftKey && selection !== null;
+  pressed = true;
   finishEdit().then((taken) => {
     if (!taken) return;
     focusGrid();
     selection =
       extend && selection ? { anchor: selection.anchor, focus: at } : { anchor: at, focus: at };
-    dragging = true;
+    dragging = pressed;
   });
 }
 
@@ -376,7 +379,12 @@ function setEdited(value: string): Promise<string | null> {
 }
 </script>
 
-<svelte:window onmouseup={() => (dragging = false)} />
+<svelte:window
+  onmouseup={() => {
+    dragging = false;
+    pressed = false;
+  }}
+/>
 
 {#snippet arrow(key: string)}
   {#if sort?.key === key}

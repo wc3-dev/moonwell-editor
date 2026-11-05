@@ -273,12 +273,10 @@ onMount(() => {
       // Copied text is the game's markup.
       clipboardTextSerializer: (slice) =>
         markupOf(segmentsOfDoc(slice.content.toJSON() ?? []), newline),
-      // A paste is read as the game's markup; a one-line text takes its lines as one.
+      // A paste is read as the game's markup; a one-line text takes its lines, `|n` too, as one.
       handlePaste: (_, event) => {
         const text = event.clipboardData?.getData("text/plain") ?? "";
-        editor?.commands.insertContent(
-          inlineOf(segmentsOf(single ? text.replace(/\r?\n/g, " ") : text)),
-        );
+        editor?.commands.insertContent(inlineOf(segmentsOf(text, single)));
         return true;
       },
     },

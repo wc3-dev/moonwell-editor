@@ -6,7 +6,7 @@
 /**
  * The rows and cells of copied text. Lines end with `\n` or `\r\n`; the one line break at the very end that a
  * spreadsheet adds is not a row. Empty text has no rows. An empty cell is `""`. A quote opens a quoted cell only at
- * the start of a cell.
+ * the start of a cell, and only when a quote closes it later; else it is text.
  */
 export function parseTsv(text: string): string[][] {
   if (text === "") return [];
@@ -31,7 +31,7 @@ export function parseTsv(text: string): string[][] {
         else cell += char;
         at++;
       }
-    } else if (char === '"' && atCellStart) {
+    } else if (char === '"' && atCellStart && closes(body, at)) {
       inQuotes = true;
       atCellStart = false;
       at++;
@@ -56,6 +56,16 @@ export function parseTsv(text: string): string[][] {
   row.push(cell);
   rows.push(row);
   return rows;
+}
+
+/** True when a quote after `at` closes the one there: a quote that is not doubled. */
+function closes(text: string, at: number): boolean {
+  for (let i = at + 1; i < text.length; i++) {
+    if (text[i] !== '"') continue;
+    if (text[i + 1] !== '"') return true;
+    i++;
+  }
+  return false;
 }
 
 /** A cell as copied: in quotes when it holds a tab, a line break or a quote. */

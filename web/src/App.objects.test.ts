@@ -301,6 +301,17 @@ describe("the tree's context menu", () => {
     await screen.findByRole("dialog", { name: t("dialog.delete.title", { name: "Footman" }) });
   });
 
+  test("an entry picked before the object arrives acts on that object", async () => {
+    const app = await openApp();
+    await showObject(/Knight/);
+    const footman = later(unit(footmanEntry));
+    app.answers.object = () => footman.answer;
+    await fireEvent.contextMenu(await screen.findByRole("treeitem", { name: /Footman/ }));
+    await fireEvent.click(await screen.findByRole("menuitem", { name: /^Delete…\s*Del$/ }));
+    footman.release();
+    await screen.findByRole("dialog", { name: t("dialog.delete.title", { name: "Footman" }) });
+  });
+
   test("Edit tooltip opens the tooltip editor", async () => {
     await openApp();
     await rowMenu(/Footman/, t("menu.editTooltip"));

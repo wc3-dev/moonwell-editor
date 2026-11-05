@@ -37,6 +37,8 @@ describe("isArithmetic", () => {
     expect(isArithmetic("*2")).toBe(true);
     expect(isArithmetic("-5")).toBe(false);
     expect(isArithmetic("1.5")).toBe(false);
+    expect(isArithmetic("1e-5")).toBe(false);
+    expect(isArithmetic("2.5E+3")).toBe(false);
     expect(isArithmetic("abc")).toBe(false);
   });
 });

@@ -52,13 +52,22 @@ $effect(() => {
   if (open) hovered = null;
 });
 
+// A list asked for before the mode changed or the picker closed is dropped when it comes.
 $effect(() => {
   if (!open) return;
   problem = "";
+  let current = true;
   listOf(kind, graphics.mode).then(
-    (found) => (list = found),
-    (error) => (problem = errorText(error)),
+    (found) => {
+      if (current) list = found;
+    },
+    (error) => {
+      if (current) problem = errorText(error);
+    },
   );
+  return () => {
+    current = false;
+  };
 });
 
 async function pick(path: string): Promise<void> {

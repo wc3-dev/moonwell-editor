@@ -30,6 +30,13 @@ describe("parseTsv", () => {
     expect(parseTsv('"a\r\nb"\r\nc')).toEqual([["a\r\nb"], ["c"]]);
   });
 
+  it("reads a quote that never closes as a quote, not as the rest of the text", () => {
+    expect(parseTsv('"12 inch\tb\nc\td')).toEqual([
+      ['"12 inch', "b"],
+      ["c", "d"],
+    ]);
+  });
+
   it("answers no rows for empty text", () => {
     expect(parseTsv("")).toEqual([]);
   });

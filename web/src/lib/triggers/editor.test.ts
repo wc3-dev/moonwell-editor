@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { EditorView } from "@codemirror/view";
 import {
   cleanup,
   createEvent,
@@ -9,7 +10,7 @@ import {
   within,
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { FakeApp, Refusal } from "../../test/fakeApp.ts";
+import { FakeApp, later, Refusal } from "../../test/fakeApp.ts";
 import { fakeLayout } from "../../test/fakeLayout.ts";
 import { CommandQueue } from "../app/commandQueue.ts";
 import { answer, picking } from "../map/pick.svelte.ts";
@@ -903,6 +904,23 @@ describe("the header", () => {
     await waitFor(() =>
       expect(app.args("triggerHeader")).toEqual({ comment: "New top", code: "// head" }),
     );
+  });
+
+  test("code sent before the comment's answer keeps the comment", async () => {
+    const first = later(null);
+    let asked = 0;
+    const app = await open({ triggerHeader: () => (++asked === 1 ? first.answer : null) });
+    const comment = await screen.findByRole("textbox", { name: t("triggers.comment") });
+    comment.focus();
+    await fireEvent.input(comment, { target: { value: "New top" } });
+    await fireEvent.change(comment);
+    const code = screen.getByRole("textbox", { name: t("triggers.code") });
+    const view = EditorView.findFromDOM(code);
+    view?.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: "// new" } });
+    await fireEvent.blur(code);
+    first.release();
+    await waitFor(() => expect(asked).toBe(2));
+    expect(app.args("triggerHeader")).toEqual({ comment: "New top", code: "// new" });
   });
 
   test("it opens in the Script Editor", async () => {

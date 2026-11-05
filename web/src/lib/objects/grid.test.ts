@@ -752,6 +752,13 @@ describe("cellField", () => {
       maxLength: null,
     });
   });
+
+  it("keeps the field's metadata type, which picks its editor", () => {
+    const shadow = { ...info("ushr", "Shadow", "string"), meta: "shadowTexture" };
+    expect(cellField(shadow, { field: "ushr", level: 0 }, cell("Shadow")).meta).toBe(
+      "shadowTexture",
+    );
+  });
 });
 
 describe("editRefusal", () => {

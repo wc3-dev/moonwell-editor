@@ -165,12 +165,19 @@ export class Editor {
     };
   };
 
-  /** The context menu of an object in the tree; the object is shown first, so every entry acts on it. */
+  /** The context menu of an object in the tree; an entry waits for the object to be shown, so it acts on it. */
   openObjectMenu = async (each: Kind, id: string, x: number, y: number): Promise<void> => {
     const items = this.objectActions.menuItems(each, id);
     if (!items) return;
-    this.menu = { x, y, items };
-    await this.objects.show(each, id);
+    const showing = this.objects.show(each, id);
+    this.menu = {
+      x,
+      y,
+      items: items.map((item) =>
+        "run" in item ? { ...item, run: () => void showing.then(item.run) } : item,
+      ),
+    };
+    await showing;
   };
 
   /** Opens an object in the details view (a row's name in the table). */
