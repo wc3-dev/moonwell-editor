@@ -674,6 +674,35 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Renaming_a_trigger_converted_to_text_keeps_another_triggers_name_that_starts_with_its_own()
+    {
+        var catalog = InstallMaps.Catalog;
+        var store = InstallMaps.Open("Maps/FrozenThrone/Scenario/(6)BomberCommand.w3x");
+        if (catalog == null || store == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var document = TriggerDocument.Read(
+            store.Read(TriggerDocument.TriggersFile), store.Read(TriggerDocument.CustomTextFile), catalog);
+        var custom = document.Tree().First(item => item.Kind == TriggerItemKind.Custom);
+        var before = TriggerJass.Identifier(custom.Name);
+        document.SetCode(
+            custom.Id,
+            document.CodeOf(custom.Id) + $"\ncall EnableTrigger(gg_trg_{before}_Bar)\ncall InitTrig_{before}_Bar()\n"
+                + $"call Trig_{before}_Bar_Actions()\ncall Trig_{before}_Actions()\n");
+
+        document.Rename(custom.Id, "Renamed Here");
+
+        Assert.Contains($"gg_trg_{before}_Bar", document.CodeOf(custom.Id));
+        Assert.Contains($"InitTrig_{before}_Bar", document.CodeOf(custom.Id));
+        Assert.Contains($"Trig_{before}_Bar_Actions", document.CodeOf(custom.Id));
+        Assert.Contains("InitTrig_Renamed_Here", document.CodeOf(custom.Id));
+        Assert.Contains("call Trig_Renamed_Here_Actions()", document.CodeOf(custom.Id));
+    }
+
+    [Fact]
     public void The_end_of_a_custom_text_never_reaches_the_page_and_is_written_as_World_Editor_does()
     {
         var catalog = InstallMaps.Catalog;

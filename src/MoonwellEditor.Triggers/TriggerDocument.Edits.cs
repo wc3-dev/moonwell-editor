@@ -511,13 +511,16 @@ public sealed partial class TriggerDocument
         return new CustomTextTrigger { Code = text.Length == 0 ? "" : text + Terminator };
     }
 
-    // A trigger converted to text holds its own name: the script needs its InitTrig under the new name.
+    // A trigger converted to text holds its own name: the script needs its InitTrig under the new name. Only Trig_ goes
+    // on, with World Editor's own endings (Trig_Foo_Actions, Trig_Foo_Func001C); gg_trg_Foo_Bar, InitTrig_Foo_Bar and
+    // Trig_Foo_Bar_Actions are another trigger's, "Foo Bar".
     private static string RenamedInCode(string code, string from, string to)
     {
         var (oldName, newName) = (TriggerJass.Identifier(from), TriggerJass.Identifier(to));
-        foreach (var prefix in new[] { "InitTrig_", "gg_trg_", "Trig_" })
+        var ends = new[] { ("InitTrig_", @"\b"), ("gg_trg_", @"\b"), ("Trig_", @"(?=\b|_(?:Actions|Conditions|Func\d))") };
+        foreach (var (prefix, end) in ends)
         {
-            code = Regex.Replace(code, $@"\b{prefix}{Regex.Escape(oldName)}(?=\b|_)", prefix + newName.Replace("$", "$$", StringComparison.Ordinal));
+            code = Regex.Replace(code, $@"\b{prefix}{Regex.Escape(oldName)}{end}", prefix + newName.Replace("$", "$$", StringComparison.Ordinal));
         }
 
         return code;
