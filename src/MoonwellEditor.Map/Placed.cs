@@ -284,17 +284,24 @@ public static class Placed
             return null;
         }
 
+        var count = variations == null ? 1 : (int)Number(view, variations, mode, 0, 1f);
+        return VariationOf(path, count, variation);
+    }
+
+    // A model path with its variation's number before the extension when there is more than one, and .mdl when it has
+    // none of the model extensions.
+    internal static string VariationOf(string path, int count, int variation)
+    {
         var extension = Path.GetExtension(path);
-        if (extension is not (".mdl" or ".mdx" or ".MDL" or ".MDX"))
-        {
-            extension = ".mdl";
-        }
-        else
+        if (extension.Equals(".mdl", StringComparison.OrdinalIgnoreCase) || extension.Equals(".mdx", StringComparison.OrdinalIgnoreCase))
         {
             path = path[..^extension.Length];
         }
+        else
+        {
+            extension = ".mdl";
+        }
 
-        var count = variations == null ? 1 : (int)Number(view, variations, mode, 0, 1f);
         return count > 1 ? path + variation.ToString(CultureInfo.InvariantCulture) + extension : path + extension;
     }
 

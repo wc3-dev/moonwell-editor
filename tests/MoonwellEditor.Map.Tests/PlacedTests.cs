@@ -87,6 +87,14 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         }
     }
 
+    [Theory]
+    [InlineData(@"Doodads\Rock.mdl", 1, 0, @"Doodads\Rock.mdl")]
+    [InlineData(@"Doodads\Rock.Mdx", 1, 0, @"Doodads\Rock.Mdx")]
+    [InlineData(@"Doodads\Rock.mDl", 3, 2, @"Doodads\Rock2.mDl")]
+    [InlineData(@"Doodads\Rock", 3, 2, @"Doodads\Rock2.mdl")]
+    public void A_model_takes_its_variation_before_any_case_of_its_extension(string path, int count, int variation, string model) =>
+        Assert.Equal(model, Placed.VariationOf(path, count, variation));
+
     [Fact]
     public void A_type_the_map_no_longer_has_is_a_marker()
     {
