@@ -41,8 +41,7 @@ export function segmentsOf(markup: string, oneLine = false): Segment[] {
     const char = markup[i] ?? "";
     if (char === "\r" && markup[i + 1] === "\n") continue;
     if (char === "\n" || char === "\r") {
-      flush();
-      segments.push({ type: "break" });
+      lineBreak();
       continue;
     }
     if (char === "<") {
