@@ -86,18 +86,15 @@ $effect(() => {
   const target = canvas;
   if (!target) return;
   let host: GlHost | null = null;
-  let stopped = false;
-  void open(shown, target, (made) => {
-    if (stopped) made.stop();
-    else {
-      host = made;
-      lastHost = made;
-    }
+  const stop = new AbortController();
+  void open(shown, target, stop.signal, (made) => {
+    host = made;
+    lastHost = made;
   });
   const resize = new ResizeObserver(() => sizeCanvas(target));
   resize.observe(target);
   return () => {
-    stopped = true;
+    stop.abort();
     resize.disconnect();
     host?.stop();
     if (frame) cancelAnimationFrame(frame);
@@ -118,6 +115,9 @@ $effect(() => {
       ),
     ),
   );
+});
+
+$effect(() => {
   renderer?.selectMark(
     selected && (selected.kind === "region" || selected.kind === "camera") ? selected.ref : null,
   );
@@ -130,6 +130,7 @@ $effect(() => {
 async function open(
   shown: string,
   target: HTMLCanvasElement,
+  signal: AbortSignal,
   keep: (host: GlHost) => void,
 ): Promise<void> {
   status = "loading";
@@ -137,15 +138,17 @@ async function open(
   const started = performance.now();
   try {
     const read = await mapScene(shown);
+    if (signal.aborted) return;
     problems = read.problems;
     scene = read;
     if (read.columns === 0) {
       status = "ready";
       return;
     }
-    const response = await fetch(terrainUrl(shown));
+    const response = await fetch(terrainUrl(shown), { signal });
     if (!response.ok) throw new Error(t("mapView.noTerrain"));
     const grid = readTerrain(await response.arrayBuffer(), read.left, read.bottom);
+    if (signal.aborted) return;
     console.info(`[timing] map scene ${Math.round(performance.now() - started)} ms`);
     terrain = grid;
     view = start(read, grid);
@@ -172,6 +175,7 @@ async function open(
     );
     status = "ready";
   } catch (error) {
+    if (signal.aborted) return;
     failure = errorText(error);
     status = "failed";
   }
