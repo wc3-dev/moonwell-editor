@@ -81,7 +81,10 @@ internal static class Cache
         return new GameData(folder, file.GameVersion, kinds, file.Choices);
     }
 
-    /// <summary>Saves the data, through a temporary file so a reader never sees half a cache.</summary>
+    /// <summary>
+    /// Saves the data, through a temporary file so a reader never sees half a cache. A cache that cannot be written is
+    /// left out, and the data is built again on the next load.
+    /// </summary>
     public static void Write(string path, GameData data, string stamp)
     {
         var kinds = new Dictionary<string, CachedKind>(StringComparer.Ordinal);
@@ -94,14 +97,27 @@ internal static class Cache
 
         var file = new CacheFile(
             Format, CodeVersion, Normalized(data.Source), stamp, data.GameVersion, data.Choices, kinds);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        using (var stream = File.Create(temporary))
+        try
         {
-            JsonSerializer.Serialize(stream, file);
-        }
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using (var stream = File.Create(temporary))
+            {
+                JsonSerializer.Serialize(stream, file);
+            }
 
-        File.Move(temporary, path, true);
+            File.Move(temporary, path, true);
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
+        {
+            try
+            {
+                File.Delete(temporary);
+            }
+            catch (Exception left) when (left is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
     }
 
     private static string Normalized(string folder) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
