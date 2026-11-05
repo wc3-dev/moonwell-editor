@@ -61,6 +61,17 @@ public sealed class MapArchiveTests : IDisposable
     }
 
     [Fact]
+    public void A_file_the_archive_has_no_entry_for_is_not_found_without_opening_it()
+    {
+        // The map view asks for hundreds of the game's files, which the map first is asked for.
+        var path = Copy(Sample, "Sample.w3x");
+        var map = MapArchive.Open(path);
+        using var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        Assert.Null(map.ReadImport(@"Textures\Footman.blp"));
+    }
+
+    [Fact]
     public void Reads_the_files_of_an_archive()
     {
         var path = Copy(Sample, "Sample.w3x");

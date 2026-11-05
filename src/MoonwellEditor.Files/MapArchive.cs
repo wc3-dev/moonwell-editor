@@ -97,7 +97,7 @@ public sealed class MapArchive : IMapStore
             return bytes;
         }
 
-        return Load(Path, [name]).Files[name];
+        return _contents.Hashed.Contains(MpqHash.GetHashedFileName(name)) ? Load(Path, [name]).Files[name] : null;
     }
 
     /// <summary>
@@ -618,7 +618,8 @@ public sealed class MapArchive : IMapStore
                 }
             }
 
-            return new Contents(stamp, ReadPreArchive(stream), listed, files, Localized(archive));
+            var hashed = archive.EnumerateHashes().Select(hash => hash.Name).ToHashSet();
+            return new Contents(stamp, ReadPreArchive(stream), listed, files, Localized(archive), hashed);
         }
         catch (Exception e) when (e is not MapArchiveException)
         {
@@ -707,12 +708,14 @@ public sealed class MapArchive : IMapStore
     /// The files read, by name (letter case ignored); null for one the archive does not have.
     /// </param>
     /// <param name="Problems">Why a known file may not be written, by name (letter case ignored).</param>
+    /// <param name="Hashed">The name hashes of the archive's entries: a file with none is not looked for.</param>
     private sealed record Contents(
         string Stamp,
         byte[] PreArchive,
         IReadOnlyList<string> Names,
         Dictionary<string, byte[]?> Files,
-        Dictionary<string, string> Problems);
+        Dictionary<string, string> Problems,
+        HashSet<ulong> Hashed);
 }
 
 /// <summary>
