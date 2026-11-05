@@ -699,9 +699,9 @@ public sealed partial class TriggerDocument
 
     private string FreeName(string name)
     {
-        var taken = Live().Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var taken = Live().Select(item => TriggerJass.Identifier(item.Name)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var number = FirstNumber;
-        while (!taken.Add($"{name} {number:D3}"))
+        while (!taken.Add(TriggerJass.Identifier($"{name} {number:D3}")))
         {
             number++;
         }
@@ -786,8 +786,8 @@ public sealed partial class TriggerDocument
             throw new TriggerEditException(Texts.Get("app.triggers.badVariableName", ("name", input.Name)));
         }
 
-        if (input.Name != oldName && _triggers.Variables.Any(variable =>
-            string.Equals(variable.Name, input.Name, StringComparison.OrdinalIgnoreCase)))
+        if (input.Name != oldName && _triggers.Variables.Any(variable => variable.Name != oldName
+            && string.Equals(variable.Name, input.Name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new TriggerEditException(Texts.Get("app.triggers.nameTaken", ("name", input.Name)));
         }
@@ -961,7 +961,8 @@ public sealed partial class TriggerDocument
         var fine = type switch
         {
             "integer" => int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _),
-            "real" => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _),
+            "real" => double.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture, out var real) && double.IsFinite(real),
             _ => true,
         };
         if (!fine)

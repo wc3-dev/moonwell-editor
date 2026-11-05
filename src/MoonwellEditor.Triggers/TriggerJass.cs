@@ -23,6 +23,16 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     public static string Identifier(string name) =>
         NotIdentifier().Replace(name.TrimEnd(), match => new string('_', Encoding.UTF8.GetBytes(match.Value).Length));
 
+    /// <summary>A trigger's description as the lines of its comment.</summary>
+    public static IEnumerable<string> Comment(string description)
+    {
+        using var lines = new StringReader(description.Replace("\r\r\n", "\n"));
+        while (lines.ReadLine() is { } line)
+        {
+            yield return "// " + line;
+        }
+    }
+
     /// <summary>Writes the trigger's functions, helpers first.</summary>
     public void Write(TriggerDefinition trigger)
     {
@@ -32,10 +42,9 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
         if (!string.IsNullOrEmpty(trigger.Description))
         {
             writer.WriteLine("//");
-            using var lines = new StringReader(trigger.Description.Replace("\r\r\n", "\n"));
-            while (lines.ReadLine() is { } line)
+            foreach (var line in Comment(trigger.Description))
             {
-                writer.WriteLine("// " + line);
+                writer.WriteLine(line);
             }
         }
 
