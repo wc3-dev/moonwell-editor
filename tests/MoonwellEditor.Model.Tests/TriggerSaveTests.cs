@@ -167,7 +167,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
 
         var report = session.Save();
 
-        Assert.Equal(["war3map.wtg", "war3map.wct", "war3map.j"], report.Written);
+        Assert.Equal(["war3map.j", "war3map.wtg", "war3map.wct"], report.Written);
         Assert.Equal("", report.Note);
         Assert.False(session.Dirty);
         var after = MapStore.Open(path);
