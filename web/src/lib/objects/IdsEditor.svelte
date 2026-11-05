@@ -41,9 +41,20 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 const single = $derived(field.type === "objectRef");
 const kinds = $derived(listKinds(field.listOf));
+// The list last sent, until its answer: a quick second × or + builds on it, not on the list before it.
+let sending = $state<string | null>(null);
+const value = $derived(sending ?? field.value);
 const objects = $derived(
-  listIds(field.value).map((id) => ({ id, found: lookup(field.listOf ?? "", id) })),
+  listIds(value).map((id) => ({ id, found: lookup(field.listOf ?? "", id) })),
 );
+
+function set(next: string): void {
+  sending = next;
+  const done = () => {
+    if (sending === next) sending = null;
+  };
+  onset(next).then(done, done);
+}
 
 function oninput(): void {
   clearTimeout(timer);
@@ -81,10 +92,10 @@ function close(): void {
 }
 
 function add(hit: Hit): void {
-  const value = addId(field.value, hit.id, single);
+  const next = addId(value, hit.id, single);
   close();
   addButton?.focus();
-  if (value !== field.value) onset(value);
+  if (next !== value) set(next);
 }
 
 function onkeydown(event: KeyboardEvent): void {
@@ -134,7 +145,7 @@ function focusOnMount(element: HTMLInputElement): void {
         type="button"
         class="px-0.5 text-faint hover:text-warning"
         aria-label={t("ids.takeOut", { name: object.found?.name ?? object.id })}
-        onclick={() => onset(removeId(field.value, at))}
+        onclick={() => set(removeId(value, at))}
       >
         <X size={12} />
       </button>
