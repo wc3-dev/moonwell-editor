@@ -511,13 +511,14 @@ public sealed partial class TriggerDocument
         return new CustomTextTrigger { Code = text.Length == 0 ? "" : text + Terminator };
     }
 
-    // A trigger converted to text holds its own name: the script needs its InitTrig under the new name.
+    // A trigger converted to text holds its own name: the script needs its InitTrig under the new name. Only Trig_ goes
+    // on with _ (Trig_Foo_Actions); gg_trg_Foo_Bar and InitTrig_Foo_Bar are another trigger's, "Foo Bar".
     private static string RenamedInCode(string code, string from, string to)
     {
         var (oldName, newName) = (TriggerJass.Identifier(from), TriggerJass.Identifier(to));
-        foreach (var prefix in new[] { "InitTrig_", "gg_trg_", "Trig_" })
+        foreach (var (prefix, end) in new[] { ("InitTrig_", @"\b"), ("gg_trg_", @"\b"), ("Trig_", @"(?=\b|_)") })
         {
-            code = Regex.Replace(code, $@"\b{prefix}{Regex.Escape(oldName)}(?=\b|_)", prefix + newName.Replace("$", "$$", StringComparison.Ordinal));
+            code = Regex.Replace(code, $@"\b{prefix}{Regex.Escape(oldName)}{end}", prefix + newName.Replace("$", "$$", StringComparison.Ordinal));
         }
 
         return code;
