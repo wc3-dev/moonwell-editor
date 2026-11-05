@@ -309,7 +309,8 @@ public sealed class MainForm : Form
         }
     }
 
-    // Runs an action on the window's thread, from a command's background thread.
+    // Runs an action on the window's thread, from a command's or a shell's background thread. The window may close
+    // between the check and the call, which then throws.
     private void OnWindowThread(Action action)
     {
         if (IsDisposed || !IsHandleCreated)
@@ -317,25 +318,24 @@ public sealed class MainForm : Form
             return;
         }
 
-        BeginInvoke(action);
+        try
+        {
+            BeginInvoke(action);
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     // Tells the page about something that happened on a background thread.
-    private void Notify<T>(BridgeEvent<T> @event, T payload)
-    {
-        if (IsDisposed || !IsHandleCreated)
-        {
-            return;
-        }
-
-        BeginInvoke(() =>
+    private void Notify<T>(BridgeEvent<T> @event, T payload) =>
+        OnWindowThread(() =>
         {
             if (_web.CoreWebView2 != null)
             {
                 Post(Bridge.Event(@event, payload));
             }
         });
-    }
 
     private static WebView2 NewWeb(Color background) =>
         new() { Dock = DockStyle.Fill, DefaultBackgroundColor = background };
@@ -493,7 +493,7 @@ public sealed class MainForm : Form
                     200,
                     "OK",
                     $"Content-Type: {(icon ? "image/png" : "application/octet-stream")}\r\n"
-                    + "Access-Control-Allow-Origin: *\r\nCache-Control: max-age=3600");
+                    + "Access-Control-Allow-Origin: *\r\nCache-Control: no-store");
             deferral.Complete();
         }));
     }
