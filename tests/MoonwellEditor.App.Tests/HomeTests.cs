@@ -120,6 +120,28 @@ public sealed class HomeTests : IDisposable
     }
 
     [Fact]
+    public void Settings_with_a_key_twice_are_a_mistake_and_do_not_stop_the_editor_starting()
+    {
+        PutHome("settings.json", """{ "game.folder": "C:\\A", "editor.reopenLastMap": true, "game.folder": "C:\\B" }""");
+
+        var home = Open();
+
+        Assert.Null(home.GameFolder);
+        Assert.False(home.ReopenLastMap);
+    }
+
+    [Fact]
+    public void A_state_file_with_a_key_twice_is_a_mistake_and_a_map_is_still_remembered()
+    {
+        PutHome("state.json", """{ "recentMaps": ["C:\\Maps\\A"], "recentMaps": ["C:\\Maps\\B"] }""");
+        var home = Open();
+
+        Assert.Empty(home.RecentMaps);
+        home.RememberMap(@"C:\Maps\C");
+        Assert.Equal([@"C:\Maps\C"], home.RecentMaps);
+    }
+
+    [Fact]
     public void Missing_files_give_defaults()
     {
         var home = Open();
