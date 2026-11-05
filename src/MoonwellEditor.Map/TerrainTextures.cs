@@ -74,7 +74,7 @@ public sealed class TerrainTextures(IReadOnlyList<TerrainTexture> all, int bligh
     public int IndexOf(string tileId) => All.ToList().FindIndex(texture => texture.TileId == tileId);
 
     // A texture twice as wide as high, from its DDS or BLP header; false when it cannot be read.
-    private static bool IsExtended(byte[]? bytes)
+    internal static bool IsExtended(byte[]? bytes)
     {
         if (bytes is not { Length: >= 20 })
         {
@@ -85,8 +85,7 @@ public sealed class TerrainTextures(IReadOnlyList<TerrainTexture> all, int bligh
         var (width, height) = magic switch
         {
             "DDS " => (BitConverter.ToInt32(bytes, 16), BitConverter.ToInt32(bytes, 12)),
-            "BLP1" => (BitConverter.ToInt32(bytes, 12), BitConverter.ToInt32(bytes, 16)),
-            "BLP2" => (BitConverter.ToInt32(bytes, 8), BitConverter.ToInt32(bytes, 12)),
+            "BLP1" or "BLP2" => (BitConverter.ToInt32(bytes, 12), BitConverter.ToInt32(bytes, 16)),
             _ => (0, 0),
         };
         return height > 0 && width == height * 2;
