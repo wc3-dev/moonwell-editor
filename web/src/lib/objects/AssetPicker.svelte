@@ -58,8 +58,12 @@ $effect(() => {
   problem = "";
   let current = true;
   listOf(kind, graphics.mode).then(
-    (found) => current && (list = found),
-    (error) => current && (problem = errorText(error)),
+    (found) => {
+      if (current) list = found;
+    },
+    (error) => {
+      if (current) problem = errorText(error);
+    },
   );
   return () => {
     current = false;

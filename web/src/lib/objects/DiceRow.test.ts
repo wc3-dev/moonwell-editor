@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
 import { afterEach, expect, test } from "vitest";
 import type { FieldView } from "../api.ts";
 import { hasTyped, sendTyped } from "../typing.ts";
-import type { DiceFields } from "./dice.ts";
 import DiceRow from "./DiceRow.svelte";
+import type { DiceFields } from "./dice.ts";
 
 afterEach(cleanup);
 

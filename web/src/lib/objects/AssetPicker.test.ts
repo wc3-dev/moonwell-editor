@@ -12,7 +12,11 @@ appTests();
 test("a mode's list that comes after the next mode's does not replace it", async () => {
   forgetAssetLists();
   setGraphicsMode("sd");
-  const classic = later({ ready: true, error: null, paths: ["ReplaceableTextures\\CommandButtons\\BTNSD.blp"] });
+  const classic = later({
+    ready: true,
+    error: null,
+    paths: ["ReplaceableTextures\\CommandButtons\\BTNSD.blp"],
+  });
   new FakeApp({
     assetList: ({ mode }: { mode: string }) =>
       mode === "sd"
@@ -27,7 +31,9 @@ test("a mode's list that comes after the next mode's does not replace it", async
     objectKind: "unit",
     fieldId: "uico",
   });
-  await fireEvent.click(screen.getByRole("button", { name: t("assetPicker.pickThe", { field: "Icon" }) }));
+  await fireEvent.click(
+    screen.getByRole("button", { name: t("assetPicker.pickThe", { field: "Icon" }) }),
+  );
   setGraphicsMode("hd");
   await waitFor(() => expect(screen.getByTitle(/BTNHD/)).toBeTruthy());
   classic.release();

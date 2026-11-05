@@ -17,12 +17,17 @@ type Header = { comment: string; code: string };
 let sent: Header | null = null;
 
 function sendHeader(change: Partial<Header>): void {
-  const before = sent ?? { comment: state.tree?.headerComment ?? "", code: state.tree?.headerCode ?? "" };
+  const before = sent ?? {
+    comment: state.tree?.headerComment ?? "",
+    code: state.tree?.headerCode ?? "",
+  };
   const next = { ...before, ...change };
   sent = next;
-  state.edit(() => setHeader(next.comment, next.code)).then(() => {
-    if (sent === next) sent = null;
-  });
+  state
+    .edit(() => setHeader(next.comment, next.code))
+    .then(() => {
+      if (sent === next) sent = null;
+    });
 }
 </script>
 
