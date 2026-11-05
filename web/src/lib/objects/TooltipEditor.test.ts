@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { FakeApp, field, footmanEntry, unit } from "../../test/fakeApp.ts";
+import { FakeApp, field, footmanEntry, knightEntry, unit } from "../../test/fakeApp.ts";
 import type { FieldView } from "../api.ts";
 import { loadState } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
@@ -62,6 +62,24 @@ describe("saving", () => {
     await fireEvent.click(close());
     await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
     expect(onfields).toHaveBeenCalledOnce();
+  });
+
+  test("a text typed for one object never shows in or goes to another", async () => {
+    const onfields = vi.fn(async (_edits: Edits): Promise<string | null> => null);
+    const { rerender } = render(TooltipEditor, { view, onfields, onclose });
+    await fireEvent.input(box(), { target: { value: "New" } });
+
+    const knight = unit(knightEntry, {
+      fields: [
+        field({ id: "utip", label: "Tooltip", value: "Charge" }),
+        field({ id: "utub", label: "Extended Tooltip", value: "Long" }),
+      ],
+    });
+    await rerender({ view: knight });
+
+    await waitFor(() => expect(box().value).toBe("Charge"));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(onfields).not.toHaveBeenCalled();
   });
 
   test("a save of the map sends it first", async () => {
