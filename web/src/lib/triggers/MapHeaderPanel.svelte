@@ -10,6 +10,20 @@ import { typedBox } from "./typedBox.ts";
 type Props = { state: TriggerState; tree: TriggerTreeView; root: TriggerTreeItem };
 
 let { state, tree, root }: Props = $props();
+
+type Header = { comment: string; code: string };
+
+// The header last sent, until its edit is done: a box sent before that keeps what the other box sent.
+let sent: Header | null = null;
+
+function sendHeader(change: Partial<Header>): void {
+  const before = sent ?? { comment: state.tree?.headerComment ?? "", code: state.tree?.headerCode ?? "" };
+  const next = { ...before, ...change };
+  sent = next;
+  state.edit(() => setHeader(next.comment, next.code)).then(() => {
+    if (sent === next) sent = null;
+  });
+}
 </script>
 
 <div class="flex min-h-0 flex-col overflow-auto rounded-ui bg-panel p-4">
@@ -25,7 +39,7 @@ let { state, tree, root }: Props = $props();
   <p class="m-0 mb-2 text-muted">{t("triggers.mapHeaderHint")}</p>
   <label class="mb-2">
     <span class="mb-1 block text-muted">{t("triggers.comment")}</span>
-    <textarea class="{box} h-[64px] resize-none" value={tree.headerComment} disabled={state.readOnly} use:typedBox={(comment) => { const header = state.tree?.headerCode ?? ""; state.edit(() => setHeader(comment, header)); }}></textarea>
+    <textarea class="{box} h-[64px] resize-none" value={tree.headerComment} disabled={state.readOnly} use:typedBox={(comment) => sendHeader({ comment })}></textarea>
   </label>
   <div class="flex min-h-0 flex-1 flex-col">
     <span class="mb-1 block text-muted">{t("triggers.code")}</span>
@@ -35,10 +49,7 @@ let { state, tree, root }: Props = $props();
       language={tree.language}
       label={t("triggers.code")}
       readOnly={state.readOnly}
-      onsend={(text) => {
-        const comment = state.tree?.headerComment ?? "";
-        state.edit(() => setHeader(comment, text));
-      }}
+      onsend={(code) => sendHeader({ code })}
     />
   </div>
 </div>
