@@ -48,7 +48,7 @@ public sealed class CommandEntry
     /// <summary>True for a command the page tells without waiting for an answer.</summary>
     public bool Told { get; }
 
-    /// <summary>True for a command that runs beside the one-at-a-time queue (the terminal's).</summary>
+    /// <summary>True for a command that runs beside the one-at-a-time queue (the terminal's, and closeAsking).</summary>
     public bool RunsAlongside { get; }
 
     /// <summary>

@@ -387,7 +387,7 @@ public sealed partial class Commands
         CommandEntry.Of("fields", (Commands c, KindArgs a) => c.Fields(a.Kind)),
         CommandEntry.Of("table", (Commands c, TableArgs a) => c.Map().Table(a.Kind, a.Ids, a.Columns)),
         CommandEntry.Of("setCells", (Commands c, SetCellsArgs a) => c.SetCells(a)),
-        CommandEntry.Do("closeAsking", (Commands c) => c.CloseAsking?.Invoke()),
+        CommandEntry.Do("closeAsking", (Commands c) => c.CloseAsking?.Invoke()).Alongside(),
         CommandEntry.Do("closeWindow", (Commands c) => c.CloseApproved?.Invoke()),
         CommandEntry.Do("minimizeWindow", (Commands c) => c.MinimizeAsked?.Invoke()),
         CommandEntry.Do("maximizeWindow", (Commands c) => c.MaximizeAsked?.Invoke()),

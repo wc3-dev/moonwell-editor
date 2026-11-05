@@ -27,7 +27,8 @@ public sealed partial class Commands
 
     /// <summary>
     /// True for a command that does not wait for the one running: what is typed in a terminal must not sit behind a
-    /// slow save. They touch no map, so they cannot get in the way of the commands that rely on running one at a time.
+    /// slow save, nor the page's answer to a close, which the window waits for only a few seconds. They touch no map, so
+    /// they cannot get in the way of the commands that rely on running one at a time.
     /// </summary>
     /// <param name="command">The command's name.</param>
     /// <returns>Whether it runs beside the others.</returns>

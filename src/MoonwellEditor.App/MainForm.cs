@@ -31,7 +31,8 @@ public sealed class MainForm : Form
     private readonly Bridge _bridge;
 
     // The page's requests are answered one at a time, in the order they came. The terminal's have a line of their own,
-    // so what is typed never waits behind a slow command, and stays in order.
+    // so what is typed never waits behind a slow command, and stays in order; so does closeAsking, which the window
+    // waits for (see _pageWait).
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
     private readonly OrderedLine _terminalLine;
 
