@@ -39,11 +39,12 @@ public sealed partial class TriggerDocument
     private const char Terminator = '\0';
 
     private readonly TriggerCatalog _catalog;
+    private readonly MapTriggers _triggers;
+    private readonly MapCustomTextTriggers _customText;
+
     // True when the map has the file: it had it when read, or a save wrote it since.
     private bool _hadTriggers;
     private bool _hadCustomText;
-    private readonly MapTriggers _triggers;
-    private readonly MapCustomTextTriggers _customText;
 
     // The custom text of each trigger that is no comment, by the item's id. Kept as War3Net read it, as an empty one
     // may be null or empty; a trigger with no entry here is written with an empty one.
