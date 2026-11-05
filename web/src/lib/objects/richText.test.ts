@@ -37,6 +37,13 @@ describe("segmentsOf", () => {
       { type: "text", text: "b|c <not one>", color: null },
     ]);
   });
+
+  it("reads a one-line text's breaks as spaces, in their colour", () => {
+    expect(segmentsOf("|cffff0000a|nb|r\nc||n", true)).toEqual([
+      { type: "text", text: "a b", color: "ffff0000" },
+      { type: "text", text: " c|n", color: null },
+    ]);
+  });
 });
 
 describe("markupOf", () => {

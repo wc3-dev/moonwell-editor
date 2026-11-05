@@ -14,8 +14,11 @@ export type Segment =
 
 const tokenPattern = /^<([^,<>]+),([^,<>]+)(,[%.])?>/;
 
-/** The pieces of tooltip markup: `|cAARRGGBB` starts a colour, `|r` ends it, `|n` or a newline breaks the line. */
-export function segmentsOf(markup: string): Segment[] {
+/**
+ * The pieces of tooltip markup: `|cAARRGGBB` starts a colour, `|r` ends it, `|n` or a newline breaks the line, or is a
+ * space in a one-line text.
+ */
+export function segmentsOf(markup: string, oneLine = false): Segment[] {
   const segments: Segment[] = [];
   let color: string | null = null;
   let text = "";
@@ -25,6 +28,14 @@ export function segmentsOf(markup: string): Segment[] {
     if (last?.type === "text" && last.color === color) last.text += text;
     else segments.push({ type: "text", text, color });
     text = "";
+  };
+  const lineBreak = () => {
+    if (oneLine) {
+      text += " ";
+      return;
+    }
+    flush();
+    segments.push({ type: "break" });
   };
   for (let i = 0; i < markup.length; i++) {
     const char = markup[i] ?? "";
@@ -57,8 +68,7 @@ export function segmentsOf(markup: string): Segment[] {
       color = null;
       i += 1;
     } else if (next === "n") {
-      flush();
-      segments.push({ type: "break" });
+      lineBreak();
       i += 1;
     } else if (next === "|") {
       text += "|";
