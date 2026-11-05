@@ -65,10 +65,12 @@ public sealed class Home : IDisposable
     public const int RecentMapsKept = 10;
 
     // Comments and trailing commas are allowed in what a person edits, as VS Code reads its own files.
+    // A key written twice is a mistake: a JsonObject would otherwise throw only when it is first read.
     private static readonly JsonDocumentOptions Lenient = new()
     {
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
+        AllowDuplicateProperties = false,
     };
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
