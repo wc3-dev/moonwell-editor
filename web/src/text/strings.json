@@ -126,6 +126,8 @@
   "app.mapView.noTerrain": "The map has no terrain file (war3map.w3e), so its ground is not drawn.",
   "app.mapView.startLocation": "Player {player}'s start location",
   "app.mapView.unreadable": "{name} could not be read: {reason}",
+  "app.terrain.noTile": "There is no tile {tile}.",
+  "app.terrain.tooManyTiles": "The map already has {most} tiles, the most a map can have. Paint with one of its tiles.",
   "app.name": "Moonwell Editor",
   "app.options.custom": "Custom",
   "app.options.default": "Default",

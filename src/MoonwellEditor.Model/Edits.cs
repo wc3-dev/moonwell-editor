@@ -18,7 +18,7 @@ public sealed partial class Session
 
     /// <summary>
     /// True when the map differs from its files as opened or last saved: edits were made since and they changed an
-    /// object (see <see cref="ChangedObjects"/>) or the triggers. An edit made and then undone, or changed back, leaves nothing unsaved
+    /// object (see <see cref="ChangedObjects"/>), the triggers or a part (see <see cref="IMapPart"/>). An edit made and then undone, or changed back, leaves nothing unsaved
     /// (Sven, 2026-10-27: the status bar showed "0 objects changed, not saved"). After a save that failed part way it
     /// is true until a save writes everything, as the map on disk is then partly old and partly new.
     /// </summary>
@@ -32,7 +32,7 @@ public sealed partial class Session
     }
 
     private bool DirtyWith(Func<int> changedObjects) =>
-        _partlySaved || (_history.Dirty && (changedObjects() > 0 || TriggersChanged()));
+        _partlySaved || (_history.Dirty && (changedObjects() > 0 || TriggersChanged() || PartsChanged()));
 
     /// <summary>Undoes the last edit; false when there is none.</summary>
     public bool Undo() => Reindex(_history.Undo());

@@ -53,6 +53,9 @@ export type BlockView = {
   functions: FunctionView[];
 };
 
+/** A brush's outline; it goes to and from the page by its name. */
+export type BrushShape = "Circle" | "Square";
+
 /** A camera, as the view draws and picks it. */
 export type CameraMark = {
   /** Its name. */
@@ -506,6 +509,21 @@ export type GameDataState = {
   game: string | null;
 };
 
+/** A tile the paint brush offers: the tileset's, then any other the map lists. */
+export type GroundTile = {
+  /** Its id in `TerrainArt\Terrain.slk`, `Idrt`. */
+  id: string;
+  /** Its name, `Dirt`. */
+  name: string;
+  /** Its texture's game path in the graphics mode asked, for a picture of it. */
+  texture: string;
+  /** Whether the map lists it already. */
+  inMap: boolean;
+};
+
+/** What a ground brush does to the corners under it; it goes to and from the page by its name. */
+export type GroundTool = "Paint" | "Raise" | "Lower" | "Plateau" | "Smooth";
+
 /** One search result: an object, or a field of a kind. */
 export type Hit = {
   /** The kind. */
@@ -913,6 +931,8 @@ export type SessionState = {
   dirty: boolean;
   /** How many objects differ from the map as opened or last saved (see Session.ChangedObjects). */
   changedObjects: number;
+  /** Goes up with every change to the terrain (TerrainEditor.Version), so the map view can redraw after an undo or redo; 0 before the Terrain Editor first changes it. */
+  terrainVersion: number;
 };
 
 /** Cells to set as one edit. */
@@ -1059,6 +1079,42 @@ export type TerminalWriteArgs = {
   id: number;
   /** The text. */
   text: string;
+};
+
+/** The part of the terrain a stroke changed (TerrainPatch), its bytes as base64 for the bridge. */
+export type TerrainChange = {
+  /** The first corner's column. */
+  left: number;
+  /** The first corner's row. */
+  bottom: number;
+  /** How many columns of corners; 0 when nothing changed. */
+  columns: number;
+  /** How many rows of corners. */
+  rows: number;
+  /** The bytes `TerrainBytes.Patch` writes, as base64. */
+  bytes: string;
+  /** True when the map's list of tiles grew: the view reads the whole scene again. */
+  tiles: boolean;
+};
+
+/** One step of a ground brush's stroke in the Terrain Editor. */
+export type TerrainStrokeArgs = {
+  /** What the brush does. */
+  tool: GroundTool;
+  /** Where it is used, each an x and a y, in the order the mouse passed them. */
+  points: number[][];
+  /** The brush's outline. */
+  shape: BrushShape;
+  /** How many corners across the brush is, 1 to 8. */
+  size: number;
+  /** How far a raise or lower moves the ground in the middle at each point, in game units. */
+  strength: number;
+  /** The tile a paint gives, by its id (`Ldrt`); null for the other tools. */
+  tile: string | null;
+  /** True for a stroke's first step: the one before it, if still open, is closed. */
+  first: boolean;
+  /** The graphics mode the map view draws in: `sd`, `hd` or `de`. */
+  mode?: string;
 };
 
 /** A ground texture: a sheet of 4 by 4 pieces, 8 by 4 when it has variations. */
@@ -1369,6 +1425,9 @@ export type Commands = {
   table: { args: TableArgs; answer: TableRow[] };
   terminalShells: { args: NoArgs; answer: Shell[] };
   terminalStart: { args: TerminalStartArgs; answer: TerminalStarted };
+  terrainStroke: { args: TerrainStrokeArgs; answer: TerrainChange };
+  terrainStrokeEnd: { args: NoArgs; answer: null };
+  terrainTiles: { args: MapSceneArgs; answer: GroundTile[] };
   tree: { args: KindArgs; answer: TreeEntry[] };
   trigger: { args: IdArgs; answer: TriggerView };
   triggerAdd: { args: TriggerAddArgs; answer: NewTriggerItem };
