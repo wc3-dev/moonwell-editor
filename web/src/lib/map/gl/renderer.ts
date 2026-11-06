@@ -184,6 +184,20 @@ export class MapRenderer {
     this.changed();
   }
 
+  /** Draws the terrain as it is now, after an edit changed its corners (see patchTerrain). */
+  terrainChanged(): void {
+    this.ground.refresh();
+    this.water.refresh();
+    this.marks.refresh();
+    this.changed();
+  }
+
+  /** Draws a terrain brush's outline on the ground; null for none. */
+  setBrush(outline: readonly [number, number][] | null): void {
+    this.marks.setBrush(outline);
+    this.changed();
+  }
+
   /** Draws the region or camera whose trigger name is `ref` white. */
   selectMark(ref: string | null): void {
     this.marks.select(ref);

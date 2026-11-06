@@ -64,6 +64,48 @@ export function readTerrain(buffer: ArrayBuffer, left: number, bottom: number): 
 }
 
 /**
+ * Writes a terrain edit's patch (TerrainBytes.Patch: int32 left, bottom, columns and rows of corners; their ground,
+ * relief and water; then the tiles between them, four layers each) over `terrain`. Throws when the bytes are not of
+ * their size or the corners are not the terrain's.
+ */
+export function patchTerrain(terrain: Terrain, buffer: ArrayBuffer): void {
+  if (buffer.byteLength < 16) throw new Error("The terrain patch is cut short.");
+  const head = new DataView(buffer);
+  const left = head.getInt32(0, true);
+  const bottom = head.getInt32(4, true);
+  const columns = head.getInt32(8, true);
+  const rows = head.getInt32(12, true);
+  const corners = columns * rows;
+  const tiles = Math.max(columns - 1, 0) * Math.max(rows - 1, 0);
+  if (
+    left < 0 ||
+    bottom < 0 ||
+    columns < 1 ||
+    rows < 1 ||
+    left + columns > terrain.columns ||
+    bottom + rows > terrain.rows ||
+    buffer.byteLength !== 16 + corners * 12 + tiles * 8
+  ) {
+    throw new Error("The terrain patch is not of its size.");
+  }
+  const ground = new Float32Array(buffer, 16, corners);
+  const relief = new Float32Array(buffer, 16 + corners * 4, corners);
+  const water = new Float32Array(buffer, 16 + corners * 8, corners);
+  const layers = new Uint8Array(buffer, 16 + corners * 12, tiles * 8);
+  for (let row = 0; row < rows; row++) {
+    const to = (bottom + row) * terrain.columns + left;
+    terrain.ground.set(ground.subarray(row * columns, (row + 1) * columns), to);
+    terrain.relief.set(relief.subarray(row * columns, (row + 1) * columns), to);
+    terrain.water.set(water.subarray(row * columns, (row + 1) * columns), to);
+  }
+  const across = columns - 1;
+  for (let row = 0; row < rows - 1; row++) {
+    const to = ((bottom + row) * (terrain.columns - 1) + left) * 8;
+    terrain.layers.set(layers.subarray(row * across * 8, (row + 1) * across * 8), to);
+  }
+}
+
+/**
  * The ground's height at a point: the bilinear blend of its tile's four corners, as the game's GetLocationZ blends
  * them (docs/game-facts.md, 10-28). A point outside the grid reads its edge.
  */

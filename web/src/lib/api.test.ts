@@ -139,9 +139,9 @@ describe("onSessionChanged", () => {
     expect(listened).toHaveBeenCalledTimes(1);
     const [event, handler] = listened.mock.calls[0] ?? [];
     expect(event).toBe("sessionChanged");
-    handler?.({ dirty: true, changedObjects: 2 });
+    handler?.({ dirty: true, changedObjects: 2, terrainVersion: 0 });
 
-    expect(seen).toEqual([{ dirty: true, changedObjects: 2 }]);
+    expect(seen).toEqual([{ dirty: true, changedObjects: 2, terrainVersion: 0 }]);
     expect(typeof stop).toBe("function");
   });
 });

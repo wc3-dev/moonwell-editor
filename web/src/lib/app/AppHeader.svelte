@@ -4,14 +4,21 @@ import BookOpen from "@lucide/svelte/icons/book-open";
 import Bot from "@lucide/svelte/icons/bot";
 import Boxes from "@lucide/svelte/icons/boxes";
 import CodeXml from "@lucide/svelte/icons/code-xml";
+import Droplets from "@lucide/svelte/icons/droplets";
 import GitCompareArrows from "@lucide/svelte/icons/git-compare-arrows";
 import Menu from "@lucide/svelte/icons/menu";
+import Mountain from "@lucide/svelte/icons/mountain";
 import MountainSnow from "@lucide/svelte/icons/mountain-snow";
 import Package from "@lucide/svelte/icons/package";
+import Paintbrush from "@lucide/svelte/icons/paintbrush";
 import Rows3 from "@lucide/svelte/icons/rows-3";
+import SquareDashed from "@lucide/svelte/icons/square-dashed";
 import Table2 from "@lucide/svelte/icons/table-2";
+import TreePine from "@lucide/svelte/icons/tree-pine";
+import Video from "@lucide/svelte/icons/video";
 import Workflow from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
+import { terrainTools } from "../map/terrainTools.svelte.ts";
 import KindBar from "../objects/KindBar.svelte";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
@@ -52,6 +59,15 @@ const editors = $derived<
   },
 ]);
 
+// The Terrain Editor's groups of tools, in the order the design builds them; the ground's is built (step 1).
+const comingTerrainTools: { name: string; Icon: HeaderIcon }[] = [
+  { name: t("header.terrain.cliffs"), Icon: Mountain },
+  { name: t("header.terrain.water"), Icon: Droplets },
+  { name: t("header.terrain.place"), Icon: TreePine },
+  { name: t("header.terrain.regions"), Icon: SquareDashed },
+  { name: t("header.terrain.cameras"), Icon: Video },
+];
+
 const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   { name: t("header.soundEditor"), Icon: AudioLines },
   { name: t("header.campaignEditor"), Icon: BookOpen },
@@ -91,6 +107,22 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
       {@render comingButton(each.name, t("header.comingSoon", { name: each.name }), each.Icon)}
     {/each}
   </div>
+  {#if pages.page === "map"}
+    <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
+    <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.terrainTools")}>
+      {@render pageButton(
+        t("header.terrain.ground"),
+        t("header.terrain.ground"),
+        Paintbrush,
+        terrainTools.group === "ground",
+        !session.map,
+        () => (terrainTools.group = terrainTools.group === "ground" ? null : "ground"),
+      )}
+      {#each comingTerrainTools as each (each.name)}
+        {@render comingButton(each.name, t("header.comingSoon", { name: each.name }), each.Icon)}
+      {/each}
+    </div>
+  {/if}
   {#if pages.inObjectEditor}
     <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <KindBar kind={objects.kind} disabled={!session.map} onkind={objects.switchKind} />

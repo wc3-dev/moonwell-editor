@@ -251,7 +251,7 @@ describe("on the details page", () => {
       {},
       {
         map: { ...arena, problems: ["A file is damaged"] },
-        session: { dirty: false, changedObjects: 0 },
+        session: { dirty: false, changedObjects: 0, terrainVersion: 0 },
       },
     );
     await screen.findByText("A file is damaged");

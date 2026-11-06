@@ -11,7 +11,7 @@
 import type { mat4 } from "gl-matrix";
 import type { Terrain, TerrainTexture } from "../scene.ts";
 import { type Lighting, lightingUniforms, litGlsl, setLighting } from "./lighting.ts";
-import { byteTexture, floatTexture, maskTexture, program } from "./program.ts";
+import { byteTexture, floatTexture, maskTexture, program, updateFloatTexture } from "./program.ts";
 
 /** How much of the light a baked Classic shadow takes away (the view's call). */
 const bakedShadow = 0.45;
@@ -125,9 +125,29 @@ export class GroundLayer {
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
 
-    // Each texture's tiles: the tile's number and, packed, its piece and whether it is the tile's first layer.
-    const lists = textures.map(() => [] as number[]);
-    for (let tile = 0; tile < across * down; tile++) {
+    const grey = plainArray(gl, [128, 128, 128, 255]);
+    this.passes = textures.map((texture) => ({
+      texture,
+      sheet: grey,
+      instances: gl.createBuffer(),
+      count: 0,
+    }));
+    this.fillPasses();
+  }
+
+  /** Draws the terrain's heights and layers as they are now, after an edit changed them. */
+  refresh(): void {
+    const { gl, terrain } = this;
+    updateFloatTexture(gl, this.heights, terrain.columns, terrain.rows, terrain.ground);
+    this.fillPasses();
+  }
+
+  // Each texture's tiles: the tile's number and, packed, its piece and whether it is the tile's first layer.
+  private fillPasses(): void {
+    const { gl, terrain } = this;
+    const tiles = Math.max(terrain.columns - 1, 0) * Math.max(terrain.rows - 1, 0);
+    const lists = this.passes.map(() => [] as number[]);
+    for (let tile = 0; tile < tiles; tile++) {
       if (((terrain.tiles[tile] ?? 0) & 1) === 0) continue; // under a cliff model
       for (let k = 0; k < 4; k++) {
         const texture = terrain.layers[tile * 8 + k * 2] ?? 255;
@@ -136,12 +156,10 @@ export class GroundLayer {
         lists[texture]?.push(tile, piece | (k === 0 ? 256 : 0));
       }
     }
-    const grey = plainArray(gl, [128, 128, 128, 255]);
-    this.passes = textures.map((texture, index) => {
-      const instances = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, instances);
-      gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(lists[index] ?? []), gl.STATIC_DRAW);
-      return { texture, sheet: grey, instances, count: (lists[index]?.length ?? 0) / 2 };
+    this.passes.forEach((pass, index) => {
+      gl.bindBuffer(gl.ARRAY_BUFFER, pass.instances);
+      gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(lists[index] ?? []), gl.DYNAMIC_DRAW);
+      pass.count = (lists[index]?.length ?? 0) / 2;
     });
   }
 

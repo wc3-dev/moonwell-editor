@@ -94,20 +94,20 @@ test("an older state does not undo a newer one", async () => {
 
 test("a map the app has open shows, with its session", async () => {
   new FakeApp({
-    currentMap: { map: arena, session: { dirty: true, changedObjects: 4 } },
+    currentMap: { map: arena, session: { dirty: true, changedObjects: 4, terrainVersion: 0 } },
     tree: [],
   });
   const { session } = started();
   await waitFor(() => expect(session.map).toEqual(arena));
-  expect(session.state).toEqual({ dirty: true, changedObjects: 4 });
+  expect(session.state).toEqual({ dirty: true, changedObjects: 4, terrainVersion: 0 });
 });
 
 test("the session follows the app", async () => {
   const app = new FakeApp();
   const { session } = started();
   await app.idle();
-  await app.emit("sessionChanged", { dirty: true, changedObjects: 1 });
-  expect(session.state).toEqual({ dirty: true, changedObjects: 1 });
+  await app.emit("sessionChanged", { dirty: true, changedObjects: 1, terrainVersion: 0 });
+  expect(session.state).toEqual({ dirty: true, changedObjects: 1, terrainVersion: 0 });
 });
 
 test("a choice that fails says why, and one that works clears it", async () => {

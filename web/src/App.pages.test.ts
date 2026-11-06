@@ -145,6 +145,40 @@ describe("the header", () => {
     expect(pressed(t("header.objectEditor"))).toBe(false);
   });
 
+  test("the Terrain Editor's ground tools open a dock with the map's tiles", async () => {
+    const app = await openApp({
+      terrainTiles: [
+        {
+          id: "Ldrt",
+          name: "Dirt",
+          texture: "TerrainArtLordaeronSummerLords_Dirt.blp",
+          inMap: true,
+        },
+        {
+          id: "Lgrs",
+          name: "Grass",
+          texture: "TerrainArtLordaeronSummerLords_Grass.blp",
+          inMap: false,
+        },
+      ],
+    });
+    await clickHeader(t("header.terrainEditor"));
+    expect(screen.queryByRole("complementary", { name: t("terrain.panel") })).toBeNull();
+
+    await clickHeader(t("header.terrain.ground"));
+
+    const panel = within(await screen.findByRole("complementary", { name: t("terrain.panel") }));
+    expect(pressed(t("header.terrain.ground"))).toBe(true);
+    await panel.findByRole("button", { name: "Dirt" });
+    panel.getByRole("button", { name: "Grass" });
+    expect(app.count("terrainTiles")).toBe(1);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: t("header.terrain.cliffs") }).disabled,
+    ).toBe(true);
+    await clickHeader(t("header.terrain.ground"));
+    expect(screen.queryByRole("complementary", { name: t("terrain.panel") })).toBeNull();
+  });
+
   test("the table is off until the experimental features are on", async () => {
     await openApp();
     expect(

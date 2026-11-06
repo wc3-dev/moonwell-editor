@@ -9,7 +9,7 @@
 import type { mat4, vec3 } from "gl-matrix";
 import type { Terrain, WaterLook } from "../scene.ts";
 import { type Lighting, lightingUniforms, litGlsl, setLighting } from "./lighting.ts";
-import { argb, floatTexture, plainTexture, program } from "./program.ts";
+import { argb, floatTexture, plainTexture, program, updateFloatTexture } from "./program.ts";
 
 /** The game's water normal map (HD and Definitive Edition), two channels. */
 export const ripplesPath = "ReplaceableTextures\\Water\\Water_Normal.blp";
@@ -28,6 +28,11 @@ export function waterFramePaths(look: WaterLook, wet: boolean, pbr: boolean): st
 
 /** What the shader reads for a corner without water. */
 const none = -1e9;
+
+/** The water's surface a corner, `none` where there is no water. */
+function surfaceOf(terrain: Terrain): Float32Array {
+  return terrain.water.map((z) => (Number.isNaN(z) ? none : z));
+}
 
 const vertex = `#version 300 es
 precision highp float;
@@ -103,7 +108,7 @@ export class WaterLayer {
   private readonly buffers: WebGLBuffer[] = [];
   private readonly surface: WebGLTexture;
   private readonly heights: WebGLTexture;
-  private readonly count: number;
+  private count = 0;
   private readonly uniforms: Record<string, WebGLUniformLocation | null>;
   /** The water texture's frames, as they load; the plain white stands in for one not loaded. */
   private readonly frames: (WebGLTexture | null)[];
@@ -138,13 +143,41 @@ export class WaterLayer {
       ].map((name) => [name, gl.getUniformLocation(this.program, name)]),
     );
     const { columns, rows } = terrain;
-    const surface = terrain.water.map((z) => (Number.isNaN(z) ? none : z));
-    this.surface = floatTexture(gl, columns, rows, surface);
+    this.surface = floatTexture(gl, columns, rows, surfaceOf(terrain));
     this.heights = floatTexture(gl, columns, rows, terrain.ground);
     this.white = plainTexture(gl, [255, 255, 255, 255]);
     this.frames = new Array(Math.max(look.frames, 1)).fill(null);
     this.ripples = plainTexture(gl, [128, 128, 255, 255]);
 
+    this.vao = gl.createVertexArray();
+    gl.bindVertexArray(this.vao);
+    const corners = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    const instances = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, instances);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribIPointer(1, 1, gl.UNSIGNED_INT, 4, 0);
+    gl.vertexAttribDivisor(1, 1);
+    gl.bindVertexArray(null);
+    this.buffers.push(corners, instances);
+    this.fillTiles();
+  }
+
+  /** Draws the water as the terrain has it now, after an edit raised or lowered the ground under it. */
+  refresh(): void {
+    const { gl, terrain } = this;
+    updateFloatTexture(gl, this.surface, terrain.columns, terrain.rows, surfaceOf(terrain));
+    updateFloatTexture(gl, this.heights, terrain.columns, terrain.rows, terrain.ground);
+    this.fillTiles();
+  }
+
+  // The tiles with water at one of their corners.
+  private fillTiles(): void {
+    const { gl, terrain } = this;
+    const { columns, rows } = terrain;
     const tiles: number[] = [];
     for (let row = 0; row < rows - 1; row++) {
       for (let column = 0; column < columns - 1; column++) {
@@ -156,22 +189,8 @@ export class WaterLayer {
       }
     }
     this.count = tiles.length;
-
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
-    const corners = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, corners);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    const instances = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, instances);
-    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(tiles), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribIPointer(1, 1, gl.UNSIGNED_INT, 4, 0);
-    gl.vertexAttribDivisor(1, 1);
-    gl.bindVertexArray(null);
-    this.buffers.push(corners, instances);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[1] ?? null);
+    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(tiles), gl.DYNAMIC_DRAW);
   }
 
   /** The water texture's frames the view fetches (see waterFramePaths). */

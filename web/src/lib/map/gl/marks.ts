@@ -37,6 +37,9 @@ export class MarksLayer {
   private readonly viewProjection: WebGLUniformLocation | null;
   private regionCount = 0;
   private cameraCount = 0;
+  private brushCount = 0;
+  private selected: string | null = null;
+  private brush: readonly [number, number][] | null = null;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -60,6 +63,23 @@ export class MarksLayer {
 
   /** Draws the mark whose trigger name is `ref` white, the others in their own colours. */
   select(ref: string | null): void {
+    this.selected = ref;
+    this.build();
+  }
+
+  /** Draws a terrain brush's outline, a closed loop of points laid on the ground; null for none. */
+  setBrush(outline: readonly [number, number][] | null): void {
+    this.brush = outline;
+    this.build();
+  }
+
+  /** Lays the lines on the ground again, after an edit changed it. */
+  refresh(): void {
+    this.build();
+  }
+
+  private build(): void {
+    const ref = this.selected;
     const lines: number[] = [];
     const push = (x: number, y: number, z: number, colour: [number, number, number]) =>
       lines.push(x, y, z, ...colour);
@@ -116,6 +136,13 @@ export class MarksLayer {
       );
     }
     this.cameraCount = lines.length / 6 - this.regionCount;
+    const outline = this.brush ?? [];
+    outline.forEach(([x0, y0], index) => {
+      const [x1, y1] = outline[(index + 1) % outline.length] ?? [x0, y0];
+      push(x0, y0, on(x0, y0), [1, 1, 1]);
+      push(x1, y1, on(x1, y1), [1, 1, 1]);
+    });
+    this.brushCount = lines.length / 6 - this.regionCount - this.cameraCount;
     const { gl } = this;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.DYNAMIC_DRAW);
@@ -123,13 +150,20 @@ export class MarksLayer {
 
   draw(viewProjection: mat4, regions: boolean, cameras: boolean): void {
     const { gl } = this;
-    if ((!regions || this.regionCount === 0) && (!cameras || this.cameraCount === 0)) return;
+    if (
+      (!regions || this.regionCount === 0) &&
+      (!cameras || this.cameraCount === 0) &&
+      this.brushCount === 0
+    )
+      return;
     gl.useProgram(this.program);
     gl.uniformMatrix4fv(this.viewProjection, false, viewProjection);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(this.vao);
     if (regions) gl.drawArrays(gl.LINES, 0, this.regionCount);
     if (cameras) gl.drawArrays(gl.LINES, this.regionCount, this.cameraCount);
+    if (this.brushCount > 0)
+      gl.drawArrays(gl.LINES, this.regionCount + this.cameraCount, this.brushCount);
     gl.bindVertexArray(null);
   }
 

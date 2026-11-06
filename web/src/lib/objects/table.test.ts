@@ -347,8 +347,8 @@ describe("sorting by a header", () => {
 });
 
 describe("rowsReadiness", () => {
-  const now = { dirty: true, changedObjects: 1 };
-  const before = { dirty: false, changedObjects: 0 };
+  const now = { dirty: true, changedObjects: 1, terrainVersion: 0 };
+  const before = { dirty: false, changedObjects: 0, terrainVersion: 0 };
   const ready = {
     editsOut: 0,
     session: now,

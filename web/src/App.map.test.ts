@@ -19,7 +19,7 @@ import {
 
 appTests();
 
-const dirty = { map: arena, session: { dirty: true, changedObjects: 2 } };
+const dirty = { map: arena, session: { dirty: true, changedObjects: 2, terrainVersion: 0 } };
 const nothingWritten = { written: [], backup: "", note: "" };
 const other = { ...arena, name: "Other", path: "C:/Maps/Other" };
 
@@ -306,7 +306,7 @@ describe("the status bar", () => {
   test("follows the app's session", async () => {
     const app = await openApp();
     expect(screen.getByTestId("dirty").textContent?.trim()).toBe(t("status.noChanges"));
-    await app.emit("sessionChanged", { dirty: true, changedObjects: 3 });
+    await app.emit("sessionChanged", { dirty: true, changedObjects: 3, terrainVersion: 0 });
     await waitFor(() =>
       expect(screen.getByTestId("dirty").textContent?.trim()).toBe(tCount("status.changed", 3)),
     );
