@@ -13,7 +13,7 @@ namespace MoonwellEditor.Triggers;
 /// which has no multiple-action loops and writes some values without their quotes, with the game's own catalog deciding
 /// how a value is written; it is checked against World Editor's script of every JASS map of the install.
 /// </summary>
-internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocument document)
+internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocument document, bool lua = false)
 {
     private const string Separator = "//===========================================================================";
 
@@ -98,7 +98,7 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     {
         builder.Push("Func");
         var body = IndentedTextWriter.New(writer);
-        var rendering = new TriggerJass(body, document);
+        var rendering = new TriggerJass(body, document, lua);
         body.WriteLine($"function {name} takes nothing returns nothing");
         body.Indent();
         for (var i = 0; i < functions.Count; i++)
@@ -126,7 +126,7 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     {
         builder.Push("Func");
         var body = IndentedTextWriter.New(writer);
-        var rendering = new TriggerJass(body, document);
+        var rendering = new TriggerJass(body, document, lua);
         body.WriteLine($"function {name} takes nothing returns boolean");
         body.Indent();
         for (var i = 0; i < functions.Count; i++)
@@ -159,7 +159,7 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     {
         var function = Required(parameter.Function);
         var body = IndentedTextWriter.New(writer);
-        var rendering = new TriggerJass(body, document);
+        var rendering = new TriggerJass(body, document, lua);
         body.WriteLine($"function {name} takes nothing returns boolean");
         body.Indent();
         body.WriteLine("return " + rendering.Condition(function, builder));
@@ -173,7 +173,7 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     {
         var function = Required(parameter.Function);
         var body = IndentedTextWriter.New(writer);
-        var rendering = new TriggerJass(body, document);
+        var rendering = new TriggerJass(body, document, lua);
         body.WriteLine($"function {name} takes nothing returns nothing");
         body.Indent();
         rendering.WriteAction(function, builder);
@@ -222,14 +222,14 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
     private void WriteHelperConditions(NameBuilder builder, string name, bool all, List<TriggerFunction> functions)
     {
         var helpers = IndentedTextWriter.New(writer);
-        new TriggerJass(helpers, document).WriteConditions(builder, name, all, functions);
+        new TriggerJass(helpers, document, lua).WriteConditions(builder, name, all, functions);
         _helpers.Append(helpers);
     }
 
     private void WriteHelperActions(NameBuilder builder, string name, List<TriggerFunction> functions)
     {
         var helpers = IndentedTextWriter.New(writer);
-        new TriggerJass(helpers, document).WriteActions(builder, name, functions);
+        new TriggerJass(helpers, document, lua).WriteActions(builder, name, functions);
         _helpers.Append(helpers);
     }
 
@@ -285,15 +285,29 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
                 writer.WriteLine("// " + function.Parameters[0].Value);
                 break;
             case "CustomScriptCode":
-                writer.WriteLine(function.Parameters[0].Value);
+                writer.WriteLine(lua ? TriggerLua.UserCode + function.Parameters[0].Value : function.Parameters[0].Value);
                 break;
             case "ReturnAction":
                 writer.WriteLine("return");
+                break;
+            case "AddTriggerEvent":
+                WriteAddEvent(function, builder);
                 break;
             default:
                 writer.WriteCall(ScriptNameOf(function), [.. Arguments(function, builder)]);
                 break;
         }
+    }
+
+    // An event added to a trigger is the event's own call, with the trigger first, as in InitTrig.
+    private void WriteAddEvent(TriggerFunction function, NameBuilder builder)
+    {
+        var trigger = Value(function.Parameters[0], "trigger", 0, builder);
+        var added = Required(function.Parameters[1].Function);
+        builder.Push(2);
+        var arguments = Arguments(added, builder).ToList();
+        builder.Pop();
+        writer.WriteCall(added.Name, [trigger, .. arguments]);
     }
 
     private void WriteSetVariable(TriggerFunction function, NameBuilder builder)
@@ -426,7 +440,7 @@ internal sealed partial class TriggerJass(IndentedTextWriter writer, TriggerDocu
             else if (child.Type == TriggerFunctionType.Action && child.Branch is 1 or 2)
             {
                 var inner = IndentedTextWriter.New(writer);
-                var rendering = new TriggerJass(inner, document);
+                var rendering = new TriggerJass(inner, document, lua);
                 rendering.WriteAction(child, builder);
                 _helpers.Append(rendering._helpers);
                 (child.Branch == 1 ? then : otherwise).Append(inner);

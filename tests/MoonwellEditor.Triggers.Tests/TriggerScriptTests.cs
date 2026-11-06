@@ -179,6 +179,39 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_unit_named_for_the_first_time_in_a_lua_map_gets_its_variable_and_is_set_where_it_is_made()
+    {
+        var catalog = InstallMaps.Catalog;
+        var store = InstallMaps.Open("Maps/FrozenThrone/Community/2023Season2/(8)Ferocity_S2_v1.2.w3x");
+        if (catalog == null || store == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var script = Encoding.UTF8.GetString(store.Read("war3map.lua")!).Replace("\r\n", "\n");
+        var units = Units(store);
+        var placed = units.Units.First(each => script.Contains($"u = BlzCreateUnitWithSkin(p, FourCC(\"{each.TypeId.ToRawcode()}\")", StringComparison.Ordinal));
+        var name = $"gg_unit_{placed.TypeId.ToRawcode()}_{placed.CreationNumber:D4}";
+        Assert.DoesNotContain(name, script);
+        var document = Read(store, catalog);
+        var id = document.Add(TriggerItemKind.Trigger, document.Tree().First(item => item.Kind == TriggerItemKind.Category).Id);
+        var kill = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "KillUnit");
+        document.SetParameter(id, kill + "/p0", new ParamInput(ParameterKind.Variable, name));
+
+        var written = TriggerScript.Write(script, document, Info(store), units, out var problem);
+
+        Assert.Null(problem);
+        var lines = written!.Split('\n');
+        Assert.Single(lines, line => line == name + " = nil");
+        Assert.True(Array.IndexOf(lines, name + " = nil") < Array.IndexOf(lines, "function InitGlobals()"));
+        var set = Array.IndexOf(lines, $"{name} = u");
+        Assert.True(set > 0);
+        Assert.Contains($"FourCC(\"{placed.TypeId.ToRawcode()}\")", lines[set - 1]);
+        Assert.Contains($"\nKillUnit({name})\n", written);
+    }
+
+    [Fact]
     public void A_destructable_named_for_the_first_time_leaves_the_script_as_it_is_and_says_why()
     {
         if (Map(InstallMaps.LostTemple) is not var (document, script, info, units))
@@ -461,5 +494,89 @@ public sealed class TriggerScriptTests(ITestOutputHelper output)
         // writes an unused helper for them.
         Assert.True(maps > 200);
         Assert.Equal(maps - 1, same);
+    }
+
+    // Lua maps saved by World Editor from the install's JASS maps (FunnyBunnysEggHunt, Monolith, TheDeathSheep,
+    // WarChasers): the install's own use few trigger functions. A folder named by MOONWELL_LUA_MAPS, when set.
+    private static IEnumerable<(string Name, MoonwellEditor.Files.IMapStore Store)> LuaMaps()
+    {
+        foreach (var path in InstallMaps.All())
+        {
+            yield return (path, InstallMaps.Open(path)!);
+        }
+
+        if (Environment.GetEnvironmentVariable("MOONWELL_LUA_MAPS") is { Length: > 0 } folder)
+        {
+            foreach (var file in Directory.GetFiles(folder).Where(file => file.EndsWith(".w3x", StringComparison.OrdinalIgnoreCase)
+                || file.EndsWith(".w3m", StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return (file, MoonwellEditor.Files.MapStore.Open(file));
+            }
+        }
+    }
+
+    [Fact]
+    public void A_lua_map_that_was_not_edited_gets_its_own_script_back()
+    {
+        var catalog = InstallMaps.Catalog;
+        if (catalog == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var maps = 0;
+        var same = 0;
+        var kinds = new Dictionary<string, int>();
+        foreach (var (path, store) in LuaMaps())
+        {
+            var info = Info(store);
+            var bytes = store.Read("war3map.lua") ?? store.Read(@"scripts\war3map.lua");
+            if (info.ScriptLanguage != ScriptLanguage.Lua || bytes == null)
+            {
+                continue;
+            }
+
+            maps++;
+            var original = Encoding.UTF8.GetString(bytes).Replace("\r\n", "\n");
+            var built = TriggerScript.Write(original, Read(store, catalog), info, null, out var problem);
+
+            // Some community maps' Lua has its functions indented; the parts written come out as World Editor's do now.
+            var indented = original.Contains("\nfunction main()\n    ", StringComparison.Ordinal);
+            string Normal(string script) => indented ? Regex.Replace(script, @"(?m)^[ \t]+", "") : script;
+            if (built != null && Normal(built) == Normal(original))
+            {
+                same++;
+                continue;
+            }
+
+            var left = Normal(original).Split('\n');
+            var right = built == null ? [] : Normal(built).Split('\n');
+            var line = 0;
+            while (line < left.Length && line < right.Length && left[line] == right[line])
+            {
+                line++;
+            }
+
+            var key = problem ?? $"[{(line < left.Length ? left[line] : "")}] [{(line < right.Length ? right[line] : "")}]";
+            key = key.Length > 170 ? key[..170] : key;
+            kinds[key] = kinds.GetValueOrDefault(key) + 1;
+            if (kinds[key] == 1)
+            {
+                output.WriteLine($"{path}: line {line}");
+                var from = Math.Max(0, line - 3);
+                output.WriteLine("  ORIG " + string.Join(" ~ ", left.Skip(from).Take(7)));
+                output.WriteLine("  OURS " + string.Join(" ~ ", right.Skip(from).Take(7)));
+            }
+        }
+
+        output.WriteLine($"{same} of {maps} the same");
+        foreach (var (key, count) in kinds.OrderByDescending(pair => pair.Value).Take(30))
+        {
+            output.WriteLine($"{count}: {key}");
+        }
+
+        Assert.True(maps >= 49);
+        Assert.Equal(maps, same);
     }
 }
