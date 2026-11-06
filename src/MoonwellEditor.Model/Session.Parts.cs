@@ -44,8 +44,11 @@ public sealed partial class Session
         Commit(edit);
     }
 
-    private bool PartsChanged() =>
-        _parts.Any(part => part.Files().Any(file => !SameBytes(file.Bytes, _baseline.GetValueOrDefault(file.Name))));
+    /// <summary>Whether <paramref name="part"/>'s files differ from the map's as opened or last saved.</summary>
+    public bool Changed(IMapPart part) =>
+        part.Files().Any(file => !SameBytes(file.Bytes, _baseline.GetValueOrDefault(file.Name)));
+
+    private bool PartsChanged() => _parts.Any(Changed);
 
     private void AddPartChanges(List<(string Name, byte[] Bytes)> changes)
     {

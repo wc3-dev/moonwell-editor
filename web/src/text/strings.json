@@ -627,6 +627,7 @@
   "status.baseTables": "base tables",
   "status.changed.one": "● {count} object changed, not saved",
   "status.changed.other": "● {count} objects changed, not saved",
+  "status.changedTerrain": "● Terrain changed, not saved",
   "status.changedTriggers": "● Triggers changed, not saved",
   "status.close": "Close",
   "status.dataFailed": "Game data failed to load",

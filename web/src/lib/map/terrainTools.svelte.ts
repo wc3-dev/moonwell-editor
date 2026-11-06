@@ -15,7 +15,7 @@ export const terrainTools = $state<{
   size: number;
   strength: number;
   tile: string | null;
-}>({ group: null, tool: "Paint", shape: "Circle", size: 3, strength: 32, tile: null });
+}>({ group: null, tool: "Paint", shape: "Circle", size: 3, strength: 16, tile: null });
 
 /** The largest brush, as the app allows (GroundTools.Largest). */
 export const largestBrush = 8;

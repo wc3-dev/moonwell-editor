@@ -29,7 +29,8 @@ public sealed record GameDataState(string? Source, bool Loaded, string? Error, i
 /// Goes up with every change to the terrain (<see cref="TerrainEditor.Version"/>), so the map view can redraw after an
 /// undo or redo; 0 before the Terrain Editor first changes it.
 /// </param>
-public sealed record SessionState(bool Dirty, int ChangedObjects, int TerrainVersion = 0);
+/// <param name="TerrainChanged">True when the terrain differs from the map's as opened or last saved.</param>
+public sealed record SessionState(bool Dirty, int ChangedObjects, int TerrainVersion = 0, bool TerrainChanged = false);
 
 /// <summary>
 /// The part of the terrain a stroke changed (<see cref="TerrainPatch"/>), its bytes as base64 for the bridge.
@@ -799,7 +800,8 @@ public sealed partial class Commands
     private SessionState StateOf(Session session)
     {
         var (dirty, changed) = session.Standing();
-        return new SessionState(dirty, changed, _terrainEditor is { } editor && session.Holds(editor) ? editor.Version : 0);
+        var terrain = _terrainEditor is { } editor && session.Holds(editor) ? editor : null;
+        return new SessionState(dirty, changed, terrain?.Version ?? 0, terrain != null && dirty && session.Changed(terrain));
     }
 
     private static CommandException BadRequest(string message) => new(ErrorCode.BadRequest, message);

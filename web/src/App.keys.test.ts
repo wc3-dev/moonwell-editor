@@ -251,7 +251,7 @@ describe("on the details page", () => {
       {},
       {
         map: { ...arena, problems: ["A file is damaged"] },
-        session: { dirty: false, changedObjects: 0, terrainVersion: 0 },
+        session: { dirty: false, changedObjects: 0, terrainVersion: 0, terrainChanged: false },
       },
     );
     await screen.findByText("A file is damaged");
@@ -315,12 +315,11 @@ describe("on the table page", () => {
 });
 
 describe("on the map page", () => {
-  test("only Save and Settings are the window's", async () => {
+  test("Save, Settings, and undo for the Terrain Editor's strokes are the window's", async () => {
     const app = await openApp({ undo: true, save: { written: [], backup: "", note: "" } });
     await clickHeader(t("header.terrainEditor"));
     await press("z", { ctrlKey: true });
-    await settled();
-    expect(app.count("undo")).toBe(0);
+    await waitFor(() => expect(app.count("undo")).toBe(1));
     await press("s", { ctrlKey: true });
     await waitFor(() => expect(app.count("save")).toBe(1));
     await press("F10");

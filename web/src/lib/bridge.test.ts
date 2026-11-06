@@ -134,13 +134,13 @@ describe("on", () => {
 
     webview.reply({
       event: "sessionChanged",
-      payload: { dirty: true, changedObjects: 2, terrainVersion: 0 },
+      payload: { dirty: true, changedObjects: 2, terrainVersion: 0, terrainChanged: false },
     });
     webview.reply({ event: "windowState", payload: { maximized: true } });
     off();
     webview.reply({
       event: "sessionChanged",
-      payload: { dirty: false, changedObjects: 0, terrainVersion: 0 },
+      payload: { dirty: false, changedObjects: 0, terrainVersion: 0, terrainChanged: false },
     });
 
     expect(seen).toEqual([2]);

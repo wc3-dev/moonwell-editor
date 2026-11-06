@@ -113,6 +113,43 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public void Raising_ground_out_of_the_water_makes_its_cells_dry_and_a_save_writes_the_pathing()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, _, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            // A corner of shallow water with water all round it, away from cliffs and the boundary.
+            var terrain = editor.Terrain;
+            var columns = (int)terrain.Width + 1;
+            var at = Enumerable.Range(0, terrain.TerrainTiles.Count).First(index =>
+            {
+                var (column, row) = (index % columns, index / columns);
+                return column > 20 && row > 20 && column < terrain.Width - 20 && row < terrain.Height - 20
+                    && Enumerable.Range(-2, 5).All(dy => Enumerable.Range(-2, 5).All(dx =>
+                    {
+                        var corner = terrain.TerrainTiles[index + (dy * columns) + dx];
+                        return corner.IsWater && corner.CliffLevel == 1 && !corner.IsRamp;
+                    }));
+            });
+            var (x, y) = (terrain.Left + (at % columns * 128f), terrain.Bottom + (at / columns * 128f));
+            var cell = (((at / columns) * 4) * ((int)terrain.Width * 4)) + ((at % columns) * 4);
+            Assert.Equal(0x08, editor.Cells[cell]);
+
+            editor.Stroke(GroundTool.Raise, [(x, y), (x, y), (x, y)], new Brush(BrushShape.Square, 1, 128), null, "sd", first: true);
+            editor.EndStroke();
+
+            Assert.Equal(0x40, editor.Cells[cell] & 0x40); // dry now
+            var report = session.Save();
+            Assert.Contains("war3map.wpm", report.Written);
+            Assert.Contains("war3map.w3e", report.Written);
+        }
+    }
+
     private static War3Net.Build.Environment.TerrainTile Corner(TerrainEditor editor, int column, int row) =>
         editor.Terrain.TerrainTiles[(row * ((int)editor.Terrain.Width + 1)) + column];
 }

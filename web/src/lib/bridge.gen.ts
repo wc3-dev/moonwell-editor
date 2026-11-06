@@ -933,6 +933,8 @@ export type SessionState = {
   changedObjects: number;
   /** Goes up with every change to the terrain (TerrainEditor.Version), so the map view can redraw after an undo or redo; 0 before the Terrain Editor first changes it. */
   terrainVersion: number;
+  /** True when the terrain differs from the map's as opened or last saved. */
+  terrainChanged: boolean;
 };
 
 /** Cells to set as one edit. */

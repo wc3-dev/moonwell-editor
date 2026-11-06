@@ -100,7 +100,11 @@ const folderName = $derived(
   {#if session}
     {#if session.dirty}
       <span class="text-changed" data-testid="dirty">
-        {session.changedObjects > 0 ? tCount("status.changed", session.changedObjects) : t("status.changedTriggers")}
+        {session.changedObjects > 0
+          ? tCount("status.changed", session.changedObjects)
+          : session.terrainChanged
+            ? t("status.changedTerrain")
+            : t("status.changedTriggers")}
       </span>
     {:else}
       <span data-testid="dirty">{t("status.noChanges")}</span>

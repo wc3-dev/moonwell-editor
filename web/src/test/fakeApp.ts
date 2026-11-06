@@ -292,7 +292,7 @@ export async function openApp(
   answers: Record<string, unknown> = {},
   current: CurrentMap = {
     map: arena,
-    session: { dirty: false, changedObjects: 0, terrainVersion: 0 },
+    session: { dirty: false, changedObjects: 0, terrainVersion: 0, terrainChanged: false },
   },
 ): Promise<FakeApp> {
   const app = new FakeApp({
