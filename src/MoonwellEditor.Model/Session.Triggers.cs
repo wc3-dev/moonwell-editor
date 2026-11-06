@@ -17,6 +17,8 @@ public sealed partial class Session : ITriggerNames
 {
     private const string ScriptName = "war3map.j";
     private const string ScriptNameInFolder = @"scripts\war3map.j";
+    private const string LuaScriptName = "war3map.lua";
+    private const string LuaScriptNameInFolder = @"scripts\war3map.lua";
 
     // The triggers as edited; null until the trigger editor asks, and after a reload.
     private TriggerDocument? _triggers;
@@ -41,7 +43,8 @@ public sealed partial class Session : ITriggerNames
                 customText,
                 catalog,
                 _store.WriteProblem(TriggerDocument.TriggersFile) ?? _store.WriteProblem(TriggerDocument.CustomTextFile)
-                    ?? _store.WriteProblem(ScriptName) ?? _store.WriteProblem(ScriptNameInFolder),
+                    ?? _store.WriteProblem(ScriptName) ?? _store.WriteProblem(ScriptNameInFolder)
+                    ?? _store.WriteProblem(LuaScriptName) ?? _store.WriteProblem(LuaScriptNameInFolder),
                 layout);
         }
 
@@ -177,10 +180,6 @@ public sealed partial class Session : ITriggerNames
         {
             _scriptNote = Texts.Get("app.triggers.noInfo");
         }
-        else if (info.ScriptLanguage == ScriptLanguage.Lua)
-        {
-            _scriptNote = Texts.Get("app.triggers.luaScript");
-        }
         else
         {
             AddScript(changes, info);
@@ -219,10 +218,13 @@ public sealed partial class Session : ITriggerNames
     private void AddScript(List<(string Name, byte[] Bytes)> changes, MapInfo info)
     {
         // An archive may hold its script in a folder; a folder map keeps its files at the top.
-        var name = !_store.IsArchive || _store.Read(ScriptName) != null ? ScriptName : ScriptNameInFolder;
+        var (top, inFolder) = info.ScriptLanguage == ScriptLanguage.Lua
+            ? (LuaScriptName, LuaScriptNameInFolder)
+            : (ScriptName, ScriptNameInFolder);
+        var name = !_store.IsArchive || _store.Read(top) != null ? top : inFolder;
         if (_store.Read(name) is not { } bytes)
         {
-            _scriptNote = Texts.Get("app.triggers.noScript");
+            _scriptNote = Texts.Get("app.triggers.noScript", ("name", top));
             return;
         }
 
@@ -233,7 +235,7 @@ public sealed partial class Session : ITriggerNames
         }
         catch (DecoderFallbackException)
         {
-            _scriptNote = Texts.Get("app.triggers.scriptEncoding");
+            _scriptNote = Texts.Get("app.triggers.scriptEncoding", ("name", top));
             return;
         }
 
