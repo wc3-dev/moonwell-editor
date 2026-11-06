@@ -132,10 +132,26 @@ public sealed partial class TriggerCatalog
             strings.TryAdd(key, value);
         }
 
-        var catalog = new TriggerCatalog(data, strings) { CallScriptNames = scriptNames };
+        var common = read(@"scripts\common.j");
+        var blizzard = read(@"scripts\Blizzard.j");
+        var catalog = new TriggerCatalog(data, strings)
+        {
+            CallScriptNames = scriptNames,
+            _scriptTypes = new Lazy<ScriptTypes>(() => ScriptTypes.Read(
+                common == null ? null : Encoding.UTF8.GetString(common),
+                blizzard == null ? null : Encoding.UTF8.GetString(blizzard))),
+        };
         catalog.Fill(orders, GameText.Strings(read(@"UI\TriggerStrings.txt")));
         return catalog;
     }
+
+    /// <summary>
+    /// The types of the game's script functions and globals, from <c>scripts\common.j</c> and <c>scripts\Blizzard.j</c>;
+    /// none for a file the game does not have.
+    /// </summary>
+    public ScriptTypes ScriptTypes => _scriptTypes.Value;
+
+    private Lazy<ScriptTypes> _scriptTypes = new(() => ScriptTypes.Read());
 
     /// <summary>The event of this name; null when the game has none.</summary>
     public CatalogFunction? Event(string name) => _events.GetValueOrDefault(name);
