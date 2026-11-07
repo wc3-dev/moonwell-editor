@@ -1,6 +1,7 @@
 using MoonwellEditor.Files;
 using MoonwellEditor.Model;
 using War3Net.Build.Extensions;
+using War3Net.Common.Extensions;
 
 namespace MoonwellEditor.Map.Tests;
 
@@ -234,6 +235,91 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
             Assert.Equal(38.4f, grid.Water(column, row)!.Value - grid.Ground(column, row), 2);
             Assert.Equal(0x08, editor.Cells[(row * 4 * ((int)terrain.Width * 4)) + (column * 4)]);
         }
+    }
+
+    [Fact]
+    public void A_unit_placed_is_a_thing_until_undone_and_a_save_writes_the_unit_file()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, store, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            var (x, y) = OpenGround(editor);
+            var count = editor.Things("sd").Count;
+
+            var number = editor.Place(PlaceKind.Unit, "hfoo", x, y, 0);
+
+            var things = editor.Things("sd");
+            Assert.Equal(count + 1, things.Count);
+            var footman = things[number - 1];
+            Assert.Equal(("hfoo", 0, x, y), (footman.TypeId, footman.Owner, footman.X, footman.Y));
+            Assert.StartsWith("gg_unit_hfoo_", footman.Ref);
+            Assert.True(session.Dirty);
+            var report = session.Save();
+            Assert.Contains("war3mapUnits.doo", report.Written);
+            Assert.DoesNotContain("war3map.doo", report.Written);
+            using var reader = new BinaryReader(new MemoryStream(MapStore.Open(store.Path).Read("war3mapUnits.doo")!));
+            Assert.Contains(reader.ReadMapUnits().Units, unit => unit.TypeId.ToRawcode() == "hfoo" && unit.Position.X == x);
+
+            Assert.True(session.Undo());
+            Assert.Equal(count, editor.Things("sd").Count);
+        }
+    }
+
+    [Fact]
+    public void A_doodad_placed_blocks_its_cells_and_moving_it_gives_them_back()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, _, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            // A doodad type of the map's own that has a pathing picture.
+            var type = editor.Doodads!.Doodads.Select(doodad => doodad.TypeId.ToRawcode()).Distinct().First(id =>
+                session.Object(ObjectKind.Doodad, id) is { } view
+                && Placed.Text(view, "dptx", "sd", 0) is { Length: > 1 } path && path != "_");
+            var (x, y) = OpenGround(editor);
+            var width = (int)editor.Terrain.Width * 4;
+            int Cell(float px, float py) =>
+                ((int)((py - editor.Terrain.Bottom) / 32f) * width) + (int)((px - editor.Terrain.Left) / 32f);
+            var before = editor.Cells[Cell(x, y)];
+
+            var number = editor.Place(PlaceKind.Doodad, type, x, y, 0);
+            Assert.Equal(0x02, editor.Cells[Cell(x, y)] & 0x02);
+
+            editor.Move(number, x + 1024, y);
+            Assert.Equal(before, editor.Cells[Cell(x, y)]);
+            Assert.Equal(x + 1024, editor.Things("sd")[number - 1].X);
+
+            editor.Remove(number);
+            Assert.True(session.Undo());
+            Assert.Equal(x + 1024, editor.Things("sd")[number - 1].X);
+            Assert.True(session.Undo());
+            Assert.True(session.Undo());
+            Assert.Equal(before, editor.Cells[Cell(x, y)]);
+            Assert.False(session.Dirty);
+        }
+    }
+
+    // A point of open ground (pathing 40 all round) away from the edges, on flat land without water.
+    private static (float X, float Y) OpenGround(TerrainEditor editor)
+    {
+        var terrain = editor.Terrain;
+        var columns = (int)terrain.Width + 1;
+        var width = (int)terrain.Width * 4;
+        var at = Enumerable.Range(0, terrain.TerrainTiles.Count).First(index =>
+        {
+            var (column, row) = (index % columns, index / columns);
+            return column > 30 && row > 30 && column < terrain.Width - 30 && row < terrain.Height - 30
+                && Enumerable.Range(-12, 25).All(dy => Enumerable.Range(-12, 25).All(dx =>
+                    editor.Cells[((row * 4) + dy) * width + (column * 4) + dx] == 0x40));
+        });
+        return (terrain.Left + (at % columns * 128f), terrain.Bottom + (at / columns * 128f));
     }
 
     private static War3Net.Build.Environment.TerrainTile Corner(TerrainEditor editor, int column, int row) =>

@@ -32,6 +32,11 @@ public sealed record GameDataState(string? Source, bool Loaded, string? Error, i
 /// <param name="TerrainChanged">True when the terrain differs from the map's as opened or last saved.</param>
 public sealed record SessionState(bool Dirty, int ChangedObjects, int TerrainVersion = 0, bool TerrainChanged = false);
 
+/// <summary>What a change to a placed thing left: the thing's number and the terrain's version after it.</summary>
+/// <param name="Number">The thing's number: a new one's for a place.</param>
+/// <param name="Version">The terrain's version (<see cref="TerrainEditor.Version"/>) after the change.</param>
+public sealed record ThingChange(int Number, int Version);
+
 /// <summary>
 /// The part of the terrain a stroke changed (<see cref="TerrainPatch"/>), its bytes as base64 for the bridge.
 /// </summary>
@@ -420,6 +425,15 @@ public sealed partial class Commands
         CommandEntry.Do("terrainStrokeEnd", (Commands c) => c.EndStroke()),
         CommandEntry.Of("terrainTiles", (Commands c, MapSceneArgs a) => c.Ground().Tiles(Checked(a.Mode))),
         CommandEntry.Of("terrainCliffs", (Commands c, MapSceneArgs a) => c.Ground().CliffPieces(Checked(a.Mode))),
+        CommandEntry.Of("terrainThings", (Commands c, MapSceneArgs a) => c.Ground().Things(Checked(a.Mode))),
+        CommandEntry.Of("terrainPlayers", (Commands c) => c.Ground().Players()),
+        CommandEntry.Of("terrainPlace", (Commands c, PlaceArgs a) =>
+            c.Thing(editor => editor.Place(a.Kind, a.TypeId, a.X, a.Y, a.Owner))),
+        CommandEntry.Of("terrainMove", (Commands c, ThingArgs a) => c.Thing(editor => editor.Move(a.Number, a.X, a.Y), a.Number)),
+        CommandEntry.Of("terrainTurn", (Commands c, ThingArgs a) => c.Thing(editor => editor.Turn(a.Number, a.Degrees), a.Number)),
+        CommandEntry.Of("terrainResize", (Commands c, ThingArgs a) => c.Thing(editor => editor.Resize(a.Number, a.Scale), a.Number)),
+        CommandEntry.Of("terrainOwn", (Commands c, ThingArgs a) => c.Thing(editor => editor.Own(a.Number, a.Owner), a.Number)),
+        CommandEntry.Of("terrainRemove", (Commands c, ThingArgs a) => c.Thing(editor => editor.Remove(a.Number), a.Number)),
         CommandEntry.Of("terrainCliffTypes", (Commands c, MapSceneArgs a) => c.Ground().CliffTypes(Checked(a.Mode))),
         CommandEntry.Of("recentMaps", (Commands c) => c.RecentMaps()),
         CommandEntry.Of("forgetMap", (Commands c, PathArgs a) => c.ForgetMap(a.Path)),
@@ -705,7 +719,7 @@ public sealed partial class Commands
         var session = Map();
         Checked(mode);
         var assets = Assets ?? throw new CommandException(ErrorCode.NoAssets, Texts.Get("app.assets.none"));
-        var edited = _terrainEditor is { } editor && session.Holds(editor) ? editor.Terrain : null;
+        var edited = _terrainEditor is { } editor && session.Holds(editor) ? editor : null;
         var (view, terrain) = MapScene.Build(_store!, session, assets, mode, edited);
         Volatile.Write(ref _terrain, new TerrainCopy(mode, terrain));
         return view;
@@ -760,6 +774,27 @@ public sealed partial class Commands
             throw new CommandException(ErrorCode.BadValue, exception.Message);
         }
     }
+
+    // A change to a placed thing, which gives the thing's number; a refused one is the page's mistake to show.
+    private ThingChange Thing(Func<TerrainEditor, int> change)
+    {
+        var editor = Ground();
+        try
+        {
+            var number = change(editor);
+            return Changed(new ThingChange(number, editor.Version));
+        }
+        catch (ArgumentException exception)
+        {
+            throw new CommandException(ErrorCode.BadValue, exception.Message);
+        }
+    }
+
+    private ThingChange Thing(Action<TerrainEditor> change, int number) => Thing(editor =>
+    {
+        change(editor);
+        return number;
+    });
 
     private void EndStroke()
     {

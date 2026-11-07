@@ -211,7 +211,7 @@ export class ModelLayer {
   constructor(
     private readonly gl: WebGL2RenderingContext,
     private readonly terrain: Terrain,
-    private readonly batches: Batch[],
+    private batches: Batch[],
     /** The asset host's URL of a game or map file. */
     private readonly url: (path: string) => string,
     private readonly changed: () => void,
@@ -257,6 +257,27 @@ export class ModelLayer {
       gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.DYNAMIC_DRAW);
       this.instances.set(batch, buffer);
     }
+  }
+
+  /**
+   * Draws `batches` in place of those it drew: the models and textures it has loaded stay, so only the copies' buffers
+   * are made again. Loads the batches nearest `near` first.
+   */
+  replace(batches: Batch[], near: [number, number]): Promise<void> {
+    const { gl } = this;
+    for (const { geosets } of this.loaded)
+      for (const geoset of geosets) gl.deleteVertexArray(geoset.vao);
+    for (const buffer of this.instances.values()) gl.deleteBuffer(buffer);
+    this.loaded.length = 0;
+    this.instances.clear();
+    this.batches = batches;
+    for (const batch of batches) {
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.DYNAMIC_DRAW);
+      this.instances.set(batch, buffer);
+    }
+    return this.load(near);
   }
 
   /** Whether any loaded model plays an animation, so the view must be drawn again each frame. */

@@ -123,6 +123,23 @@ public sealed record TerrainStrokeArgs(
     string Mode = "de",
     int CliffType = 0);
 
+/// <summary>A thing to place in the Terrain Editor.</summary>
+/// <param name="Kind">What kind of thing.</param>
+/// <param name="TypeId">Its type's id, <c>hfoo</c>.</param>
+/// <param name="X">Where it goes.</param>
+/// <param name="Y">Where it goes.</param>
+/// <param name="Owner">The player a unit belongs to: 0 for player 1, 24 Neutral Hostile, 27 Neutral Passive.</param>
+public sealed record PlaceArgs(PlaceKind Kind, string TypeId, float X, float Y, int Owner = 0);
+
+/// <summary>A placed thing to change, by its number (see <c>terrainThings</c>), with what to change.</summary>
+/// <param name="Number">The thing's number, from 1.</param>
+/// <param name="X">Where a move takes it.</param>
+/// <param name="Y">Where a move takes it.</param>
+/// <param name="Degrees">How far a turn turns it, counter-clockwise.</param>
+/// <param name="Scale">The scale a resize gives a doodad or destructable.</param>
+/// <param name="Owner">The player a unit is given to.</param>
+public sealed record ThingArgs(int Number, float X = 0, float Y = 0, float Degrees = 0, float Scale = 1, int Owner = 0);
+
 /// <summary>A map's path.</summary>
 /// <param name="Path">The map folder's or archive file's path.</param>
 public sealed record PathArgs(string Path);

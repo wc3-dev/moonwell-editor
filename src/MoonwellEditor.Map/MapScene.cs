@@ -60,16 +60,22 @@ public sealed record MapSceneView(
 public static class MapScene
 {
     /// <summary>
-    /// The scene of the map in <paramref name="store"/>, in a graphics mode, and its terrain's bytes: the terrain as
-    /// <paramref name="edited"/> has it when the Terrain Editor has changed it, else as the map's file has it.
+    /// The scene of the map in <paramref name="store"/>, in a graphics mode, and its terrain's bytes: the terrain and
+    /// placed things as <paramref name="edited"/> has them when the Terrain Editor is open, else as the map's files have
+    /// them.
     /// </summary>
     public static (MapSceneView View, byte[] Terrain) Build(
-        IMapStore store, Session session, IMapGameFiles files, string mode, MapEnvironment? edited = null)
+        IMapStore store, Session session, IMapGameFiles files, string mode, TerrainEditor? edited = null)
     {
         var read = MapReader.Read(store);
         if (edited != null)
         {
-            read = read with { Terrain = edited };
+            read = read with
+            {
+                Terrain = edited.Terrain,
+                Doodads = edited.Doodads ?? read.Doodads,
+                Units = edited.Units ?? read.Units,
+            };
         }
 
         var problems = read.Problems.ToList();

@@ -46,7 +46,7 @@ export class MapRenderer {
   private readonly highlight: MarkerLayer;
   private readonly marks: MarksLayer;
   /** The things drawn as markers: those without a model, and those whose model draws nothing. */
-  private readonly marked: PlacedThing[];
+  private marked: PlacedThing[];
   /** The tileset's terrain light (ground and cliffs) and unit light (things) at noon. */
   private readonly terrainLight: Lighting;
   private readonly unitLight: Lighting;
@@ -54,14 +54,14 @@ export class MapRenderer {
   private readonly shadowMap: ShadowMap | null;
   private readonly noShadow: ShadowMap;
   /** Classic's unit shadow pictures; null in HD and Definitive Edition, which cast shadows instead. */
-  private readonly unitShadows: UnitShadowLayer | null;
+  private unitShadows: UnitShadowLayer | null;
   private layers: Layers = allLayers;
   private pickTarget: PickTarget | null = null;
   private stopped = false;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
-    readonly scene: MapSceneView,
+    public scene: MapSceneView,
     readonly terrain: Terrain,
     /** The asset host's URL of a game or map file. */
     private readonly url: (path: string) => string,
@@ -194,17 +194,22 @@ export class MapRenderer {
 
   /** Draws `pieces` as the cliff and ramp models, after a cliff or water stroke changed them; those near `near` load first. */
   setCliffs(pieces: MapSceneView["cliffs"], near: [number, number]): void {
-    const old = this.cliffs;
-    this.cliffs = new ModelLayer(
-      this.gl,
-      this.terrain,
-      cliffBatches({ ...this.scene, cliffs: pieces }),
-      this.url,
-      this.changed,
-      () => {},
-    );
-    old.dispose();
-    void this.cliffs.load(near).then(this.changed);
+    void this.cliffs
+      .replace(cliffBatches({ ...this.scene, cliffs: pieces }), near)
+      .then(this.changed);
+    this.changed();
+  }
+
+  /** Draws `things` as the placed things, after a change to one; those near `near` load first. */
+  setThings(things: readonly PlacedThing[], near: [number, number]): void {
+    this.scene = { ...this.scene, things: [...things] };
+    this.marked = things.filter((thing) => !thing.model);
+    this.markShown();
+    this.unitShadows?.dispose();
+    this.unitShadows = this.terrainLight.pbr
+      ? null
+      : new UnitShadowLayer(this.gl, things, this.terrain);
+    void this.things.replace(thingBatches(things), near).then(this.changed);
     this.changed();
   }
 

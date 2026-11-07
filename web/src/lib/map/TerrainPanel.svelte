@@ -22,6 +22,7 @@ import { iconUrl, terrainCliffTypes, terrainTiles } from "../api.ts";
 import type { BrushShape, CliffKind, GroundTile, GroundTool } from "../bridge.gen.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
+import PlacePanel from "./PlacePanel.svelte";
 import {
   type BrushGroup,
   chooseTool,
@@ -148,6 +149,9 @@ $effect(() => {
 
 <aside class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-panel" aria-label={t("terrain.panel")}>
   <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-2.5 py-2">
+    {#if terrainTools.group === "place"}
+      <PlacePanel {mode} />
+    {:else}
     <section>
       <h3 class="mb-1.5 flex justify-between text-small uppercase tracking-wider text-faint">
         <span>{t("terrain.tool")}</span><span>{toolName}</span>
@@ -269,6 +273,9 @@ $effect(() => {
         {/if}
       </section>
     {/if}
+    {/if}
   </div>
-  <p class="border-t border-line-faint px-2.5 py-1.5 text-small text-faint">{t("terrain.hint")}</p>
+  <p class="border-t border-line-faint px-2.5 py-1.5 text-small text-faint">
+    {terrainTools.group === "place" ? t("terrain.placeHint") : t("terrain.hint")}
+  </p>
 </aside>

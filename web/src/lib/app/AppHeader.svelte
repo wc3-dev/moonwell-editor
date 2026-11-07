@@ -18,7 +18,7 @@ import TreePine from "@lucide/svelte/icons/tree-pine";
 import Video from "@lucide/svelte/icons/video";
 import Workflow from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
-import { type BrushGroup, terrainTools, toggleGroup } from "../map/terrainTools.svelte.ts";
+import { type ToolGroup, terrainTools, toggleGroup } from "../map/terrainTools.svelte.ts";
 import KindBar from "../objects/KindBar.svelte";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
@@ -59,15 +59,15 @@ const editors = $derived<
   },
 ]);
 
-// The Terrain Editor's groups of tools, in the order the design builds them: the brushes' are built (steps 1 and 2).
-const brushGroups: { group: BrushGroup; name: string; Icon: HeaderIcon }[] = [
+// The Terrain Editor's groups of tools, in the order the design builds them: those to step 3 are built.
+const toolGroups: { group: ToolGroup; name: string; Icon: HeaderIcon }[] = [
   { group: "ground", name: t("header.terrain.ground"), Icon: Shovel },
   { group: "cliffs", name: t("header.terrain.cliffs"), Icon: Mountain },
   { group: "water", name: t("header.terrain.water"), Icon: Droplets },
+  { group: "place", name: t("header.terrain.place"), Icon: TreePine },
 ];
 
 const comingTerrainTools: { name: string; Icon: HeaderIcon }[] = [
-  { name: t("header.terrain.place"), Icon: TreePine },
   { name: t("header.terrain.regions"), Icon: SquareDashed },
   { name: t("header.terrain.cameras"), Icon: Video },
 ];
@@ -114,7 +114,7 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   {#if pages.page === "map"}
     <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.terrainTools")}>
-      {#each brushGroups as each (each.group)}
+      {#each toolGroups as each (each.group)}
         {@render pageButton(each.name, each.name, each.Icon, terrainTools.group === each.group, !session.map, () =>
           toggleGroup(each.group),
         )}

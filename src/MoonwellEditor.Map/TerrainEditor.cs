@@ -4,6 +4,7 @@ using MoonwellEditor.Files;
 using MoonwellEditor.Model;
 using War3Net.Build.Environment;
 using War3Net.Build.Extensions;
+using War3Net.Build.Widget;
 using War3Net.Common.Extensions;
 
 namespace MoonwellEditor.Map;
@@ -37,13 +38,14 @@ public sealed record CliffKind(int Number, string Id, string Name, string Textur
 public sealed record GroundTile(string Id, string Name, string Texture, bool InMap);
 
 /// <summary>
-/// The map's terrain as the Terrain Editor edits it: the ground, cliff and water brushes change its corners, each stroke
-/// (mouse down to up) is one undo step with the object editor's, and a save writes <c>war3map.w3e</c> and
-/// <c>war3map.wpm</c>. Only the pathing cells under the tiles a stroke changed are worked out again
-/// (<see cref="Pathing"/>); the rest keep the bytes World Editor wrote (Sven, 2026-11-07), so an unedited map's pathing
-/// stays as it was. Doodads keep their height.
+/// The map's terrain and placed things as the Terrain Editor edits them: the ground, cliff and water brushes change its
+/// corners, and things are placed, moved, turned and removed (see the Things part). Each stroke (mouse down to up) and
+/// each change of a thing is one undo step with the object editor's, and a save writes <c>war3map.w3e</c>,
+/// <c>war3map.wpm</c>, <c>war3map.doo</c> and <c>war3mapUnits.doo</c> as they change. Only the pathing cells under what
+/// changed are worked out again (<see cref="Pathing"/>); the rest keep the bytes World Editor wrote (Sven, 2026-11-07), so
+/// an unedited map's pathing stays as it was. Things keep their height when the ground under them moves.
 /// </summary>
-public sealed class TerrainEditor : IMapPart
+public sealed partial class TerrainEditor : IMapPart
 {
     /// <summary>The most tiles a map lists, World Editor's limit (*claim*).</summary>
     public const int MostTiles = 16;
@@ -52,6 +54,7 @@ public sealed class TerrainEditor : IMapPart
     private const string PathingFile = "war3map.wpm";
 
     private readonly Session _session;
+    private readonly IMapStore _store;
     private readonly IMapGameFiles _files;
     private readonly MapEnvironment _terrain;
     private readonly MapPathingMap? _pathingFile;
@@ -60,26 +63,34 @@ public sealed class TerrainEditor : IMapPart
     private CliffTiles _cliffs;
     private readonly War3Net.Build.Info.MapInfo? _info;
     private readonly float _waterLevel;
-    private readonly IReadOnlyList<PathingStamp> _stamps;
+    private readonly MapDoodads? _doodads;
+    private readonly MapUnits? _units;
+    private readonly Dictionary<string, Rgba?> _pictures = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<PathingStamp> _stamps;
     private readonly Dictionary<string, TerrainTextures> _textures = new(StringComparer.Ordinal);
     private Pathing _pathing;
     private OpenStroke? _stroke;
 
     private TerrainEditor(
         Session session,
+        IMapStore store,
         IMapGameFiles files,
         MapEnvironment terrain,
         MapPathingMap? pathing,
-        War3Net.Build.Info.MapInfo? info,
-        IReadOnlyList<PathingStamp> stamps)
+        MapDoodads? doodads,
+        MapUnits? units,
+        War3Net.Build.Info.MapInfo? info)
     {
         _session = session;
+        _store = store;
         _files = files;
         _terrain = terrain;
         _pathingFile = pathing;
         _cells = pathing?.Cells.Select(cell => (byte)cell).ToArray() ?? [];
+        _doodads = doodads;
+        _units = units;
         _info = info;
-        _stamps = stamps;
+        _stamps = StampsOf();
         _cliffs = Cliffs.Of(terrain, files, "sd", Models("sd")).Tiles;
         _waterLevel = MapScene.WaterLevel(terrain, files);
         _pathing = MakePathing();
@@ -104,15 +115,19 @@ public sealed class TerrainEditor : IMapPart
         }
 
         var pathingBytes = session.Track(PathingFile);
+        var doodadBytes = session.Track(DoodadsFile);
+        var unitBytes = session.Track(UnitsFile);
         var terrain = Read(terrainBytes, reader => reader.ReadMapEnvironment());
         var pathing = pathingBytes == null ? null : Read(pathingBytes, reader => reader.ReadMapPathingMap());
+        var doodads = doodadBytes == null ? null : Read(doodadBytes, reader => reader.ReadMapDoodads());
+        var units = unitBytes == null ? null : Read(unitBytes, reader => reader.ReadMapUnits());
         if (pathing != null && (pathing.Width != terrain.Width * 4 || pathing.Height != terrain.Height * 4))
         {
             pathing = null;   // not this terrain's: left as it is
         }
 
         var read = MapReader.Read(store);
-        var editor = new TerrainEditor(session, files, terrain, pathing, read.Info, StampsOf(read, session, store, files));
+        var editor = new TerrainEditor(session, store, files, terrain, pathing, doodads, units, read.Info);
         session.Attach(editor);
         return editor;
     }
@@ -255,6 +270,16 @@ public sealed class TerrainEditor : IMapPart
 
             yield return (PathingFile, Write(writer => writer.Write(_pathingFile)));
         }
+
+        if (_doodads != null)
+        {
+            yield return (DoodadsFile, Write(writer => writer.Write(_doodads)));
+        }
+
+        if (_units != null)
+        {
+            yield return (UnitsFile, Write(writer => writer.Write(_units)));
+        }
     }
 
     // The bytes the page redraws for corners left..right, bottom..top (clamped) and the tiles between them.
@@ -383,41 +408,47 @@ public sealed class TerrainEditor : IMapPart
     }
 
     // The pathing pictures of the map's doodads and walkable destructables (bridges); other destructables are the
-    // game's at run time. A picture is the map's own import when it has one, else the game's.
-    private static List<PathingStamp> StampsOf(MapFiles read, Session session, IMapStore store, IMapGameFiles files)
+    // game's at run time.
+    private List<PathingStamp> StampsOf()
     {
-        var pictures = new Dictionary<string, Rgba?>(StringComparer.OrdinalIgnoreCase);
         var stamps = new List<PathingStamp>();
-        foreach (var doodad in read.Doodads?.Doodads ?? [])
+        foreach (var doodad in _doodads?.Doodads ?? [])
         {
-            var id = doodad.TypeId.ToRawcode();
-            var destructable = session.Object(ObjectKind.Destructable, id);
-            var bridge = destructable != null && Placed.Text(destructable, "bwal", "sd", 0) == "1";
-            var view = destructable ?? session.Object(ObjectKind.Doodad, id);
-            if (view == null || (destructable != null && !bridge))
-            {
-                continue;
-            }
-
-            var path = Placed.Text(view, destructable != null ? "bptx" : "dptx", "sd", 0);
-            if (string.IsNullOrEmpty(path) || path == "_")
-            {
-                continue;
-            }
-
-            if (!pictures.TryGetValue(path, out var picture))
-            {
-                var bytes = store.ReadImport(path) ?? files.File(path, "sd");
-                picture = pictures[path] = bytes == null ? null : Textures.Decode(bytes);
-            }
-
-            if (picture != null)
+            if (PictureOf(doodad) is var (picture, bridge))
             {
                 stamps.Add(new PathingStamp(doodad.Position.X, doodad.Position.Y, doodad.Rotation, picture, bridge));
             }
         }
 
         return stamps;
+    }
+
+    // A doodad's pathing picture, and whether it is a walkable destructable's; null for none. A picture is the map's own
+    // import when it has one, else the game's.
+    private (Rgba Picture, bool Bridge)? PictureOf(DoodadData doodad)
+    {
+        var id = doodad.TypeId.ToRawcode();
+        var destructable = _session.Object(ObjectKind.Destructable, id);
+        var bridge = destructable != null && Placed.Text(destructable, "bwal", "sd", 0) == "1";
+        var view = destructable ?? _session.Object(ObjectKind.Doodad, id);
+        if (view == null || (destructable != null && !bridge))
+        {
+            return null;
+        }
+
+        var path = Placed.Text(view, destructable != null ? "bptx" : "dptx", "sd", 0);
+        if (string.IsNullOrEmpty(path) || path == "_")
+        {
+            return null;
+        }
+
+        if (!_pictures.TryGetValue(path, out var picture))
+        {
+            var bytes = _store.ReadImport(path) ?? _files.File(path, "sd");
+            picture = _pictures[path] = bytes == null ? null : Textures.Decode(bytes);
+        }
+
+        return picture == null ? null : (picture, bridge);
     }
 
     private static T Read<T>(byte[] bytes, Func<BinaryReader, T> read)
