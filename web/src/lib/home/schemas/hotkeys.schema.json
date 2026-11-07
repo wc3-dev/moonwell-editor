@@ -81,6 +81,14 @@
       "default": ["Delete"],
       "description": "Delete the custom object"
     },
+    "turnThing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["R"],
+      "description": "Turn the placed thing chosen on the map"
+    },
     "filterFields": {
       "type": "array",
       "items": {

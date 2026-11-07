@@ -34,6 +34,7 @@ export type Action =
   | "paste"
   | "rename"
   | "deleteObject"
+  | "turnThing"
   | "filterFields"
   | "fieldIds"
   | "back"
@@ -68,6 +69,8 @@ export const actionList: { action: Action; name: string; keys: string[] }[] = [
   { action: "paste", name: t("hotkey.paste"), keys: ["Ctrl+V"] },
   { action: "rename", name: t("hotkey.rename"), keys: ["F2"] },
   { action: "deleteObject", name: t("hotkey.deleteObject"), keys: ["Delete"] },
+  // The Terrain Editor's: turns the placed thing chosen (Sven, 2026-11-06).
+  { action: "turnThing", name: t("hotkey.turnThing"), keys: ["R"] },
   { action: "filterFields", name: t("hotkey.filterFields"), keys: ["Ctrl+F"] },
   { action: "fieldIds", name: t("hotkey.fieldIds"), keys: ["Ctrl+D"] },
   { action: "back", name: t("hotkey.back"), keys: ["Alt+ArrowLeft"] },

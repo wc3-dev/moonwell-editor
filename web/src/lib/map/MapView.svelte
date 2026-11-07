@@ -14,7 +14,12 @@
  * With the header's ground tools on (terrainTools), a left drag is a brush stroke instead: each step goes to the app,
  * which changes the terrain and answers with the part to redraw; one request at a time, the mouse's points gathered
  * meanwhile. Raise, lower and smooth keep working while the button is held still. The brush's outline follows the
- * mouse. A cliff or water stroke redraws the ground as it goes and the cliff models when it ends. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
+ * mouse. A cliff or water stroke redraws the ground as it goes and the cliff models when it ends.
+ *
+ * With the Place group on, a click on the ground places the type chosen in the dock, a click on a thing chooses it,
+ * and a drag of the chosen thing moves it there; the keys for "turn the thing" (R) and "delete" (Delete) turn and
+ * remove it (Sven, 2026-11-06). Each change is one undo step; the view then draws the app's list of things again,
+ * keeping the models it has. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
  * again, as does a paint that added a tile to the map's list, once its stroke ends.
  */
 
@@ -23,10 +28,15 @@ import {
   fileUrl,
   mapScene,
   terrainCliffs,
+  terrainPlace,
   terrainStroke,
   terrainStrokeEnd,
+  terrainThing,
+  terrainThings,
   terrainUrl,
 } from "../api.ts";
+import { actionOf, defaultKeymap, type Keymap } from "../app/keymap.ts";
+import type { ThingChange } from "../bridge.gen.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
 import { framed, numpadView, orbited, panned, ray, type View, zoomed } from "./camera.ts";
@@ -43,16 +53,18 @@ import {
   type Terrain,
   type ThingKind,
 } from "./scene.ts";
-import { brushOutline, isBrushGroup, terrainTools } from "./terrainTools.svelte.ts";
+import { brushOutline, chosenThing, isBrushGroup, terrainTools } from "./terrainTools.svelte.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in: `sd`, `hd` or `de`. */
   mode: string;
   /** The session's terrain version (SessionState.terrainVersion): when it moves on, the terrain changed. */
   terrainVersion?: number;
+  /** The keys, for the Place group's turn and delete. */
+  keymap?: Keymap;
 };
 
-let { mode, terrainVersion = 0 }: Props = $props();
+let { mode, terrainVersion = 0, keymap = defaultKeymap() }: Props = $props();
 
 let canvas: HTMLCanvasElement | undefined = $state();
 let status = $state<"loading" | "ready" | "failed">("loading");
@@ -96,6 +108,31 @@ let stroke: Stroke | null = null;
 /** Why the last brush step was refused, until the next stroke. */
 let refused = $state("");
 const editing = $derived(isBrushGroup(terrainTools.group) && picking.kind === null);
+const placing = $derived(terrainTools.group === "place" && picking.kind === null);
+/** A change to a placed thing on its way to the app: the view waits for it before reading the version. */
+let thingBusy = false;
+/** A press on the chosen thing in the Place group, which a drag turns into a move. */
+let carry: { x: number; y: number; number: number; moved: boolean } | null = null;
+
+// The dock's changes to the chosen thing go through the view, which draws them.
+$effect(() => {
+  chosenThing.own = (owner) => {
+    const number = terrainTools.chosen?.number;
+    if (number)
+      void changeThing(() => terrainThing.own({ number, owner, x: 0, y: 0, degrees: 0, scale: 1 }));
+  };
+  chosenThing.resize = (scale) => {
+    const number = terrainTools.chosen?.number;
+    if (number)
+      void changeThing(() =>
+        terrainThing.resize({ number, scale, x: 0, y: 0, degrees: 0, owner: 0 }),
+      );
+  };
+  return () => {
+    chosenThing.own = null;
+    chosenThing.resize = null;
+  };
+});
 
 /** The kinds a layer switch shows or hides. */
 const thingLayers: { kinds: ThingKind[]; key: TextKey }[] = [
@@ -179,7 +216,7 @@ $effect(() => {
 // An undo or redo of the terrain: read the scene again (not while a stroke of this view's is under way).
 $effect(() => {
   const version = terrainVersion;
-  if (version !== drawnVersion && !stroke) {
+  if (version !== drawnVersion && !stroke && !thingBusy) {
     drawnVersion = version;
     reloads++;
   }
@@ -431,9 +468,69 @@ async function endStroke(current: Stroke): Promise<void> {
   }
 }
 
+/** The number of the placed thing under the mouse; 0 for none. */
+function thingUnder(clientX: number, clientY: number): number {
+  if (!canvas || !renderer) return 0;
+  const box = canvas.getBoundingClientRect();
+  const scale = canvas.width / Math.max(box.width, 1);
+  return renderer.pickAt(
+    view,
+    canvas.width,
+    canvas.height,
+    (clientX - box.left) * scale,
+    (clientY - box.top) * scale,
+  );
+}
+
+/** Chooses placed thing `number` (0 for none): the dock shows it, and the view marks it. */
+function chooseThing(number: number): void {
+  const thing = number > 0 ? scene?.things[number - 1] : undefined;
+  terrainTools.chosen = thing
+    ? { number, kind: thing.kind, name: thing.name, owner: thing.owner, scale: thing.scaleX }
+    : null;
+  selected = thing ? choose({ thing, region: null, camera: null, point: null }, null) : null;
+}
+
+/** Sends a change to a placed thing, then draws the app's things again and chooses the thing it names. */
+async function changeThing(change: () => Promise<ThingChange>): Promise<void> {
+  if (!renderer || !scene) return;
+  thingBusy = true;
+  refused = "";
+  try {
+    const result = await change();
+    drawnVersion = result.version;
+    const things = await terrainThings(mode);
+    scene = { ...scene, things };
+    renderer.setThings(things, [view.x, view.y]);
+    chooseThing(result.number <= things.length ? result.number : 0);
+  } catch (error) {
+    refused = errorText(error);
+  } finally {
+    thingBusy = false;
+  }
+}
+
+function startPlace(event: PointerEvent): void {
+  const number = thingUnder(event.clientX, event.clientY);
+  if (number > 0) {
+    chooseThing(number);
+    canvas?.setPointerCapture(event.pointerId);
+    carry = { x: event.clientX, y: event.clientY, number, moved: false };
+    return;
+  }
+  const at = groundUnder(event.clientX, event.clientY);
+  const { kind, type, owner } = terrainTools.place;
+  if (!at || !type) return;
+  void changeThing(() => terrainPlace({ kind, typeId: type, x: at[0], y: at[1], owner }));
+}
+
 function onpointerdown(event: PointerEvent): void {
   if (event.button === 0 && editing) {
     startStroke(event);
+    return;
+  }
+  if (event.button === 0 && placing) {
+    startPlace(event);
     return;
   }
   if (event.button === 0) {
@@ -458,6 +555,15 @@ function onpointermove(event: PointerEvent): void {
     if (drag.does === "orbit") move(orbited(view, dx, dy));
     else if (drag.does === "pan") move(panned(view, -dx * perPixel(), dy * perPixel()));
     else move(zoomed(view, -dy / 40));
+    return;
+  }
+  if (carry) {
+    carry.moved ||= Math.hypot(event.clientX - carry.x, event.clientY - carry.y) >= 4;
+    const at = carry.moved ? groundUnder(event.clientX, event.clientY) : null;
+    if (renderer && terrain)
+      renderer.setBrush(
+        at ? brushOutline(terrain.left, terrain.bottom, at[0], at[1], "Square", 1) : null,
+      );
     return;
   }
   if (editing) {
@@ -495,6 +601,18 @@ function onpointerup(event: PointerEvent): void {
     void sendStroke(stroke);
     return;
   }
+  if (carry && event.button === 0) {
+    canvas?.releasePointerCapture(event.pointerId);
+    renderer?.setBrush(null);
+    const { number, moved } = carry;
+    carry = null;
+    const at = moved ? groundUnder(event.clientX, event.clientY) : null;
+    if (at)
+      void changeThing(() =>
+        terrainThing.move({ number, x: at[0], y: at[1], degrees: 0, scale: 1, owner: 0 }),
+      );
+    return;
+  }
   if (event.button !== 0 || !press) return;
   const still = Math.hypot(event.clientX - press.x, event.clientY - press.y) < 4;
   press = null;
@@ -515,7 +633,24 @@ function onpointerleave(): void {
 function onkeydown(event: KeyboardEvent): void {
   if (event.key === "Escape") {
     if (picking.kind !== null) answer(null);
+    else if (placing) chooseThing(0);
     else selected = null;
+    return;
+  }
+  const number = placing ? terrainTools.chosen?.number : undefined;
+  const action = number ? actionOf(event, keymap) : undefined;
+  if (number && action === "turnThing") {
+    event.preventDefault();
+    void changeThing(() =>
+      terrainThing.turn({ number, degrees: 45, x: 0, y: 0, scale: 1, owner: 0 }),
+    );
+    return;
+  }
+  if (number && action === "deleteObject") {
+    event.preventDefault();
+    void changeThing(() =>
+      terrainThing.remove({ number, x: 0, y: 0, degrees: 0, scale: 1, owner: 0 }),
+    ).then(() => chooseThing(0));
     return;
   }
   if (event.code === "Home" && terrain) {
