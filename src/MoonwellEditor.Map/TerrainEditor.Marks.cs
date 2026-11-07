@@ -158,11 +158,13 @@ public sealed partial class TerrainEditor
             () =>
             {
                 revert();
+                _unseen.Marks = true;
                 Version++;
             },
             () =>
             {
                 apply();
+                _unseen.Marks = true;
                 Version++;
             });
     }

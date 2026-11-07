@@ -36,6 +36,7 @@ import type {
   TableRow,
   TerrainChange,
   TerrainStrokeArgs,
+  TerrainUndone,
   ThingArgs,
   ThingChange,
   TreeEntry,
@@ -357,6 +358,11 @@ export function terrainStroke(args: TerrainStrokeArgs): Promise<TerrainChange> {
 /** Closes the open ground stroke as one undo step. */
 export function terrainStrokeEnd(): Promise<null> {
   return call("terrainStrokeEnd");
+}
+
+/** What the undos and redos since the view last asked changed, so it redraws just that. */
+export function terrainUndone(mode: string): Promise<TerrainUndone> {
+  return call("terrainUndone", { mode });
 }
 
 /** The map's cliff types, which the cliff tools offer, in a graphics mode. */

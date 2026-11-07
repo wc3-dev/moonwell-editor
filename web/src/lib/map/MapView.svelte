@@ -43,6 +43,7 @@ import {
   terrainStrokeEnd,
   terrainThing,
   terrainThings,
+  terrainUndone,
   terrainUrl,
 } from "../api.ts";
 import { actionOf, defaultKeymap, type Keymap } from "../app/keymap.ts";
@@ -309,14 +310,54 @@ $effect(() => {
   if (!editing) renderer?.setBrush(null);
 });
 
-// An undo or redo of the terrain: read the scene again (not while a stroke of this view's is under way).
+// An undo or redo of the terrain: redraw what it changed (not while a stroke of this view's is under way).
 $effect(() => {
-  const version = terrainVersion;
-  if (version !== drawnVersion && !stroke && !thingBusy) {
-    drawnVersion = version;
-    reload();
-  }
+  if (terrainVersion !== drawnVersion && !stroke && !thingBusy) void catchUp();
 });
+
+/** Redraws what the undos and redos since the view last asked changed; the whole scene only when the tiles changed. */
+async function catchUp(): Promise<void> {
+  if (!renderer || !terrain || !scene) {
+    drawnVersion = untrack(() => terrainVersion);
+    reload();
+    return;
+  }
+  thingBusy = true;
+  try {
+    const change = await terrainUndone(mode);
+    drawnVersion = change.version;
+    const ground = change.ground;
+    if (ground.tiles) {
+      reload();
+      return;
+    }
+    if (ground.columns > 0) {
+      patchTerrain(terrain, Uint8Array.from(atob(ground.bytes), (c) => c.charCodeAt(0)).buffer);
+      renderer.terrainChanged();
+    }
+    if (ground.cliffs) renderer.setCliffs(await terrainCliffs(mode), [view.x, view.y]);
+    if (change.things) {
+      const things = await terrainThings(mode);
+      scene = { ...scene, things };
+      renderer.setThings(things, [view.x, view.y]);
+      const number = terrainTools.chosen?.number ?? 0;
+      chooseThing(number <= things.length ? number : 0);
+    }
+    if (change.marks) {
+      const marks = await terrainMarks();
+      scene = { ...scene, regions: marks.regions, cameras: marks.cameras };
+      renderer.setMarks(marks.regions, marks.cameras);
+      if (terrainTools.mark) chooseMark(terrainTools.mark.kind, terrainTools.mark.number);
+    }
+  } catch {
+    reload();
+    return;
+  } finally {
+    thingBusy = false;
+  }
+  // Another undo while this one was on its way.
+  if (untrack(() => terrainVersion) !== drawnVersion) void catchUp();
+}
 
 function reload(): void {
   keepView = true;
