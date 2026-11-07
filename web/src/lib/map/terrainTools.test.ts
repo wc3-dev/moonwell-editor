@@ -10,6 +10,12 @@ describe("brushOutline", () => {
     expect(two).toEqual([128 - 192, 256 - 192]);
   });
 
+  it("puts a ramp's round the tiles it covers", () => {
+    const [corner] = brushOutline(0, 0, 140, 250, "Square", 2, true);
+
+    expect(corner).toEqual([192 - 192, 192 - 192]);
+  });
+
   it("goes round a circle half the corners across", () => {
     const outline = brushOutline(0, 0, 0, 0, "Circle", 4);
 
