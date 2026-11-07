@@ -1,7 +1,8 @@
 /**
  * Draws models: each batch's copies in one instanced draw a geoset, the solid and alpha-tested geosets first, the
  * blended ones after with the depth left alone. A cliff's vertices stand on the ground beneath them: each is raised by
- * the height (without cliff levels) of the corner at the bottom left of the tile it falls in (*claim*, HiveWE). Models
+ * the height (without cliff levels) blended from the four corners of the tile it falls in, as the ground is, so the
+ * model meets the ground beside it without a gap. Models
  * load in the background, nearest the camera first; a model that is missing, cannot be read or draws nothing is told
  * to `failed`, and its things become markers. A Classic geoset's team colour is under its texture; an HD geoset's is
  * its texture times the colour where its ORM texture's alpha says (war3-model's HD shader). Each layer is lit by
@@ -94,8 +95,14 @@ void main() {
   mat4 m = mat4(m0, m1, m2, m3);
   vec4 world = m * vec4(p, 1.0);
   if (cliff) {
-    ivec2 c = clamp(ivec2(floor((world.xy - origin) / 128.0)), ivec2(0), size - 1);
-    world.z += texelFetch(relief, c, 0).r;
+    // Blended from its tile's four corners as the ground is, so the model's edges meet the ground beside it.
+    vec2 u = clamp((world.xy - origin) / 128.0, vec2(0.0), vec2(size - 1));
+    ivec2 c = min(ivec2(floor(u)), max(size - 2, ivec2(0)));
+    ivec2 d = min(c + 1, size - 1);
+    vec2 f = u - vec2(c);
+    float bottom = mix(texelFetch(relief, c, 0).r, texelFetch(relief, ivec2(d.x, c.y), 0).r, f.x);
+    float top = mix(texelFetch(relief, ivec2(c.x, d.y), 0).r, texelFetch(relief, d, 0).r, f.x);
+    world.z += mix(bottom, top, f.y);
   }
   vUv = uv;
   vWorld = world.xyz;

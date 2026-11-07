@@ -159,4 +159,37 @@ public sealed class CliffsTests(ITestOutputHelper output)
         var missing = pieces.Where(piece => files.File(piece.Model, mode) == null).Select(piece => $"{piece.Column},{piece.Row} {piece.Model}");
         Assert.Empty(missing);
     }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void A_ramp_brush_across_a_cliff_makes_a_ramp_with_its_two_sides(int size)
+    {
+        var files = InstallGameFiles.Open();
+        if (files == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        // A straight snow cliff: rows 6 and up a level higher. Gate row E1's ramp across it, in the middle.
+        var terrain = Grids.Flat(12, 12);
+        terrain.CliffTypes.Add(War3Net.Build.Environment.CliffType.I_Snow);
+        foreach (var (column, row) in Enumerable.Range(0, 12).SelectMany(column => Enumerable.Range(6, 6).Select(row => (column, row))))
+        {
+            terrain.At(column, row).CliffLevel = 3;
+        }
+
+        GroundTools.Use(
+            terrain, GroundTool.Ramp, 6 * 128f, 5 * 128f, new Brush(BrushShape.Square, size, 0), new StrokeStart(-1, 0, 2, 0), _ => { });
+        var (pieces, _) = Cliffs.Of(terrain, files, "sd");
+
+        var near = pieces.Where(piece => piece.Row is >= 3 and <= 6).Select(piece => $"{piece.Column},{piece.Row} {piece.Model}").ToList();
+        output.WriteLine(string.Join(Environment.NewLine, near));
+        var (first, last) = (6 - (size - 1), 6 + (size - 1));
+        Assert.Equal(2, pieces.Count(piece => piece.Model.Contains("CliffTrans", StringComparison.Ordinal)));
+        Assert.DoesNotContain(pieces, piece => !piece.Model.Contains("CliffTrans", StringComparison.Ordinal)
+            && piece.Column >= first - 1 && piece.Column <= last);
+        Assert.All(pieces, piece => Assert.NotNull(files.File(piece.Model, "sd")));
+    }
 }
