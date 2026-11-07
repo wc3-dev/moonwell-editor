@@ -43,6 +43,19 @@ export function floatTexture(
   return texture;
 }
 
+/** Writes `values` over a float texture made by floatTexture, all of it. */
+export function updateFloatTexture(
+  gl: WebGL2RenderingContext,
+  texture: WebGLTexture,
+  width: number,
+  height: number,
+  values: Float32Array,
+): void {
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RED, gl.FLOAT, values);
+}
+
 /** A one-channel texture of bytes read as 0 to 1 and blended between texels (a soft mask). */
 export function maskTexture(
   gl: WebGL2RenderingContext,

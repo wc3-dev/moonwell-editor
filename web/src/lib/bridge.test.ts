@@ -132,10 +132,16 @@ describe("on", () => {
     const seen: unknown[] = [];
     const off = on("sessionChanged", (payload) => seen.push(payload.changedObjects));
 
-    webview.reply({ event: "sessionChanged", payload: { dirty: true, changedObjects: 2 } });
+    webview.reply({
+      event: "sessionChanged",
+      payload: { dirty: true, changedObjects: 2, terrainVersion: 0, terrainChanged: false },
+    });
     webview.reply({ event: "windowState", payload: { maximized: true } });
     off();
-    webview.reply({ event: "sessionChanged", payload: { dirty: false, changedObjects: 0 } });
+    webview.reply({
+      event: "sessionChanged",
+      payload: { dirty: false, changedObjects: 0, terrainVersion: 0, terrainChanged: false },
+    });
 
     expect(seen).toEqual([2]);
   });

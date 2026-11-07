@@ -3,6 +3,7 @@ using MoonwellEditor.Files;
 using MoonwellEditor.Map;
 using MoonwellEditor.Model;
 using MoonwellEditor.Triggers;
+using Brush = MoonwellEditor.Map.Brush;
 using ChoiceList = MoonwellEditor.GameData.ChoiceList;
 using Data = MoonwellEditor.GameData.GameData;
 
@@ -24,7 +25,23 @@ public sealed record GameDataState(string? Source, bool Loaded, string? Error, i
 /// <param name="ChangedObjects">
 /// How many objects differ from the map as opened or last saved (see <see cref="Session.ChangedObjects"/>).
 /// </param>
-public sealed record SessionState(bool Dirty, int ChangedObjects);
+/// <param name="TerrainVersion">
+/// Goes up with every change to the terrain (<see cref="TerrainEditor.Version"/>), so the map view can redraw after an
+/// undo or redo; 0 before the Terrain Editor first changes it.
+/// </param>
+/// <param name="TerrainChanged">True when the terrain differs from the map's as opened or last saved.</param>
+public sealed record SessionState(bool Dirty, int ChangedObjects, int TerrainVersion = 0, bool TerrainChanged = false);
+
+/// <summary>
+/// The part of the terrain a stroke changed (<see cref="TerrainPatch"/>), its bytes as base64 for the bridge.
+/// </summary>
+/// <param name="Left">The first corner's column.</param>
+/// <param name="Bottom">The first corner's row.</param>
+/// <param name="Columns">How many columns of corners; 0 when nothing changed.</param>
+/// <param name="Rows">How many rows of corners.</param>
+/// <param name="Bytes">The bytes <c>TerrainBytes.Patch</c> writes, as base64.</param>
+/// <param name="Tiles">True when the map's list of tiles grew: the view reads the whole scene again.</param>
+public sealed record TerrainChange(int Left, int Bottom, int Columns, int Rows, string Bytes, bool Tiles);
 
 /// <summary>What the <c>closeRequested</c> event carries.</summary>
 /// <param name="Dirty">True when the window saw the map with unsaved edits.</param>
@@ -149,6 +166,7 @@ public sealed partial class Commands
 
     // The terrain bytes of the last map scene, for the page's /terrain request; null before one.
     private TerrainCopy? _terrain;
+    private TerrainEditor? _terrainEditor;
 
     /// <summary>Makes the commands.</summary>
     /// <param name="home">The .moonwell folder: where the Warcraft III folder chosen and the recent maps are kept.</param>
@@ -397,6 +415,9 @@ public sealed partial class Commands
         CommandEntry.Do("uiScale", (Commands c, UiScaleArgs a) => c.UiScale(a.Percent)),
         CommandEntry.Of("assetList", (Commands c, AssetListArgs a) => c.AssetsOf(a.Kind, a.Mode)),
         CommandEntry.Of("mapScene", (Commands c, MapSceneArgs a) => c.MapSceneOf(a.Mode)),
+        CommandEntry.Of("terrainStroke", (Commands c, TerrainStrokeArgs a) => c.TerrainStroke(a)),
+        CommandEntry.Do("terrainStrokeEnd", (Commands c) => c.EndStroke()),
+        CommandEntry.Of("terrainTiles", (Commands c, MapSceneArgs a) => c.Ground().Tiles(Checked(a.Mode))),
         CommandEntry.Of("recentMaps", (Commands c) => c.RecentMaps()),
         CommandEntry.Of("forgetMap", (Commands c, PathArgs a) => c.ForgetMap(a.Path)),
     ];
@@ -679,15 +700,66 @@ public sealed partial class Commands
     private MapSceneView MapSceneOf(string mode)
     {
         var session = Map();
-        if (mode is not ("sd" or "hd" or "de"))
+        Checked(mode);
+        var assets = Assets ?? throw new CommandException(ErrorCode.NoAssets, Texts.Get("app.assets.none"));
+        var edited = _terrainEditor is { } editor && session.Holds(editor) ? editor.Terrain : null;
+        var (view, terrain) = MapScene.Build(_store!, session, assets, mode, edited);
+        Volatile.Write(ref _terrain, new TerrainCopy(mode, terrain));
+        return view;
+    }
+
+    private static string Checked(string mode) => mode is "sd" or "hd" or "de"
+        ? mode
+        : throw BadRequest($"The graphics mode {mode} is not sd, hd or de.");
+
+    // The open map's Terrain Editor: made the first time a terrain tool needs it, and again after a reload.
+    private TerrainEditor Ground()
+    {
+        var session = Map();
+        if (_terrainEditor is { } editor && session.Holds(editor))
         {
-            throw BadRequest($"The graphics mode {mode} is not sd, hd or de.");
+            return editor;
         }
 
         var assets = Assets ?? throw new CommandException(ErrorCode.NoAssets, Texts.Get("app.assets.none"));
-        var (view, terrain) = MapScene.Build(_store!, session, assets, mode);
-        Volatile.Write(ref _terrain, new TerrainCopy(mode, terrain));
-        return view;
+        try
+        {
+            _terrainEditor = TerrainEditor.Open(session, _store!, assets);
+        }
+        catch (InvalidDataException exception)
+        {
+            throw new CommandException(ErrorCode.MapFile, exception.Message);
+        }
+
+        return _terrainEditor ?? throw new CommandException(ErrorCode.MapFile, Texts.Get("app.mapView.noTerrain"));
+    }
+
+    private TerrainChange TerrainStroke(TerrainStrokeArgs args)
+    {
+        Checked(args.Mode);
+        var editor = Ground();
+        try
+        {
+            var points = args.Points.Where(point => point.Length == 2).Select(point => (point[0], point[1])).ToList();
+            var brush = new Brush(args.Shape, args.Size, args.Strength);
+            var patch = editor.Stroke(args.Tool, points, brush, args.Tile, args.Mode, args.First);
+            return new TerrainChange(
+                patch.Left, patch.Bottom, patch.Columns, patch.Rows, Convert.ToBase64String(patch.Bytes), patch.Tiles);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new CommandException(ErrorCode.BadValue, exception.Message);
+        }
+    }
+
+    private void EndStroke()
+    {
+        if (_terrainEditor is { } editor && Map().Holds(editor))
+        {
+            editor.EndStroke();
+        }
+
+        Changed<object?>(null);
     }
 
     private object? UiScale(int percent)
@@ -725,10 +797,11 @@ public sealed partial class Commands
         return result;
     }
 
-    private static SessionState StateOf(Session session)
+    private SessionState StateOf(Session session)
     {
         var (dirty, changed) = session.Standing();
-        return new SessionState(dirty, changed);
+        var terrain = _terrainEditor is { } editor && session.Holds(editor) ? editor : null;
+        return new SessionState(dirty, changed, terrain?.Version ?? 0, terrain != null && dirty && session.Changed(terrain));
     }
 
     private static CommandException BadRequest(string message) => new(ErrorCode.BadRequest, message);

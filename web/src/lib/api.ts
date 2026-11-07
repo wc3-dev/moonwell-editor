@@ -14,6 +14,7 @@ import type {
   Column,
   CurrentMap,
   FieldDescription,
+  GroundTile,
   Hit,
   Kind,
   MapInfo,
@@ -25,6 +26,8 @@ import type {
   SessionState,
   Startup,
   TableRow,
+  TerrainChange,
+  TerrainStrokeArgs,
   TreeEntry,
   WindowState,
 } from "./bridge.gen.ts";
@@ -331,6 +334,24 @@ export function assetList(kind: AssetListKind, mode: string): Promise<AssetList>
  */
 export function mapScene(mode: string): Promise<MapSceneView> {
   return call("mapScene", { mode });
+}
+
+/**
+ * Uses a ground brush once more in the Terrain Editor: the app changes the terrain and answers with the part the view
+ * redraws. A stroke's first step has `first` set; `terrainStrokeEnd` closes it as one undo step.
+ */
+export function terrainStroke(args: TerrainStrokeArgs): Promise<TerrainChange> {
+  return call("terrainStroke", args);
+}
+
+/** Closes the open ground stroke as one undo step. */
+export function terrainStrokeEnd(): Promise<null> {
+  return call("terrainStrokeEnd");
+}
+
+/** The tiles the paint brush offers in a graphics mode: the tileset's, then the map's others. */
+export function terrainTiles(mode: string): Promise<GroundTile[]> {
+  return call("terrainTiles", { mode });
 }
 
 /** The URL of the terrain bytes of the last `mapScene` in a graphics mode (404 before one). */

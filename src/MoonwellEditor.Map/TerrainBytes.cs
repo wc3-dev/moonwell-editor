@@ -51,6 +51,53 @@ public static class TerrainBytes
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// The bytes of a part of a terrain, for the page to redraw after an edit: int32 left, bottom, columns and rows of
+    /// the corners <paramref name="left"/> to <paramref name="right"/> and <paramref name="bottom"/> to
+    /// <paramref name="top"/>; their ground, relief and water as in <see cref="Write"/>; then the tiles between them,
+    /// each its four layers. The tiles' flags and the shadows are left out: an edit of the ground leaves them as they
+    /// were.
+    /// </summary>
+    public static byte[] Patch(TerrainGrid grid, TileLayers layers, int left, int bottom, int right, int top)
+    {
+        var (columns, rows) = (right - left + 1, top - bottom + 1);
+        using var stream = new MemoryStream(16 + (columns * rows * 12) + (columns * rows * 8));
+        using var writer = new BinaryWriter(stream);
+        writer.Write(left);
+        writer.Write(bottom);
+        writer.Write(columns);
+        writer.Write(rows);
+        void Corners(Func<int, int, float> value)
+        {
+            for (var row = bottom; row <= top; row++)
+            {
+                for (var column = left; column <= right; column++)
+                {
+                    writer.Write(value(column, row));
+                }
+            }
+        }
+
+        Corners(grid.Ground);
+        Corners(grid.Relief);
+        Corners((column, row) => grid.Water(column, row) ?? float.NaN);
+        for (var row = bottom; row < top; row++)
+        {
+            for (var column = left; column < right; column++)
+            {
+                var layer = layers.At(column, row);
+                for (var k = 0; k < 4; k++)
+                {
+                    writer.Write(k < layer.Count ? layer[k].Texture : (byte)255);
+                    writer.Write(k < layer.Count ? layer[k].Piece : (byte)255);
+                }
+            }
+        }
+
+        writer.Flush();
+        return stream.ToArray();
+    }
+
     private static void Corners(BinaryWriter writer, TerrainGrid grid, Func<int, int, float> value)
     {
         for (var row = 0; row < grid.Rows; row++)

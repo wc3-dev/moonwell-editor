@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MoonwellEditor.Files;
+using MoonwellEditor.Map;
 using MoonwellEditor.Model;
 
 namespace MoonwellEditor.App;
@@ -100,6 +101,25 @@ public sealed record AssetListArgs(AssetListKind Kind, string Mode = "de");
 /// <summary>The map view's scene to build.</summary>
 /// <param name="Mode">The graphics mode: <c>sd</c>, <c>hd</c> or <c>de</c>.</param>
 public sealed record MapSceneArgs(string Mode = "de");
+
+/// <summary>One step of a ground brush's stroke in the Terrain Editor.</summary>
+/// <param name="Tool">What the brush does.</param>
+/// <param name="Points">Where it is used, each an x and a y, in the order the mouse passed them.</param>
+/// <param name="Shape">The brush's outline.</param>
+/// <param name="Size">How many corners across the brush is, 1 to 8.</param>
+/// <param name="Strength">How far a raise or lower moves the ground in the middle at each point, in game units.</param>
+/// <param name="Tile">The tile a paint gives, by its id (<c>Ldrt</c>); null for the other tools.</param>
+/// <param name="First">True for a stroke's first step: the one before it, if still open, is closed.</param>
+/// <param name="Mode">The graphics mode the map view draws in: <c>sd</c>, <c>hd</c> or <c>de</c>.</param>
+public sealed record TerrainStrokeArgs(
+    GroundTool Tool,
+    IReadOnlyList<float[]> Points,
+    BrushShape Shape,
+    int Size,
+    float Strength,
+    string? Tile,
+    bool First,
+    string Mode = "de");
 
 /// <summary>A map's path.</summary>
 /// <param name="Path">The map folder's or archive file's path.</param>

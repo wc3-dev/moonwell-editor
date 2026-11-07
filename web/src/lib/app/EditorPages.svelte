@@ -1,6 +1,8 @@
 <script lang="ts">
 import { graphics } from "../graphics.svelte.ts";
 import MapView from "../map/MapView.svelte";
+import TerrainPanel from "../map/TerrainPanel.svelte";
+import { terrainTools } from "../map/terrainTools.svelte.ts";
 import DetailsPage from "../objects/DetailsPage.svelte";
 import TableView from "../objects/TableView.svelte";
 import ScriptEditor from "../scripts/ScriptEditor.svelte";
@@ -15,10 +17,17 @@ const notice = (text: string, warn?: boolean) => notices.say(text, { warn });
 </script>
 
 {#if pages.page === "map"}
-  <main class="min-h-0" aria-label={t("main.map")}>
+  <!-- With a group of terrain tools on, its dock sits beside the map, as the object editor's list does. -->
+  <main
+    class="min-h-0 {terrainTools.group ? 'grid grid-cols-[290px_1fr] gap-1 p-1 max-[1100px]:grid-cols-[230px_1fr]' : ''}"
+    aria-label={t("main.map")}
+  >
+    {#if terrainTools.group}
+      <TerrainPanel mode={graphics.mode} version={session.state?.terrainVersion ?? 0} />
+    {/if}
     <!-- A map opened or reloaded is a new object: the view is made again and reads it. -->
     {#key session.map}
-      <MapView mode={graphics.mode} />
+      <MapView mode={graphics.mode} terrainVersion={session.state?.terrainVersion ?? 0} />
     {/key}
   </main>
 {/if}

@@ -1,6 +1,7 @@
 using System.Globalization;
 using MoonwellEditor.Files;
 using MoonwellEditor.Model;
+using War3Net.Build.Environment;
 using War3Net.Build.Info;
 
 namespace MoonwellEditor.Map;
@@ -58,11 +59,19 @@ public sealed record MapSceneView(
 /// <summary>The map view's scene, built from the map's files and the session's object data when the view asks.</summary>
 public static class MapScene
 {
-    /// <summary>The scene of the map in <paramref name="store"/>, in a graphics mode, and its terrain's bytes.</summary>
+    /// <summary>
+    /// The scene of the map in <paramref name="store"/>, in a graphics mode, and its terrain's bytes: the terrain as
+    /// <paramref name="edited"/> has it when the Terrain Editor has changed it, else as the map's file has it.
+    /// </summary>
     public static (MapSceneView View, byte[] Terrain) Build(
-        IMapStore store, Session session, IMapGameFiles files, string mode)
+        IMapStore store, Session session, IMapGameFiles files, string mode, MapEnvironment? edited = null)
     {
         var read = MapReader.Read(store);
+        if (edited != null)
+        {
+            read = read with { Terrain = edited };
+        }
+
         var problems = read.Problems.ToList();
         var regions = Placed.Regions(read.Regions);
         var cameras = Placed.Cameras(read.Cameras);
@@ -81,10 +90,8 @@ public static class MapScene
         }
 
         var tileset = ((char)terrain.Tileset).ToString();
-        var water = (files.Table("TerrainArt/Water.slk") ?? [])
-            .FirstOrDefault(row => row.Id == tileset + "Sha")?.Columns ?? new Dictionary<string, string>();
-        var level = Number(water, "height", -0.7f) * 128f;
-        var grid = TerrainGrid.From(terrain, level);
+        var water = WaterRow(terrain, files);
+        var grid = TerrainGrid.From(terrain, WaterLevel(terrain, files));
         var (pieces, tiles) = Cliffs.Of(terrain, files, mode);
         var textures = TerrainTextures.Read(terrain, files, mode);
         var layers = TileLayers.From(terrain, textures, tiles);
@@ -105,6 +112,15 @@ public static class MapScene
             problems);
         return (view, TerrainBytes.Write(grid, layers, tiles, read.Shadows));
     }
+
+    /// <summary>The tileset's water level: its shallow water's <c>TerrainArt\Water.slk</c> <c>height</c> × 128.</summary>
+    internal static float WaterLevel(MapEnvironment terrain, IMapGameFiles files) =>
+        Number(WaterRow(terrain, files), "height", -0.7f) * 128f;
+
+    private static IReadOnlyDictionary<string, string> WaterRow(MapEnvironment terrain, IMapGameFiles files) =>
+        (files.Table("TerrainArt/Water.slk") ?? [])
+            .FirstOrDefault(row => row.Id == ((char)terrain.Tileset).ToString() + "Sha")?.Columns
+        ?? new Dictionary<string, string>();
 
     // The water's texture, frames and four colours; tinted by the map's water colour when its flag says so.
     private static WaterLook Look(IReadOnlyDictionary<string, string> water, MapInfo? info)

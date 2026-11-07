@@ -107,6 +107,7 @@ public sealed partial class Session
         _kinds = loaded.Kinds;
         _strings = loaded.Strings;
         _triggers = null;
+        _parts.Clear();
         UseOptions(options);
         _problems = loaded.Problems;
         _baseline = loaded.Baseline;
@@ -296,6 +297,7 @@ public sealed partial class Session
         }
 
         AddTriggerChanges(changes);
+        AddPartChanges(changes);
         return changes;
     }
 
