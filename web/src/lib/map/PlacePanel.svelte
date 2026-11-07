@@ -43,9 +43,7 @@ const entries = $derived.by(() => {
       (entry) =>
         !words || `${entry.name} ${entry.suffix} ${entry.id}`.toLowerCase().includes(words),
     )
-    .sort(
-      (a, b) => a.path.join("/").localeCompare(b.path.join("/")) || a.name.localeCompare(b.name),
-    );
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 });
 const chosen = $derived(terrainTools.chosen);
 
