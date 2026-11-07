@@ -287,7 +287,7 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
     }
 
     [Fact]
-    public void A_lua_map_keeps_its_script_and_the_save_says_so()
+    public void A_lua_map_saves_its_script_with_the_triggers()
     {
         if (Copy(ForgottenHollow) is not var (path, catalog))
         {
@@ -295,12 +295,23 @@ public sealed class TriggerSaveTests(GameDataFixture game, ITestOutputHelper out
         }
 
         var session = Session.Open(MapStore.Open(path), game.Data!);
-        session.EditTriggers(catalog, each => each.Add(TriggerItemKind.Trigger, Category(each)));
+        session.EditTriggers(catalog, each =>
+        {
+            var made = each.Add(TriggerItemKind.Trigger, Category(each));
+            each.AddFunction(made, null, 0, 0, FunctionKind.Event, "TriggerRegisterTimerEventPeriodic");
+            each.AddFunction(made, null, 0, 0, FunctionKind.Action, "CreateNUnitsAtLoc");
+            return made;
+        });
 
         var report = session.Save();
 
-        Assert.Equal(["war3map.wtg", "war3map.wct"], report.Written);
-        Assert.Contains("Lua", report.Note);
+        Assert.Equal(["war3map.lua", "war3map.wtg", "war3map.wct"], report.Written);
+        Assert.Equal("", report.Note);
+        var script = Encoding.UTF8.GetString(MapStore.Open(path).Read("war3map.lua")!).Replace("\r\n", "\n");
+        Assert.Contains("\ngg_trg_Untitled_Trigger_001 = nil\n", script);
+        Assert.Contains("\nTriggerRegisterTimerEventPeriodic(gg_trg_Untitled_Trigger_001, 2)\n", script);
+        Assert.Contains("\nCreateNUnitsAtLoc(1, FourCC(\"hfoo\"), Player(0), GetRectCenter(GetPlayableMapRect()), bj_UNIT_FACING)\n", script);
+        Assert.Contains("\nInitTrig_Untitled_Trigger_001()\n", script);
     }
 
     [Fact]

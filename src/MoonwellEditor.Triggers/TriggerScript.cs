@@ -13,13 +13,13 @@ using War3Net.Common.Extensions;
 namespace MoonwellEditor.Triggers;
 
 /// <summary>
-/// A JASS map's script with its triggers as they are now. It keeps the map's own <c>war3map.j</c> and replaces only what
-/// triggers decide, as World Editor would write it: the user's variables and the trigger variables in <c>globals</c>,
-/// <c>InitGlobals</c>, the custom script code, the trigger functions, <c>InitCustomTriggers</c> and
+/// A map's script with its triggers as they are now. It keeps the map's own <c>war3map.j</c> or <c>war3map.lua</c> and
+/// replaces only what triggers decide, as World Editor would write it: the user's variables and the trigger variables
+/// in the globals, <c>InitGlobals</c>, the custom script code, the trigger functions, <c>InitCustomTriggers</c> and
 /// <c>RunInitializationTriggers</c>. War3Net cannot build the rest of the script as World Editor does, so the rest
-/// stays as World Editor wrote it.
+/// stays as World Editor wrote it. A Lua map's triggers are written as JASS first, then as World Editor's Lua of it.
 /// </summary>
-public sealed class TriggerScript : MapScriptBuilder
+public sealed partial class TriggerScript : MapScriptBuilder
 {
     private const string Line = "//===========================================================================";
     private const string Banner = "//***************************************************************************";
@@ -63,12 +63,12 @@ public sealed class TriggerScript : MapScriptBuilder
     /// </summary>
     public static string? Write(string script, TriggerDocument document, MapInfo info, MapUnits? units, out string? problem)
     {
-        var builder = new TriggerScript(document, info, units);
+        var builder = new TriggerScript(document, info, units) { _lua = info.ScriptLanguage == ScriptLanguage.Lua };
         var lineEnd = script.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
         var lines = script.Replace("\r\n", "\n").Split('\n').ToList();
         try
         {
-            problem = builder.Splice(lines);
+            problem = builder._lua ? builder.SpliceLua(lines) : builder.Splice(lines);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -339,17 +339,22 @@ public sealed class TriggerScript : MapScriptBuilder
     private static bool Near(string text, float value) =>
         double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && Math.Abs(number - value) < 0.06;
 
-    // InitGlobals as World Editor writes it. A value goes by its type, so an object's id has its quotes.
+    // InitGlobals as World Editor writes it. A value goes by its type, so an object's id has its quotes. Its Lua has
+    // the loops' local only for an array, then a blank line.
     private void WriteInitGlobals(IndentedTextWriter writer)
     {
         var variables = _document.Triggers.Variables;
         var values = new TriggerJass(writer, _document);
         writer.WriteLine("function InitGlobals takes nothing returns nothing");
         writer.Indent();
-        if (variables.Any(variable => (variable.IsArray || _map.Info!.FormatVersion >= MapInfoFormatVersion.v31)
+        if (variables.Any(variable => (variable.IsArray || (!_lua && _map.Info!.FormatVersion >= MapInfoFormatVersion.v31))
             && InitialOf(variable, values) != null))
         {
             writer.WriteLocal("integer", "i", "0");
+            if (_lua)
+            {
+                writer.WriteLine();
+            }
         }
 
         foreach (var variable in variables)
@@ -372,7 +377,10 @@ public sealed class TriggerScript : MapScriptBuilder
             writer.WriteSet($"{name}[i]", value);
             writer.WriteSet("i", "i + 1");
             writer.WriteEndLoop();
-            writer.WriteLine();
+            if (!_lua)
+            {
+                writer.WriteLine();
+            }
         }
 
         writer.Unindent();
@@ -392,7 +400,7 @@ public sealed class TriggerScript : MapScriptBuilder
 
         if (TriggerData.TriggerTypeDefaults.TryGetValue(variable.Type, out var fallback))
         {
-            return fallback.ScriptText;
+            return _lua && variable.Type == "real" ? "0.0" : fallback.ScriptText;
         }
 
         return variable.Type == "string" ? "\"\"" : null;
@@ -512,8 +520,9 @@ public sealed class TriggerScript : MapScriptBuilder
             _rendering = definition.Name;
             lines.AddRange(definition.IsCustomTextTrigger
                 ? CustomTrigger(definition)
-                : Text(writer => new TriggerJass(writer, _document).Write(definition)));
-            if (definition.IsCustomTextTrigger)
+                : Text(writer => new TriggerJass(writer, _document, _lua).Write(definition)));
+            // A Lua map's custom text ends as its own text does, like a custom script item.
+            if (definition.IsCustomTextTrigger && !_lua)
             {
                 lines.Add("");
             }
@@ -582,7 +591,18 @@ public sealed class TriggerScript : MapScriptBuilder
         }
 
         lines.Add(Line);
-        lines.AddRange((_document.CodeOf(definition.Id) ?? "").Replace("\r\n", "\n").Trim('\0').TrimEnd('\n').Split('\n'));
+        var code = (_document.CodeOf(definition.Id) ?? "").Replace("\r\n", "\n").Trim('\0').TrimEnd('\n').Split('\n');
+        if (!_lua)
+        {
+            lines.AddRange(code);
+            return lines;
+        }
+
+        // In Lua, World Editor puts an empty InitTrig before the trigger's own code, which InitCustomTriggers calls
+        // when the code has none, and keeps the code's last line ends.
+        string[] stub = [$"function InitTrig_{TriggerJass.Identifier(definition.Name)}()", "end", ""];
+        code = (_document.CodeOf(definition.Id) ?? "").Replace("\r\n", "\n").Trim('\0').Split('\n');
+        lines.AddRange(stub.Concat(code).Select(line => TriggerLua.UserCode + line));
         return lines;
     }
 }
