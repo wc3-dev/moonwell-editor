@@ -119,4 +119,24 @@ public sealed class PlacedSaveTests(GameDataFixture game, ITestOutputHelper outp
         Assert.True(maps > 200 || game.Data == null);
         Assert.True(same >= maps - 2, $"{same} of {maps}");
     }
+
+    [Fact]
+    public void A_script_whose_units_were_changed_by_hand_is_left_as_it_is_and_says_why()
+    {
+        var found = InstallMaps().FirstOrDefault(map => map.Path == "Maps/FrozenThrone/(4)LostTemple.w3x");
+        if (found.Store is not { } store)
+        {
+            return;
+        }
+
+        var info = Info(store);
+        var units = store.Read(MapUnits.FileName)!;
+        var script = Script(store, info)!.Replace("'nfor', -809.6, 6474.4", "'nfor', -809.6, 6000.0", StringComparison.Ordinal);
+        var session = Session.Open(store, game.Data!);
+
+        var built = session.PlacedScriptFor(script, info, units, units, out var problem);
+
+        Assert.Null(built);
+        Assert.Equal(Texts.Get("app.triggers.unitsCut"), problem);
+    }
 }
