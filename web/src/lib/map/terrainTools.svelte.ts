@@ -1,21 +1,56 @@
 /**
- * The Terrain Editor's tools: which group the header has on (none: the view selects and picks as before), the ground
- * brush's tool, outline, size and strength, and the tile a paint gives. Kept for the session, as the object editor
- * keeps its kind.
+ * The Terrain Editor's tools: which group the header has on (none: the view selects and picks as before), its tool
+ * (each group keeps the last one used), the brush's outline, size and strength, the tile a paint gives and the cliff
+ * type a cliff tool gives. Kept for the session, as the object editor keeps its kind.
  */
 import type { BrushShape, GroundTool } from "../bridge.gen.ts";
 
-/** The header's groups of terrain tools; only the ground's is built so far (the design's step 1). */
+/** The header's groups of terrain tools: the brushes' (the design's steps 1 and 2), then those to come. */
 export type ToolGroup = "ground" | "cliffs" | "water" | "place" | "regions" | "cameras";
+
+/** The groups whose tools are brushes on the ground. */
+export type BrushGroup = "ground" | "cliffs" | "water";
 
 export const terrainTools = $state<{
   group: ToolGroup | null;
   tool: GroundTool;
+  last: Record<BrushGroup, GroundTool>;
   shape: BrushShape;
   size: number;
   strength: number;
   tile: string | null;
-}>({ group: null, tool: "Paint", shape: "Circle", size: 3, strength: 16, tile: null });
+  cliffType: number;
+}>({
+  group: null,
+  tool: "Paint",
+  last: { ground: "Paint", cliffs: "CliffUp", water: "ShallowWater" },
+  shape: "Circle",
+  size: 3,
+  strength: 16,
+  tile: null,
+  cliffType: 0,
+});
+
+/** Whether `group` is one whose tools are brushes. */
+export function isBrushGroup(group: ToolGroup | null): group is BrushGroup {
+  return group === "ground" || group === "cliffs" || group === "water";
+}
+
+/** Turns `group` on with the tool it had last, or off when it is on. */
+export function toggleGroup(group: BrushGroup): void {
+  if (terrainTools.group === group) {
+    terrainTools.group = null;
+    return;
+  }
+  terrainTools.group = group;
+  terrainTools.tool = terrainTools.last[group];
+}
+
+/** Picks `tool` in the group that is on, which keeps it for next time. */
+export function chooseTool(tool: GroundTool): void {
+  terrainTools.tool = tool;
+  if (isBrushGroup(terrainTools.group)) terrainTools.last[terrainTools.group] = tool;
+}
 
 /** The largest brush, as the app allows (GroundTools.Largest). */
 export const largestBrush = 8;

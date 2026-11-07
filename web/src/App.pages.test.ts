@@ -178,10 +178,44 @@ describe("the header", () => {
     expect(panel.queryByRole("button", { name: "Dirt" })).toBeNull(); // the tiles are the paint's
     await fireEvent.click(panel.getByRole("button", { name: t("terrain.tool.paint") }));
     expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: t("header.terrain.cliffs") }).disabled,
+      screen.getByRole<HTMLButtonElement>("button", { name: t("header.terrain.place") }).disabled,
     ).toBe(true);
     await clickHeader(t("header.terrain.ground"));
     expect(screen.queryByRole("complementary", { name: t("terrain.panel") })).toBeNull();
+  });
+
+  test("the cliff tools offer the map's cliff types, and each group keeps its tool", async () => {
+    await openApp({
+      terrainTiles: [],
+      terrainCliffTypes: [
+        { number: 0, id: "CLdi", name: "Cliff (Dirt)", texture: "a.blp" },
+        { number: 1, id: "CLgr", name: "Cliff (Grass)", texture: "b.blp" },
+      ],
+    });
+    await clickHeader(t("header.terrainEditor"));
+    await clickHeader(t("header.terrain.ground"));
+    const tool = (name: string) =>
+      within(screen.getByRole("complementary", { name: t("terrain.panel") })).getByRole("button", {
+        name,
+      });
+    await fireEvent.click(tool(t("terrain.tool.smooth")));
+
+    await clickHeader(t("header.terrain.cliffs"));
+
+    expect(pressed(t("header.terrain.cliffs"))).toBe(true);
+    expect(tool(t("terrain.tool.cliffUp")).getAttribute("aria-pressed")).toBe("true");
+    const panel = within(screen.getByRole("complementary", { name: t("terrain.panel") }));
+    const grass = await panel.findByRole("button", { name: "Cliff (Grass)" });
+    await fireEvent.click(grass);
+    expect(grass.getAttribute("aria-pressed")).toBe("true");
+    expect(panel.queryByRole("button", { name: t("terrain.tool.paint") })).toBeNull();
+    await fireEvent.click(tool(t("terrain.tool.ramp")));
+    expect(panel.queryByRole("button", { name: "Cliff (Grass)" })).toBeNull(); // a ramp has no type
+
+    await clickHeader(t("header.terrain.water"));
+    expect(tool(t("terrain.tool.shallowWater")).getAttribute("aria-pressed")).toBe("true");
+    await clickHeader(t("header.terrain.ground"));
+    expect(tool(t("terrain.tool.smooth")).getAttribute("aria-pressed")).toBe("true");
   });
 
   test("the table is off until the experimental features are on", async () => {

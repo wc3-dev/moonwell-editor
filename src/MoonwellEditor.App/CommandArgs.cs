@@ -111,6 +111,7 @@ public sealed record MapSceneArgs(string Mode = "de");
 /// <param name="Tile">The tile a paint gives, by its id (<c>Ldrt</c>); null for the other tools.</param>
 /// <param name="First">True for a stroke's first step: the one before it, if still open, is closed.</param>
 /// <param name="Mode">The graphics mode the map view draws in: <c>sd</c>, <c>hd</c> or <c>de</c>.</param>
+/// <param name="CliffType">The cliff type a cliff tool gives: its number in the map's list.</param>
 public sealed record TerrainStrokeArgs(
     GroundTool Tool,
     IReadOnlyList<float[]> Points,
@@ -119,7 +120,8 @@ public sealed record TerrainStrokeArgs(
     float Strength,
     string? Tile,
     bool First,
-    string Mode = "de");
+    string Mode = "de",
+    int CliffType = 0);
 
 /// <summary>A map's path.</summary>
 /// <param name="Path">The map folder's or archive file's path.</param>

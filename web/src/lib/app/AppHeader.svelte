@@ -18,7 +18,7 @@ import TreePine from "@lucide/svelte/icons/tree-pine";
 import Video from "@lucide/svelte/icons/video";
 import Workflow from "@lucide/svelte/icons/workflow";
 import type { Component } from "svelte";
-import { terrainTools } from "../map/terrainTools.svelte.ts";
+import { type BrushGroup, terrainTools, toggleGroup } from "../map/terrainTools.svelte.ts";
 import KindBar from "../objects/KindBar.svelte";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
@@ -59,10 +59,14 @@ const editors = $derived<
   },
 ]);
 
-// The Terrain Editor's groups of tools, in the order the design builds them; the ground's is built (step 1).
+// The Terrain Editor's groups of tools, in the order the design builds them: the brushes' are built (steps 1 and 2).
+const brushGroups: { group: BrushGroup; name: string; Icon: HeaderIcon }[] = [
+  { group: "ground", name: t("header.terrain.ground"), Icon: Shovel },
+  { group: "cliffs", name: t("header.terrain.cliffs"), Icon: Mountain },
+  { group: "water", name: t("header.terrain.water"), Icon: Droplets },
+];
+
 const comingTerrainTools: { name: string; Icon: HeaderIcon }[] = [
-  { name: t("header.terrain.cliffs"), Icon: Mountain },
-  { name: t("header.terrain.water"), Icon: Droplets },
   { name: t("header.terrain.place"), Icon: TreePine },
   { name: t("header.terrain.regions"), Icon: SquareDashed },
   { name: t("header.terrain.cameras"), Icon: Video },
@@ -110,14 +114,11 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   {#if pages.page === "map"}
     <span class="toolbar-rule h-5 w-px shrink-0" aria-hidden="true"></span>
     <div class="flex shrink-0 gap-0.5" role="group" aria-label={t("header.terrainTools")}>
-      {@render pageButton(
-        t("header.terrain.ground"),
-        t("header.terrain.ground"),
-        Shovel,
-        terrainTools.group === "ground",
-        !session.map,
-        () => (terrainTools.group = terrainTools.group === "ground" ? null : "ground"),
-      )}
+      {#each brushGroups as each (each.group)}
+        {@render pageButton(each.name, each.name, each.Icon, terrainTools.group === each.group, !session.map, () =>
+          toggleGroup(each.group),
+        )}
+      {/each}
       {#each comingTerrainTools as each (each.name)}
         {@render comingButton(each.name, t("header.comingSoon", { name: each.name }), each.Icon)}
       {/each}

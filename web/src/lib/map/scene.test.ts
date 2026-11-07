@@ -53,13 +53,14 @@ describe("groundAt", () => {
 
 describe("patchTerrain", () => {
   // A patch of corners 1..2 by 0..1 of a 3 by 2 terrain: ground 10, 11 / 12, 13, and its one tile's layers.
-  function patch(left: number, columns: number, size = 16 + 4 * 12 + 8): ArrayBuffer {
+  function patch(left: number, columns: number, size = 16 + 4 * 12 + 8 + 1): ArrayBuffer {
     const buffer = new ArrayBuffer(size);
     const view = new DataView(buffer);
     for (const [at, value] of [left, 0, columns, 2].entries()) view.setInt32(at * 4, value, true);
     const floats = new Float32Array(buffer, 16, 12);
     floats.set([10, 11, 12, 13, 1, 1, 1, 1, Number.NaN, Number.NaN, Number.NaN, Number.NaN]);
     new Uint8Array(buffer, 64, 8).set([5, 16, 255, 255, 255, 255, 255, 255]);
+    new Uint8Array(buffer, 72, 1).set([0]); // its tile under a cliff now
     return buffer;
   }
 
@@ -80,6 +81,7 @@ describe("patchTerrain", () => {
     expect(Array.from(terrain.ground)).toEqual([0, 10, 11, 3, 12, 13]);
     expect(Array.from(terrain.layers.subarray(0, 2))).toEqual([3, 19]);
     expect(Array.from(terrain.layers.subarray(8, 10))).toEqual([5, 16]);
+    expect(Array.from(terrain.tiles)).toEqual([1, 0]);
   });
 
   it("refuses a patch of another size or off the terrain", () => {

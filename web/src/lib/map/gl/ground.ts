@@ -11,7 +11,14 @@
 import type { mat4 } from "gl-matrix";
 import type { Terrain, TerrainTexture } from "../scene.ts";
 import { type Lighting, lightingUniforms, litGlsl, setLighting } from "./lighting.ts";
-import { byteTexture, floatTexture, maskTexture, program, updateFloatTexture } from "./program.ts";
+import {
+  byteTexture,
+  floatTexture,
+  maskTexture,
+  program,
+  updateByteTexture,
+  updateFloatTexture,
+} from "./program.ts";
 
 /** How much of the light a baked Classic shadow takes away (the view's call). */
 const bakedShadow = 0.45;
@@ -135,10 +142,13 @@ export class GroundLayer {
     this.fillPasses();
   }
 
-  /** Draws the terrain's heights and layers as they are now, after an edit changed them. */
+  /** Draws the terrain's heights, layers and tiles' flags as they are now, after an edit changed them. */
   refresh(): void {
     const { gl, terrain } = this;
     updateFloatTexture(gl, this.heights, terrain.columns, terrain.rows, terrain.ground);
+    const across = Math.max(terrain.columns - 1, 0);
+    const down = Math.max(terrain.rows - 1, 0);
+    if (across > 0 && down > 0) updateByteTexture(gl, this.flags, across, down, terrain.tiles);
     this.fillPasses();
   }
 

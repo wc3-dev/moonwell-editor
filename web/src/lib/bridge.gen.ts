@@ -242,6 +242,18 @@ export type ChoiceList = {
   entries: ChoiceEntry[];
 };
 
+/** A cliff type the map lists, which the cliff tools offer. */
+export type CliffKind = {
+  /** Its number in the map's list, what a corner's cliff type holds. */
+  number: number;
+  /** Its id in `TerrainArt\CliffTypes.slk`, `CLdi`. */
+  id: string;
+  /** Its name, from World Editor's strings. */
+  name: string;
+  /** Its texture's game path, for a picture of it. */
+  texture: string;
+};
+
 /** A cliff or ramp model on a tile. */
 export type CliffPiece = {
   /** The tile's column (its bottom-left corner's). */
@@ -522,7 +534,7 @@ export type GroundTile = {
 };
 
 /** What a ground brush does to the corners under it; it goes to and from the page by its name. */
-export type GroundTool = "Paint" | "Raise" | "Lower" | "Plateau" | "Smooth";
+export type GroundTool = "Paint" | "Raise" | "Lower" | "Plateau" | "Smooth" | "CliffUp" | "CliffDown" | "CliffLevel" | "Ramp" | "ShallowWater" | "DeepWater";
 
 /** One search result: an object, or a field of a kind. */
 export type Hit = {
@@ -1097,6 +1109,8 @@ export type TerrainChange = {
   bytes: string;
   /** True when the map's list of tiles grew: the view reads the whole scene again. */
   tiles: boolean;
+  /** True when cliffs, ramps or water changed: the view asks for the cliff models once the stroke ends. */
+  cliffs: boolean;
 };
 
 /** One step of a ground brush's stroke in the Terrain Editor. */
@@ -1117,6 +1131,8 @@ export type TerrainStrokeArgs = {
   first: boolean;
   /** The graphics mode the map view draws in: `sd`, `hd` or `de`. */
   mode?: string;
+  /** The cliff type a cliff tool gives: its number in the map's list. */
+  cliffType?: number;
 };
 
 /** A ground texture: a sheet of 4 by 4 pieces, 8 by 4 when it has variations. */
@@ -1427,6 +1443,8 @@ export type Commands = {
   table: { args: TableArgs; answer: TableRow[] };
   terminalShells: { args: NoArgs; answer: Shell[] };
   terminalStart: { args: TerminalStartArgs; answer: TerminalStarted };
+  terrainCliffTypes: { args: MapSceneArgs; answer: CliffKind[] };
+  terrainCliffs: { args: MapSceneArgs; answer: CliffPiece[] };
   terrainStroke: { args: TerrainStrokeArgs; answer: TerrainChange };
   terrainStrokeEnd: { args: NoArgs; answer: null };
   terrainTiles: { args: MapSceneArgs; answer: GroundTile[] };

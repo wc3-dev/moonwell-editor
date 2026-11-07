@@ -40,9 +40,7 @@ public static class TerrainBytes
         {
             for (var column = 0; column < columns - 1; column++)
             {
-                writer.Write((byte)((cliffs.Covered(column, row) ? 0 : 1)
-                    | (grid.Edge(column, row) ? 2 : 0)
-                    | (grid.Boundary(column, row) ? 4 : 0)));
+                writer.Write(Flags(grid, cliffs, column, row));
             }
         }
 
@@ -55,13 +53,13 @@ public static class TerrainBytes
     /// The bytes of a part of a terrain, for the page to redraw after an edit: int32 left, bottom, columns and rows of
     /// the corners <paramref name="left"/> to <paramref name="right"/> and <paramref name="bottom"/> to
     /// <paramref name="top"/>; their ground, relief and water as in <see cref="Write"/>; then the tiles between them,
-    /// each its four layers. The tiles' flags and the shadows are left out: an edit of the ground leaves them as they
-    /// were.
+    /// each its four layers, then each its flags. The shadows are left out: an edit leaves them as they were.
     /// </summary>
-    public static byte[] Patch(TerrainGrid grid, TileLayers layers, int left, int bottom, int right, int top)
+    public static byte[] Patch(
+        TerrainGrid grid, TileLayers layers, CliffTiles cliffs, int left, int bottom, int right, int top)
     {
         var (columns, rows) = (right - left + 1, top - bottom + 1);
-        using var stream = new MemoryStream(16 + (columns * rows * 12) + (columns * rows * 8));
+        using var stream = new MemoryStream(16 + (columns * rows * 12) + (columns * rows * 9));
         using var writer = new BinaryWriter(stream);
         writer.Write(left);
         writer.Write(bottom);
@@ -94,9 +92,22 @@ public static class TerrainBytes
             }
         }
 
+        for (var row = bottom; row < top; row++)
+        {
+            for (var column = left; column < right; column++)
+            {
+                writer.Write(Flags(grid, cliffs, column, row));
+            }
+        }
+
         writer.Flush();
         return stream.ToArray();
     }
+
+    // A tile's flags: bit 0 the ground is drawn (no cliff model covers it), bit 1 outside the playable area, bit 2
+    // boundary.
+    private static byte Flags(TerrainGrid grid, CliffTiles cliffs, int column, int row) =>
+        (byte)((cliffs.Covered(column, row) ? 0 : 1) | (grid.Edge(column, row) ? 2 : 0) | (grid.Boundary(column, row) ? 4 : 0));
 
     private static void Corners(BinaryWriter writer, TerrainGrid grid, Func<int, int, float> value)
     {

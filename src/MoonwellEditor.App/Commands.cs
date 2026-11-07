@@ -41,7 +41,8 @@ public sealed record SessionState(bool Dirty, int ChangedObjects, int TerrainVer
 /// <param name="Rows">How many rows of corners.</param>
 /// <param name="Bytes">The bytes <c>TerrainBytes.Patch</c> writes, as base64.</param>
 /// <param name="Tiles">True when the map's list of tiles grew: the view reads the whole scene again.</param>
-public sealed record TerrainChange(int Left, int Bottom, int Columns, int Rows, string Bytes, bool Tiles);
+/// <param name="Cliffs">True when cliffs, ramps or water changed: the view asks for the cliff models once the stroke ends.</param>
+public sealed record TerrainChange(int Left, int Bottom, int Columns, int Rows, string Bytes, bool Tiles, bool Cliffs);
 
 /// <summary>What the <c>closeRequested</c> event carries.</summary>
 /// <param name="Dirty">True when the window saw the map with unsaved edits.</param>
@@ -418,6 +419,8 @@ public sealed partial class Commands
         CommandEntry.Of("terrainStroke", (Commands c, TerrainStrokeArgs a) => c.TerrainStroke(a)),
         CommandEntry.Do("terrainStrokeEnd", (Commands c) => c.EndStroke()),
         CommandEntry.Of("terrainTiles", (Commands c, MapSceneArgs a) => c.Ground().Tiles(Checked(a.Mode))),
+        CommandEntry.Of("terrainCliffs", (Commands c, MapSceneArgs a) => c.Ground().CliffPieces(Checked(a.Mode))),
+        CommandEntry.Of("terrainCliffTypes", (Commands c, MapSceneArgs a) => c.Ground().CliffTypes(Checked(a.Mode))),
         CommandEntry.Of("recentMaps", (Commands c) => c.RecentMaps()),
         CommandEntry.Of("forgetMap", (Commands c, PathArgs a) => c.ForgetMap(a.Path)),
     ];
@@ -742,9 +745,15 @@ public sealed partial class Commands
         {
             var points = args.Points.Where(point => point.Length == 2).Select(point => (point[0], point[1])).ToList();
             var brush = new Brush(args.Shape, args.Size, args.Strength);
-            var patch = editor.Stroke(args.Tool, points, brush, args.Tile, args.Mode, args.First);
+            var patch = editor.Stroke(args.Tool, points, brush, args.Tile, args.Mode, args.First, args.CliffType);
             return new TerrainChange(
-                patch.Left, patch.Bottom, patch.Columns, patch.Rows, Convert.ToBase64String(patch.Bytes), patch.Tiles);
+                patch.Left,
+                patch.Bottom,
+                patch.Columns,
+                patch.Rows,
+                Convert.ToBase64String(patch.Bytes),
+                patch.Tiles,
+                patch.Cliffs);
         }
         catch (ArgumentException exception)
         {

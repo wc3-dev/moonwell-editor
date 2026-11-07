@@ -1,22 +1,34 @@
 <script lang="ts">
 /**
  * The Terrain Editor's dock: the chosen group's options, beside the map (the H Matte dock, as the object editor's list
- * sits beside its details; Sven agreed to the mockup, 2026-11-06). The ground's: the tool, the brush's outline, size and
- * strength, and the tiles a paint gives, the map's first (it lists at most 16), then the rest of its tileset's, which a
- * paint adds to the map's list.
+ * sits beside its details; Sven agreed to the mockup, 2026-11-06). Each group's tools as icons, then the brush's
+ * outline, size and strength. The ground's paint offers its tiles, the map's first (it lists at most 16), then the rest
+ * of its tileset's, which a paint adds to the map's list; the cliff tools offer the map's cliff types.
  */
+import ArrowDownToLine from "@lucide/svelte/icons/arrow-down-to-line";
+import ArrowUpToLine from "@lucide/svelte/icons/arrow-up-to-line";
 import ChevronsDown from "@lucide/svelte/icons/chevrons-down";
 import ChevronsUp from "@lucide/svelte/icons/chevrons-up";
 import Circle from "@lucide/svelte/icons/circle";
+import Droplet from "@lucide/svelte/icons/droplet";
 import Equal from "@lucide/svelte/icons/equal";
+import Minus from "@lucide/svelte/icons/minus";
 import Paintbrush from "@lucide/svelte/icons/paintbrush";
 import Spline from "@lucide/svelte/icons/spline";
 import Square from "@lucide/svelte/icons/square";
-import { iconUrl, terrainTiles } from "../api.ts";
-import type { BrushShape, GroundTile, GroundTool } from "../bridge.gen.ts";
+import TrendingUp from "@lucide/svelte/icons/trending-up";
+import WavesArrowDown from "@lucide/svelte/icons/waves-arrow-down";
+import { iconUrl, terrainCliffTypes, terrainTiles } from "../api.ts";
+import type { BrushShape, CliffKind, GroundTile, GroundTool } from "../bridge.gen.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
-import { largestBrush, terrainTools } from "./terrainTools.svelte.ts";
+import {
+  type BrushGroup,
+  chooseTool,
+  isBrushGroup,
+  largestBrush,
+  terrainTools,
+} from "./terrainTools.svelte.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in, for the tiles' pictures. */
@@ -27,16 +39,36 @@ type Props = {
 
 let { mode, version }: Props = $props();
 
-// The tools as icons, their names as tooltips (Sven, 2026-11-07).
-const tools: { tool: GroundTool; key: TextKey; Icon: typeof Circle }[] = [
-  { tool: "Paint", key: "terrain.tool.paint", Icon: Paintbrush },
-  { tool: "Raise", key: "terrain.tool.raise", Icon: ChevronsUp },
-  { tool: "Lower", key: "terrain.tool.lower", Icon: ChevronsDown },
-  { tool: "Plateau", key: "terrain.tool.plateau", Icon: Equal },
-  { tool: "Smooth", key: "terrain.tool.smooth", Icon: Spline },
-];
+type Tool = { tool: GroundTool; key: TextKey; Icon: typeof Circle };
+
+// Each group's tools as icons, their names as tooltips (Sven, 2026-11-07).
+const groupTools: Record<BrushGroup, Tool[]> = {
+  ground: [
+    { tool: "Paint", key: "terrain.tool.paint", Icon: Paintbrush },
+    { tool: "Raise", key: "terrain.tool.raise", Icon: ChevronsUp },
+    { tool: "Lower", key: "terrain.tool.lower", Icon: ChevronsDown },
+    { tool: "Plateau", key: "terrain.tool.plateau", Icon: Equal },
+    { tool: "Smooth", key: "terrain.tool.smooth", Icon: Spline },
+  ],
+  cliffs: [
+    { tool: "CliffUp", key: "terrain.tool.cliffUp", Icon: ArrowUpToLine },
+    { tool: "CliffDown", key: "terrain.tool.cliffDown", Icon: ArrowDownToLine },
+    { tool: "CliffLevel", key: "terrain.tool.cliffLevel", Icon: Minus },
+    { tool: "Ramp", key: "terrain.tool.ramp", Icon: TrendingUp },
+  ],
+  water: [
+    { tool: "ShallowWater", key: "terrain.tool.shallowWater", Icon: Droplet },
+    { tool: "DeepWater", key: "terrain.tool.deepWater", Icon: WavesArrowDown },
+  ],
+};
+const tools = $derived(isBrushGroup(terrainTools.group) ? groupTools[terrainTools.group] : []);
 const toolName = $derived(
   t(tools.find((each) => each.tool === terrainTools.tool)?.key ?? "terrain.tool"),
+);
+const cliffTool = $derived(
+  terrainTools.tool === "CliffUp" ||
+    terrainTools.tool === "CliffDown" ||
+    terrainTools.tool === "CliffLevel",
 );
 const shapes: { shape: BrushShape; key: TextKey; Icon: typeof Circle }[] = [
   { shape: "Circle", key: "terrain.shape.circle", Icon: Circle },
@@ -46,7 +78,28 @@ const shapes: { shape: BrushShape; key: TextKey; Icon: typeof Circle }[] = [
 const mostTiles = 16;
 
 let tiles = $state<GroundTile[]>([]);
+let cliffTypes = $state<CliffKind[]>([]);
 let failure = $state("");
+
+$effect(() => {
+  void version;
+  const shown = mode;
+  if (terrainTools.group !== "cliffs") return;
+  let gone = false;
+  terrainCliffTypes(shown).then(
+    (read) => {
+      if (gone) return;
+      cliffTypes = read;
+      if (!read.some((type) => type.number === terrainTools.cliffType)) terrainTools.cliffType = 0;
+    },
+    (error) => {
+      if (!gone) failure = errorText(error);
+    },
+  );
+  return () => {
+    gone = true;
+  };
+});
 const listed = $derived(tiles.filter((tile) => tile.inMap));
 const others = $derived(tiles.filter((tile) => !tile.inMap));
 
@@ -109,7 +162,7 @@ $effect(() => {
             title={t(each.key)}
             aria-label={t(each.key)}
             aria-pressed={terrainTools.tool === each.tool}
-            onclick={() => (terrainTools.tool = each.tool)}
+            onclick={() => chooseTool(each.tool)}
           >
             <each.Icon size={16} />
           </button>
@@ -147,6 +200,7 @@ $effect(() => {
           bind:value={terrainTools.size}
         />
         <span class="min-w-7 rounded-ui bg-field px-1.5 text-right font-mono text-mono text-normal">{terrainTools.size}</span>
+        {#if terrainTools.group === "ground"}
         <label for="terrain-strength" class={terrainTools.tool === "Raise" || terrainTools.tool === "Lower" ? "" : "opacity-45"}
           >{t("terrain.strength")}</label
         >
@@ -166,8 +220,32 @@ $effect(() => {
             ? ''
             : 'opacity-45'}">{terrainTools.strength}</span
         >
+        {/if}
       </div>
     </section>
+    {#if cliffTool && cliffTypes.length > 0}
+      <section>
+        <h3 class="mb-1.5 text-small uppercase tracking-wider text-faint">{t("terrain.cliffType")}</h3>
+        <div class="flex flex-col gap-1" role="group" aria-label={t("terrain.cliffType")}>
+          {#each cliffTypes as type (type.number)}
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-ui border px-1.5 py-1 text-left {terrainTools.cliffType === type.number
+                ? 'border-accent bg-accent-background text-accent-text'
+                : 'border-transparent bg-raised text-soft hover:text-normal'}"
+              aria-pressed={terrainTools.cliffType === type.number}
+              onclick={() => (terrainTools.cliffType = type.number)}
+            >
+              <span
+                class="block h-6 w-6 shrink-0 rounded-ui bg-field bg-cover"
+                style="background-image: url('{iconUrl(type.texture, mode)}')"
+              ></span>
+              <span class="truncate">{type.name}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
     {#if terrainTools.tool === "Paint"}
       <section>
         <h3 class="mb-1.5 flex justify-between text-small uppercase tracking-wider text-faint">
