@@ -214,6 +214,17 @@ the game makes it from `war3map.doo` unless that says not to, so the script woul
 not write that file yet. In that case, for a Lua map and for vJass (only JassHelper's output is in the script) the
 triggers are saved, the script is left as it is, and the save says so.
 
+World Editor makes a map's placed units and items in its script, from `war3mapUnits.doo`, so a save that changed that
+file writes the script's Unit Item Tables, Items and Unit Creation parts again, and main's calls of them
+(`PlacedScript`, before the triggers are written on top). It first writes them for the units as they were and compares
+that with the script: a script whose parts are not World Editor's (an older editor's, or changed by hand) is left as it
+is, and the save says so. What World Editor takes from the game's data (a unit type's building flag and team colour,
+an ability's autocast orders, an item's team colour) comes from the session's game data with the map's changes; its
+items are listed in the order of the C runtime's `qsort` by type. `PlacedSaveTests` writes every map of the install
+back to its own script (all but two, which are left as they are), and `PlacedScriptSaveTests` places, moves and removes
+units and items through the terrain editor. Destructables and doodads need nothing: the game makes them from
+`war3map.doo`.
+
 A function's place in a trigger is a path of steps split by `/`: a number is a function of the trigger, `cN` a function
 inside the one before it, `pN` a parameter, `i` an array's index (`3/c1/p2/p0`).
 
