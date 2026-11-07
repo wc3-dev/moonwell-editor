@@ -5,7 +5,12 @@
  * strength, and the tiles a paint gives, the map's first (it lists at most 16), then the rest of its tileset's, which a
  * paint adds to the map's list.
  */
+import ChevronsDown from "@lucide/svelte/icons/chevrons-down";
+import ChevronsUp from "@lucide/svelte/icons/chevrons-up";
 import Circle from "@lucide/svelte/icons/circle";
+import Equal from "@lucide/svelte/icons/equal";
+import Paintbrush from "@lucide/svelte/icons/paintbrush";
+import Spline from "@lucide/svelte/icons/spline";
 import Square from "@lucide/svelte/icons/square";
 import { iconUrl, terrainTiles } from "../api.ts";
 import type { BrushShape, GroundTile, GroundTool } from "../bridge.gen.ts";
@@ -22,13 +27,17 @@ type Props = {
 
 let { mode, version }: Props = $props();
 
-const tools: { tool: GroundTool; key: TextKey }[] = [
-  { tool: "Paint", key: "terrain.tool.paint" },
-  { tool: "Raise", key: "terrain.tool.raise" },
-  { tool: "Lower", key: "terrain.tool.lower" },
-  { tool: "Plateau", key: "terrain.tool.plateau" },
-  { tool: "Smooth", key: "terrain.tool.smooth" },
+// The tools as icons, their names as tooltips (Sven, 2026-11-07).
+const tools: { tool: GroundTool; key: TextKey; Icon: typeof Circle }[] = [
+  { tool: "Paint", key: "terrain.tool.paint", Icon: Paintbrush },
+  { tool: "Raise", key: "terrain.tool.raise", Icon: ChevronsUp },
+  { tool: "Lower", key: "terrain.tool.lower", Icon: ChevronsDown },
+  { tool: "Plateau", key: "terrain.tool.plateau", Icon: Equal },
+  { tool: "Smooth", key: "terrain.tool.smooth", Icon: Spline },
 ];
+const toolName = $derived(
+  t(tools.find((each) => each.tool === terrainTools.tool)?.key ?? "terrain.tool"),
+);
 const shapes: { shape: BrushShape; key: TextKey; Icon: typeof Circle }[] = [
   { shape: "Circle", key: "terrain.shape.circle", Icon: Circle },
   { shape: "Square", key: "terrain.shape.square", Icon: Square },
@@ -87,17 +96,23 @@ $effect(() => {
 <aside class="flex min-h-0 flex-col overflow-hidden rounded-ui bg-panel" aria-label={t("terrain.panel")}>
   <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto px-2.5 py-2">
     <section>
-      <h3 class="mb-1.5 text-small uppercase tracking-wider text-faint">{t("terrain.tool")}</h3>
+      <h3 class="mb-1.5 flex justify-between text-small uppercase tracking-wider text-faint">
+        <span>{t("terrain.tool")}</span><span>{toolName}</span>
+      </h3>
       <div class="flex flex-wrap gap-0.5" role="group" aria-label={t("terrain.tool")}>
         {#each tools as each (each.tool)}
           <button
             type="button"
-            class="rounded-ui border px-2 py-px {terrainTools.tool === each.tool
+            class="grid h-[26px] w-[30px] place-items-center rounded-ui border {terrainTools.tool === each.tool
               ? 'border-accent bg-accent-background text-accent-text'
-              : 'border-transparent bg-raised text-soft hover:text-normal'}"
+              : 'border-transparent bg-raised text-muted hover:text-normal'}"
+            title={t(each.key)}
+            aria-label={t(each.key)}
             aria-pressed={terrainTools.tool === each.tool}
-            onclick={() => (terrainTools.tool = each.tool)}>{t(each.key)}</button
+            onclick={() => (terrainTools.tool = each.tool)}
           >
+            <each.Icon size={16} />
+          </button>
         {/each}
       </div>
     </section>

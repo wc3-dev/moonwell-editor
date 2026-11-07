@@ -10,8 +10,8 @@ import Menu from "@lucide/svelte/icons/menu";
 import Mountain from "@lucide/svelte/icons/mountain";
 import MountainSnow from "@lucide/svelte/icons/mountain-snow";
 import Package from "@lucide/svelte/icons/package";
-import Paintbrush from "@lucide/svelte/icons/paintbrush";
 import Rows3 from "@lucide/svelte/icons/rows-3";
+import Shovel from "@lucide/svelte/icons/shovel";
 import SquareDashed from "@lucide/svelte/icons/square-dashed";
 import Table2 from "@lucide/svelte/icons/table-2";
 import TreePine from "@lucide/svelte/icons/tree-pine";
@@ -113,7 +113,7 @@ const comingEditors: { name: string; Icon: HeaderIcon }[] = [
       {@render pageButton(
         t("header.terrain.ground"),
         t("header.terrain.ground"),
-        Paintbrush,
+        Shovel,
         terrainTools.group === "ground",
         !session.map,
         () => (terrainTools.group = terrainTools.group === "ground" ? null : "ground"),

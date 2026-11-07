@@ -172,6 +172,11 @@ describe("the header", () => {
     await panel.findByRole("button", { name: "Dirt" });
     panel.getByRole("button", { name: "Grass" });
     expect(app.count("terrainTiles")).toBe(1);
+    const raise = panel.getByRole("button", { name: t("terrain.tool.raise") });
+    await fireEvent.click(raise);
+    expect(raise.getAttribute("aria-pressed")).toBe("true");
+    expect(panel.queryByRole("button", { name: "Dirt" })).toBeNull(); // the tiles are the paint's
+    await fireEvent.click(panel.getByRole("button", { name: t("terrain.tool.paint") }));
     expect(
       screen.getByRole<HTMLButtonElement>("button", { name: t("header.terrain.cliffs") }).disabled,
     ).toBe(true);
