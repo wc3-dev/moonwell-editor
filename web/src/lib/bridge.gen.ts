@@ -791,6 +791,31 @@ export type PathArgs = {
   path: string;
 };
 
+/** A thing to place in the Terrain Editor. */
+export type PlaceArgs = {
+  /** What kind of thing. */
+  kind: PlaceKind;
+  /** Its type's id, `hfoo`. */
+  typeId: string;
+  /** Where it goes. */
+  x: number;
+  /** Where it goes. */
+  y: number;
+  /** The player a unit belongs to: 0 for player 1, 24 Neutral Hostile, 27 Neutral Passive. */
+  owner?: number;
+};
+
+/** What kind of thing can be placed; it goes to and from the page by its name. */
+export type PlaceKind = "Unit" | "Item" | "Destructable" | "Doodad";
+
+/** A player a placed unit can belong to: one of the map's, or a neutral one. */
+export type PlacePlayer = {
+  /** The player's number in the unit file: 0 for player 1, 24 Neutral Hostile, 27 Neutral Passive. */
+  number: number;
+  /** The player's name: the map's, or the neutral player's. */
+  name: string;
+};
+
 /** A thing placed on the map, as the view draws and picks it. */
 export type PlacedThing = {
   /** Its number, from 1, in the order of the list: the doodad file's, then the unit file's. */
@@ -1153,6 +1178,30 @@ export type TextPart = {
   parameter: ParameterView | null;
 };
 
+/** A placed thing to change, by its number (see `terrainThings`), with what to change. */
+export type ThingArgs = {
+  /** The thing's number, from 1. */
+  number: number;
+  /** Where a move takes it. */
+  x?: number;
+  /** Where a move takes it. */
+  y?: number;
+  /** How far a turn turns it, counter-clockwise. */
+  degrees?: number;
+  /** The scale a resize gives a doodad or destructable. */
+  scale?: number;
+  /** The player a unit is given to. */
+  owner?: number;
+};
+
+/** What a change to a placed thing left: the thing's number and the terrain's version after it. */
+export type ThingChange = {
+  /** The thing's number: a new one's for a place. */
+  number: number;
+  /** The terrain's version (TerrainEditor.Version) after the change. */
+  version: number;
+};
+
 /** What kind of thing is placed; it goes to the page by its name (`StartLocation`). */
 export type ThingKind = "Unit" | "Item" | "StartLocation" | "Destructable" | "Doodad";
 
@@ -1445,9 +1494,17 @@ export type Commands = {
   terminalStart: { args: TerminalStartArgs; answer: TerminalStarted };
   terrainCliffTypes: { args: MapSceneArgs; answer: CliffKind[] };
   terrainCliffs: { args: MapSceneArgs; answer: CliffPiece[] };
+  terrainMove: { args: ThingArgs; answer: ThingChange };
+  terrainOwn: { args: ThingArgs; answer: ThingChange };
+  terrainPlace: { args: PlaceArgs; answer: ThingChange };
+  terrainPlayers: { args: NoArgs; answer: PlacePlayer[] };
+  terrainRemove: { args: ThingArgs; answer: ThingChange };
+  terrainResize: { args: ThingArgs; answer: ThingChange };
   terrainStroke: { args: TerrainStrokeArgs; answer: TerrainChange };
   terrainStrokeEnd: { args: NoArgs; answer: null };
+  terrainThings: { args: MapSceneArgs; answer: PlacedThing[] };
   terrainTiles: { args: MapSceneArgs; answer: GroundTile[] };
+  terrainTurn: { args: ThingArgs; answer: ThingChange };
   tree: { args: KindArgs; answer: TreeEntry[] };
   trigger: { args: IdArgs; answer: TriggerView };
   triggerAdd: { args: TriggerAddArgs; answer: NewTriggerItem };

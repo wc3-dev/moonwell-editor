@@ -3,6 +3,14 @@
  * theirs in the same folders (Sven, 2026-10-28). The tree pane draws only the rows in view, so it works from this flat
  * list.
  */
+import Flame from "@lucide/svelte/icons/flame";
+import HandFist from "@lucide/svelte/icons/hand-fist";
+import Lamp from "@lucide/svelte/icons/lamp";
+import LayersPlus from "@lucide/svelte/icons/layers-plus";
+import Sword from "@lucide/svelte/icons/sword";
+import Trees from "@lucide/svelte/icons/trees";
+import User from "@lucide/svelte/icons/user";
+import type { Component } from "svelte";
 import type { Kind, TreeEntry } from "../api.ts";
 import { t } from "../text.ts";
 
@@ -71,6 +79,17 @@ export const kindNames: Record<Kind, string> = {
   ability: t("kind.ability"),
   buff: t("kind.buff"),
   upgrade: t("kind.upgrade"),
+};
+
+/** Each kind's icon (Sven, 2026-10-27), in the Object Editor's header and where the Terrain Editor places things. */
+export const kindIcons: Record<Kind, Component<{ size?: number }>> = {
+  unit: User,
+  item: Sword,
+  destructable: Trees,
+  doodad: Lamp,
+  ability: HandFist,
+  buff: Flame,
+  upgrade: LayersPlus,
 };
 
 /** Each kind's colour, as a text class: its icon and its objects' names show in it. */

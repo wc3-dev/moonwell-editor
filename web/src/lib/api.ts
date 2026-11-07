@@ -22,6 +22,9 @@ import type {
   MapInfo,
   MapSceneView,
   ObjectView,
+  PlaceArgs,
+  PlacedThing,
+  PlacePlayer,
   RecentMap,
   Reference,
   SaveReport,
@@ -30,6 +33,8 @@ import type {
   TableRow,
   TerrainChange,
   TerrainStrokeArgs,
+  ThingArgs,
+  ThingChange,
   TreeEntry,
   WindowState,
 } from "./bridge.gen.ts";
@@ -360,6 +365,30 @@ export function terrainCliffTypes(mode: string): Promise<CliffKind[]> {
 export function terrainCliffs(mode: string): Promise<CliffPiece[]> {
   return call("terrainCliffs", { mode });
 }
+
+/** The placed things as the view draws them now, after a change to one. */
+export function terrainThings(mode: string): Promise<PlacedThing[]> {
+  return call("terrainThings", { mode });
+}
+
+/** The players a placed unit can belong to: the map's, then the neutral ones. */
+export function terrainPlayers(): Promise<PlacePlayer[]> {
+  return call("terrainPlayers");
+}
+
+/** Places a thing in the Terrain Editor: one undo step. */
+export function terrainPlace(args: PlaceArgs): Promise<ThingChange> {
+  return call("terrainPlace", args);
+}
+
+/** The changes to a placed thing, each one undo step: `args.number` is the thing's (see terrainThings). */
+export const terrainThing = {
+  move: (args: ThingArgs): Promise<ThingChange> => call("terrainMove", args),
+  turn: (args: ThingArgs): Promise<ThingChange> => call("terrainTurn", args),
+  resize: (args: ThingArgs): Promise<ThingChange> => call("terrainResize", args),
+  own: (args: ThingArgs): Promise<ThingChange> => call("terrainOwn", args),
+  remove: (args: ThingArgs): Promise<ThingChange> => call("terrainRemove", args),
+};
 
 /** The tiles the paint brush offers in a graphics mode: the tileset's, then the map's others. */
 export function terrainTiles(mode: string): Promise<GroundTile[]> {

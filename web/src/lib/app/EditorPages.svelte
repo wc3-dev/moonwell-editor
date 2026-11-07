@@ -27,7 +27,7 @@ const notice = (text: string, warn?: boolean) => notices.say(text, { warn });
     {/if}
     <!-- A map opened or reloaded is a new object: the view is made again and reads it. -->
     {#key session.map}
-      <MapView mode={graphics.mode} terrainVersion={session.state?.terrainVersion ?? 0} />
+      <MapView mode={graphics.mode} terrainVersion={session.state?.terrainVersion ?? 0} keymap={editor.keymap} />
     {/key}
   </main>
 {/if}

@@ -178,10 +178,42 @@ describe("the header", () => {
     expect(panel.queryByRole("button", { name: "Dirt" })).toBeNull(); // the tiles are the paint's
     await fireEvent.click(panel.getByRole("button", { name: t("terrain.tool.paint") }));
     expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: t("header.terrain.place") }).disabled,
+      within(
+        screen.getByRole("group", { name: t("header.terrainTools") }),
+      ).getByRole<HTMLButtonElement>("button", {
+        name: t("header.terrain.regions"),
+      }).disabled,
     ).toBe(true);
     await clickHeader(t("header.terrain.ground"));
     expect(screen.queryByRole("complementary", { name: t("terrain.panel") })).toBeNull();
+  });
+
+  test("the Place dock chooses the kind with the Object Editor's icons and lists its types", async () => {
+    await openApp({
+      terrainTiles: [],
+      terrainPlayers: [
+        { number: 0, name: "Player 1" },
+        { number: 24, name: "Neutral Hostile" },
+      ],
+    });
+    await clickHeader(t("header.terrainEditor"));
+
+    await clickHeader(t("header.terrain.place"));
+
+    const panel = within(await screen.findByRole("complementary", { name: t("terrain.panel") }));
+    const unit = panel.getByRole("button", { name: t("kind.unit") });
+    expect(unit.getAttribute("aria-pressed")).toBe("true");
+    expect(unit.className).toContain("text-kind-unit");
+    await panel.findByRole("option", { name: /Footman/ });
+    await panel.findByRole("option", { name: "Neutral Hostile" });
+    await fireEvent.click(panel.getByRole("option", { name: /Footman/ }));
+    expect(panel.getByRole("option", { name: /Footman/ }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    await fireEvent.click(panel.getByRole("button", { name: t("kind.doodad") }));
+    expect(panel.queryByRole("combobox", { name: t("terrain.owner") })).toBeNull(); // a doodad has no player
+    expect(panel.queryByRole("button", { name: t("terrain.tool.paint") })).toBeNull();
+    await clickHeader(t("header.terrain.place"));
   });
 
   test("the cliff tools offer the map's cliff types, and each group keeps its tool", async () => {
