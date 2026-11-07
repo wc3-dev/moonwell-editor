@@ -82,6 +82,38 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void An_undo_or_redo_redraws_only_what_its_step_touched()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, _, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            var (x, y) = (editor.Terrain.Left + (80 * 128f), editor.Terrain.Bottom + (80 * 128f));
+            var patch = editor.Stroke(GroundTool.CliffUp, [(x, y)], new Brush(BrushShape.Square, 1, 0), null, "sd", first: true);
+            editor.EndStroke();
+            var number = editor.Place(PlaceKind.Unit, "hfoo", x + 1000, y, 0);
+            var none = editor.Redrawn("sd");
+            Assert.Equal((0, false, false), (none.Ground.Columns, none.Things, none.Marks));
+
+            Assert.True(session.Undo());
+            Assert.True(session.Undo());
+            var redrawn = editor.Redrawn("sd");
+
+            Assert.Equal((patch.Left, patch.Bottom, patch.Columns, patch.Rows), (redrawn.Ground.Left, redrawn.Ground.Bottom, redrawn.Ground.Columns, redrawn.Ground.Rows));
+            Assert.Equal(patch.Bytes.Length, redrawn.Ground.Bytes.Length);
+            Assert.True(redrawn.Ground.Cliffs);
+            Assert.False(redrawn.Ground.Tiles);
+            Assert.True(redrawn.Things);
+            Assert.False(redrawn.Marks);
+            Assert.Equal(0, editor.Redrawn("sd").Ground.Columns);
+            Assert.True(number > 0);
+        }
+    }
+
+    [Fact]
     public void Painting_a_tile_the_map_lacks_adds_it_and_a_save_writes_the_terrain()
     {
         if (Open(InstallMaps.LostTemple) is not var (folder, store, session, editor))
