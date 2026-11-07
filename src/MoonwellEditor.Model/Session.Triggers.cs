@@ -215,14 +215,24 @@ public sealed partial class Session : ITriggerNames
         return null;
     }
 
-    private void AddScript(List<(string Name, byte[] Bytes)> changes, MapInfo info)
+    // The map's script file; null when it has none. An archive may hold its script in a folder; a folder map keeps its
+    // files at the top.
+    private string? ScriptFileOf(MapInfo info)
     {
-        // An archive may hold its script in a folder; a folder map keeps its files at the top.
         var (top, inFolder) = info.ScriptLanguage == ScriptLanguage.Lua
             ? (LuaScriptName, LuaScriptNameInFolder)
             : (ScriptName, ScriptNameInFolder);
         var name = !_store.IsArchive || _store.Read(top) != null ? top : inFolder;
-        if (_store.Read(name) is not { } bytes)
+        return _store.Read(name) == null ? null : name;
+    }
+
+    // The script as the save writes it so far: with the placed units and items when they changed.
+    private void AddScript(List<(string Name, byte[] Bytes)> changes, MapInfo info)
+    {
+        var top = info.ScriptLanguage == ScriptLanguage.Lua ? LuaScriptName : ScriptName;
+        var name = ScriptFileOf(info);
+        var pending = changes.FindIndex(change => change.Name == name);
+        if (name == null || (pending >= 0 ? changes[pending].Bytes : _store.Read(name)) is not { } bytes)
         {
             _scriptNote = Texts.Get("app.triggers.noScript", ("name", top));
             return;
@@ -243,6 +253,12 @@ public sealed partial class Session : ITriggerNames
         if (written == null)
         {
             _scriptNote = problem ?? "";
+            return;
+        }
+
+        if (pending >= 0)
+        {
+            changes[pending] = (name, StrictUtf8.GetBytes(written));
             return;
         }
 

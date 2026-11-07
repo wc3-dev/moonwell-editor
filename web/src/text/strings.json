@@ -178,6 +178,8 @@
   "app.triggers.scriptFailed": "The trigger \"{trigger}\" could not be written to the script, so the script was left as it is: {reason}",
   "app.triggers.scriptPlaced": "The triggers were saved, but the script was left as it is: it does not make {name} where the map places it.",
   "app.triggers.scriptVJass": "The triggers were saved, but the script was left as it is: the map's custom script is vJass, which World Editor's JassHelper has to turn into the script.",
+  "app.triggers.unitsCut": "The placed units and items were saved, but the script that makes them in the game was left as it is: it is not as World Editor writes it for them. Save the map in World Editor once.",
+  "app.triggers.unitsFailed": "The placed units and items were saved, but the script that makes them in the game could not be written: {reason}",
   "app.triggers.unpaired": "The map has {triggers} triggers but {texts} custom texts, so they are shown read only.",
   "app.triggers.unreadable": "The triggers could not be read: {reason}",
   "app.window.closeUnsaved": "The map has unsaved changes, and the page did not answer. Close the window and lose them?",

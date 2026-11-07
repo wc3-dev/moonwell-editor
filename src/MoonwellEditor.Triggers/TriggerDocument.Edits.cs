@@ -442,7 +442,7 @@ public sealed partial class TriggerDocument
     }
 
     /// <summary>The placed units, items and destructables the enabled triggers name.</summary>
-    internal IEnumerable<string> PlacedNames() => _triggers.TriggerItems
+    public IEnumerable<string> PlacedNames() => _triggers.TriggerItems
         .OfType<TriggerDefinition>()
         .Where(definition => definition.IsEnabled)
         .SelectMany(definition => definition.Functions)

@@ -80,7 +80,7 @@ public sealed partial class Session
         _partlySaved = false;
         _history.Saved();
         _savedObjects = Describe();
-        return new SaveReport(written, backup, note.Length > 0 ? note : _scriptNote);
+        return new SaveReport(written, backup, note.Length > 0 ? note : string.Join(" ", new[] { _placedNote, _scriptNote }.Where(each => each.Length > 0)));
     }
 
     /// <summary>
@@ -296,8 +296,10 @@ public sealed partial class Session
             AddChange(changes, StringsName, _strings?.ToBytes());
         }
 
-        AddTriggerChanges(changes);
+        // The parts' files first, so the script is written for their placed units and items, then for the triggers.
         AddPartChanges(changes);
+        AddPlacedScript(changes);
+        AddTriggerChanges(changes);
         return changes;
     }
 
