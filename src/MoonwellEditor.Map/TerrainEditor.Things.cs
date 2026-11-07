@@ -278,6 +278,7 @@ public sealed partial class TerrainEditor
             _cells[index] = cell;
         }
 
+        _unseen.Things = true;
         Version++;
     }
 }
