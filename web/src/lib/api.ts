@@ -7,6 +7,7 @@ import type {
   About,
   AssetList,
   AssetListKind,
+  CameraArgs,
   CellEdit,
   CellsChanged,
   ChoiceList,
@@ -20,6 +21,7 @@ import type {
   Hit,
   Kind,
   MapInfo,
+  MapMarks,
   MapSceneView,
   ObjectView,
   PlaceArgs,
@@ -27,6 +29,7 @@ import type {
   PlacePlayer,
   RecentMap,
   Reference,
+  RegionArgs,
   SaveReport,
   SessionState,
   Startup,
@@ -389,6 +392,31 @@ export const terrainThing = {
   own: (args: ThingArgs): Promise<ThingChange> => call("terrainOwn", args),
   remove: (args: ThingArgs): Promise<ThingChange> => call("terrainRemove", args),
 };
+
+/** The regions and cameras as the view draws them now, after a change to one. */
+export function terrainMarks(): Promise<MapMarks> {
+  return call("terrainMarks");
+}
+
+/** Makes a region (number 0) or changes one, as one undo step. */
+export function terrainRegion(args: RegionArgs): Promise<ThingChange> {
+  return call("terrainRegion", args);
+}
+
+/** Removes region `number`, as one undo step. */
+export function terrainRegionRemove(number: number): Promise<ThingChange> {
+  return call("terrainRegionRemove", { number });
+}
+
+/** Makes a camera (number 0) or changes one, as one undo step. */
+export function terrainCamera(args: CameraArgs): Promise<ThingChange> {
+  return call("terrainCamera", args);
+}
+
+/** Removes camera `number`, as one undo step. */
+export function terrainCameraRemove(number: number): Promise<ThingChange> {
+  return call("terrainCameraRemove", { number });
+}
 
 /** The tiles the paint brush offers in a graphics mode: the tileset's, then the map's others. */
 export function terrainTiles(mode: string): Promise<GroundTile[]> {

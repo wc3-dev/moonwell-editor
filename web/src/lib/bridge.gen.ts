@@ -56,6 +56,24 @@ export type BlockView = {
 /** A brush's outline; it goes to and from the page by its name. */
 export type BrushShape = "Circle" | "Square";
 
+/** A camera to make or change in the Terrain Editor, in the game's terms. */
+export type CameraArgs = {
+  /** The camera's number, from 1; 0 for a new one. */
+  number: number;
+  /** The x it looks at. */
+  x: number;
+  /** The y it looks at. */
+  y: number;
+  /** Which way it looks, in degrees counter-clockwise from east (90 looks north). */
+  rotation: number;
+  /** How it tilts, in degrees (304 looks 56 degrees down). */
+  angleOfAttack: number;
+  /** How far it stands from what it looks at. */
+  distance: number;
+  /** Its name; null keeps it (a new one's own). */
+  name?: string | null;
+};
+
 /** A camera, as the view draws and picks it. */
 export type CameraMark = {
   /** Its name. */
@@ -627,6 +645,14 @@ export type MapInfo = {
 /** What a map's scripts are written in. */
 export type MapLanguage = "jass" | "lua";
 
+/** The map's regions and cameras, as the view draws them. */
+export type MapMarks = {
+  /** The regions, numbered from 1 in the file's order. */
+  regions: RegionMark[];
+  /** The cameras, numbered from 1 in the file's order. */
+  cameras: CameraMark[];
+};
+
 /** The map's game data option, World Editor's Data Set and Data Version, and the tables the game reads under it (see docs/game-facts.md in wc3-cs, "Object data", seen 10-18). */
 export type MapOptions = {
   /** World Editor's name for the data set: Default, Custom or Melee. */
@@ -882,6 +908,22 @@ export type Reference = {
   name: string;
   /** The labels of the fields that name the other object, once each, in field order. */
   fields: string[];
+};
+
+/** A region to make or change in the Terrain Editor. */
+export type RegionArgs = {
+  /** The region's number, from 1; 0 for a new one. */
+  number: number;
+  /** Its left edge. */
+  left: number;
+  /** Its bottom edge. */
+  bottom: number;
+  /** Its right edge. */
+  right: number;
+  /** Its top edge. */
+  top: number;
+  /** Its name; null keeps it (a new one's own). */
+  name?: string | null;
 };
 
 /** A region, as the view draws and picks it. */
@@ -1492,12 +1534,17 @@ export type Commands = {
   table: { args: TableArgs; answer: TableRow[] };
   terminalShells: { args: NoArgs; answer: Shell[] };
   terminalStart: { args: TerminalStartArgs; answer: TerminalStarted };
+  terrainCamera: { args: CameraArgs; answer: ThingChange };
+  terrainCameraRemove: { args: ThingArgs; answer: ThingChange };
   terrainCliffTypes: { args: MapSceneArgs; answer: CliffKind[] };
   terrainCliffs: { args: MapSceneArgs; answer: CliffPiece[] };
+  terrainMarks: { args: NoArgs; answer: MapMarks };
   terrainMove: { args: ThingArgs; answer: ThingChange };
   terrainOwn: { args: ThingArgs; answer: ThingChange };
   terrainPlace: { args: PlaceArgs; answer: ThingChange };
   terrainPlayers: { args: NoArgs; answer: PlacePlayer[] };
+  terrainRegion: { args: RegionArgs; answer: ThingChange };
+  terrainRegionRemove: { args: ThingArgs; answer: ThingChange };
   terrainRemove: { args: ThingArgs; answer: ThingChange };
   terrainResize: { args: ThingArgs; answer: ThingChange };
   terrainStroke: { args: TerrainStrokeArgs; answer: TerrainChange };

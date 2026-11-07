@@ -177,13 +177,6 @@ describe("the header", () => {
     expect(raise.getAttribute("aria-pressed")).toBe("true");
     expect(panel.queryByRole("button", { name: "Dirt" })).toBeNull(); // the tiles are the paint's
     await fireEvent.click(panel.getByRole("button", { name: t("terrain.tool.paint") }));
-    expect(
-      within(
-        screen.getByRole("group", { name: t("header.terrainTools") }),
-      ).getByRole<HTMLButtonElement>("button", {
-        name: t("header.terrain.regions"),
-      }).disabled,
-    ).toBe(true);
     await clickHeader(t("header.terrain.ground"));
     expect(screen.queryByRole("complementary", { name: t("terrain.panel") })).toBeNull();
   });
@@ -214,6 +207,26 @@ describe("the header", () => {
     expect(panel.queryByRole("combobox", { name: t("terrain.owner") })).toBeNull(); // a doodad has no player
     expect(panel.queryByRole("button", { name: t("terrain.tool.paint") })).toBeNull();
     await clickHeader(t("header.terrain.place"));
+  });
+
+  test("the Regions and Cameras docks say what to do, and Cameras makes one from the view", async () => {
+    await openApp({ terrainTiles: [] });
+    await clickHeader(t("header.terrainEditor"));
+    const group = (name: string) =>
+      within(screen.getByRole("group", { name: t("header.terrainTools") })).getByRole("button", {
+        name,
+      });
+
+    await fireEvent.click(group(t("header.terrain.regions")));
+    const panel = await screen.findByRole("complementary", { name: t("terrain.panel") });
+    expect(panel.textContent).toContain(t("terrain.regionsHint"));
+    expect(within(panel).queryByRole("button", { name: t("terrain.cameraFromView") })).toBeNull();
+
+    await fireEvent.click(group(t("header.terrain.cameras")));
+    expect(group(t("header.terrain.cameras")).getAttribute("aria-pressed")).toBe("true");
+    const cameras = within(screen.getByRole("complementary", { name: t("terrain.panel") }));
+    cameras.getByRole("button", { name: t("terrain.cameraFromView") });
+    await fireEvent.click(group(t("header.terrain.cameras")));
   });
 
   test("the cliff tools offer the map's cliff types, and each group keeps its tool", async () => {

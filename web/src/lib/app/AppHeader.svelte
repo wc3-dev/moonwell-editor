@@ -59,18 +59,17 @@ const editors = $derived<
   },
 ]);
 
-// The Terrain Editor's groups of tools, in the order the design builds them: those to step 3 are built.
+// The Terrain Editor's groups of tools, in the order the design built them (steps 1 to 4).
 const toolGroups: { group: ToolGroup; name: string; Icon: HeaderIcon }[] = [
   { group: "ground", name: t("header.terrain.ground"), Icon: Shovel },
   { group: "cliffs", name: t("header.terrain.cliffs"), Icon: Mountain },
   { group: "water", name: t("header.terrain.water"), Icon: Droplets },
   { group: "place", name: t("header.terrain.place"), Icon: TreePine },
+  { group: "regions", name: t("header.terrain.regions"), Icon: SquareDashed },
+  { group: "cameras", name: t("header.terrain.cameras"), Icon: Video },
 ];
 
-const comingTerrainTools: { name: string; Icon: HeaderIcon }[] = [
-  { name: t("header.terrain.regions"), Icon: SquareDashed },
-  { name: t("header.terrain.cameras"), Icon: Video },
-];
+const comingTerrainTools: { name: string; Icon: HeaderIcon }[] = [];
 
 const comingEditors: { name: string; Icon: HeaderIcon }[] = [
   { name: t("header.soundEditor"), Icon: AudioLines },
