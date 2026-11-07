@@ -140,6 +140,26 @@ public sealed record PlaceArgs(PlaceKind Kind, string TypeId, float X, float Y, 
 /// <param name="Owner">The player a unit is given to.</param>
 public sealed record ThingArgs(int Number, float X = 0, float Y = 0, float Degrees = 0, float Scale = 1, int Owner = 0);
 
+/// <summary>A region to make or change in the Terrain Editor.</summary>
+/// <param name="Number">The region's number, from 1; 0 for a new one.</param>
+/// <param name="Left">Its left edge.</param>
+/// <param name="Bottom">Its bottom edge.</param>
+/// <param name="Right">Its right edge.</param>
+/// <param name="Top">Its top edge.</param>
+/// <param name="Name">Its name; null keeps it (a new one's own).</param>
+public sealed record RegionArgs(int Number, float Left, float Bottom, float Right, float Top, string? Name = null);
+
+/// <summary>A camera to make or change in the Terrain Editor, in the game's terms.</summary>
+/// <param name="Number">The camera's number, from 1; 0 for a new one.</param>
+/// <param name="X">The x it looks at.</param>
+/// <param name="Y">The y it looks at.</param>
+/// <param name="Rotation">Which way it looks, in degrees counter-clockwise from east (90 looks north).</param>
+/// <param name="AngleOfAttack">How it tilts, in degrees (304 looks 56 degrees down).</param>
+/// <param name="Distance">How far it stands from what it looks at.</param>
+/// <param name="Name">Its name; null keeps it (a new one's own).</param>
+public sealed record CameraArgs(
+    int Number, float X, float Y, float Rotation, float AngleOfAttack, float Distance, string? Name = null);
+
 /// <summary>A map's path.</summary>
 /// <param name="Path">The map folder's or archive file's path.</param>
 public sealed record PathArgs(string Path);
