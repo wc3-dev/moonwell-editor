@@ -133,6 +133,12 @@ public static class GroundTools
     {
         var columns = (int)terrain.Width + 1;
         var corners = terrain.TerrainTiles;
+        if (tool == GroundTool.Ramp)
+        {
+            UseCliff(terrain, tool, RampCovered(terrain, x, y, brush).Select(c => (c.Row * columns) + c.Column), start, changing);
+            return;
+        }
+
         var covered = Covered(terrain, x, y, brush).ToList();
         if (ChangesCliffs(tool))
         {
@@ -260,8 +266,39 @@ public static class GroundTools
         }
     }
 
-    // Whether a ramp may flag the corner at `index`, as World Editor's does: a corner on a cliff's top edge (a corner
-    // around it a level lower), or one of the two corners below such an edge (a level higher within two corners).
+    // The corners a ramp covers, as World Editor's: those of the 2 × size − 1 tiles across around the tile under the
+    // mouse (its sample, 11-07: a size 3 ramp flagged within 6 by 6 corners).
+    private static IEnumerable<(int Column, int Row)> RampCovered(MapEnvironment terrain, float x, float y, Brush brush)
+    {
+        var reach = Math.Clamp(brush.Size, 1, Largest) - 1;
+        var (tu, tv) = ((int)MathF.Floor((x - terrain.Left) / 128f), (int)MathF.Floor((y - terrain.Bottom) / 128f));
+        var seen = new HashSet<(int, int)>();
+        for (var row = tv - reach; row <= tv + reach; row++)
+        {
+            for (var column = tu - reach; column <= tu + reach; column++)
+            {
+                if (brush.Shape == BrushShape.Circle && Math.Pow(column - tu, 2) + Math.Pow(row - tv, 2) > (reach + 0.5) * (reach + 0.5))
+                {
+                    continue;
+                }
+
+                for (var j = row; j <= row + 1; j++)
+                {
+                    for (var i = column; i <= column + 1; i++)
+                    {
+                        if (i >= 0 && j >= 0 && i <= terrain.Width && j <= terrain.Height && seen.Add((i, j)))
+                        {
+                            yield return (i, j);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Whether a ramp may flag the corner at `index`, as World Editor's does (its samples, 11-07): a corner on a cliff's
+    // top edge (a corner around it a level lower), or a corner below one, within √5 of a corner a level higher (two
+    // corners out from a straight edge, three across from a slanted one).
     private static bool RampFits(MapEnvironment terrain, int index)
     {
         var columns = (int)terrain.Width + 1;
@@ -272,8 +309,8 @@ public static class GroundTools
             for (var i = Math.Max(column - 2, 0); i <= Math.Min(column + 2, (int)terrain.Width); i++)
             {
                 var other = terrain.TerrainTiles[(j * columns) + i].CliffLevel;
-                var near = Math.Abs(i - column) <= 1 && Math.Abs(j - row) <= 1;
-                if (other == level + 1 || (near && other == level - 1))
+                var distance = ((i - column) * (i - column)) + ((j - row) * (j - row));
+                if ((other == level + 1 && distance <= 5) || (other == level - 1 && distance <= 2))
                 {
                     return true;
                 }

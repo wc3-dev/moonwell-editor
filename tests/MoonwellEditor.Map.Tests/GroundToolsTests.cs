@@ -141,4 +141,46 @@ public sealed class GroundToolsTests
 
         Assert.Empty(changed);
     }
+
+    [Fact]
+    public void Ramp_across_a_slanted_cliff_flags_World_Editors_corners()
+    {
+        // World Editor's size 3 ramp across a cliff whose edge runs corner to corner (Sven's map, 11-07), from column 19,
+        // row 39 at the top left: a level, then R where World Editor flagged a ramp. The ramp covers 5 by 5 tiles.
+        string[] map =
+        [
+            "2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.",
+            "2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.",
+            "2.2.2.2.2.2.2.2.3.3.3.3.3.2.2.",
+            "2.2.2.2.2.2.2.2.3.3.3.3.3.2.2.",
+            "2.2.2.2.2.2.2.3.3.3.3.3.3.2.2.",
+            "2.2.2.2.2.2.3.3.3.3.3.3.3.2.2.",
+            "2.2.2.2.2.3.3.3.3.3.3.3.3.2.2.",
+            "2.2.2.2.3.3.3.3.3.3.3.3.3.2.2.",
+            "2.2.2.3.3.3.3.3.3.3.3.3.3.2.2.",
+            "2.2.3.3.3.3.3.3.3.3.3R3R2R2.2.",
+            "2.2.3.3.3.3.3.3.3.3R3R2R2R2.2.",
+            "2.2.3.3.3.3.3.3.3R3R2R2R2R2.2.",
+            "2.2.3.3.3.3.3.3R3R2R2R2R2.2.2.",
+            "2.2.3.3.3.3.3.3R2R2R2R2.2.2.2.",
+            "2.2.3.3.3.3.3.2R2R2R2.2.2.2.2.",
+            "2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.",
+            "2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.",
+        ];
+        var terrain = Grids.Flat(40, 40);
+        for (var line = 0; line < map.Length; line++)
+        {
+            for (var cell = 0; cell < 15; cell++)
+            {
+                terrain.At(19 + cell, 39 - line).CliffLevel = map[line][cell * 2] - '0';
+            }
+        }
+
+        GroundTools.Use(
+            terrain, GroundTool.Ramp, 28.5f * 128f, 27.5f * 128f, new Brush(BrushShape.Square, 3, 0), new StrokeStart(-1, 0, 2, 0), _ => { });
+
+        var flagged = string.Join(Environment.NewLine, map.Select((row, line) => string.Concat(
+            Enumerable.Range(0, 15).Select(cell => $"{row[cell * 2]}{(terrain.At(19 + cell, 39 - line).IsRamp ? 'R' : '.')}"))));
+        Assert.Equal(string.Join(Environment.NewLine, map), flagged);
+    }
 }
