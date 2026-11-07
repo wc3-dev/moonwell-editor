@@ -23,8 +23,9 @@
  *
  * With the Regions group on, a drag on the ground draws a region, a drag of one moves it, and a drag of the chosen one's
  * corner resizes it. With the Cameras group on, a drag of a camera's cross moves what it looks at; the dock makes one
- * from the view, aims the chosen one at the view, or looks through it. Delete removes the chosen one. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
- * again, as does a paint that added a tile to the map's list, once its stroke ends.
+ * from the view, aims the chosen one at the view, or looks through it. Delete removes the chosen one. An undo or redo
+ * of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene again, as does a paint
+ * that added a tile to the map's list, once its stroke ends; the view and what is chosen stay.
  */
 
 import { untrack } from "svelte";
@@ -98,7 +99,7 @@ const cameraReach = 96;
 let view: View = { x: 0, y: 0, z: 0, distance: 1650, yaw: 0, pitch };
 let scene: MapSceneView | null = null;
 let terrain: Terrain | null = null;
-let renderer: MapRenderer | null = null;
+let renderer: MapRenderer | null = $state.raw(null);
 let frame = 0;
 let hoverFrame = 0;
 /** A middle drag: what it does, chosen when it starts (Blender's: Shift pans, Ctrl zooms, else it orbits). */
@@ -106,6 +107,8 @@ let drag: { x: number; y: number; does: "orbit" | "pan" | "zoom" } | null = null
 let press: { x: number; y: number } | null = null;
 /** Goes up to read the scene again (after an undo of the terrain, or a paint that added a tile). */
 let reloads = $state(0);
+/** Whether the next read of the scene is a reload, which keeps the view and what is chosen. */
+let keepView = false;
 /** The terrain version the view draws: the session's when read, plus each stroke step here that changed it. */
 let drawnVersion = 0;
 /** A brush stroke under way: the points not sent yet, whether a step is on its way, and whether the button is up. */
@@ -311,9 +314,14 @@ $effect(() => {
   const version = terrainVersion;
   if (version !== drawnVersion && !stroke && !thingBusy) {
     drawnVersion = version;
-    reloads++;
+    reload();
   }
 });
+
+function reload(): void {
+  keepView = true;
+  reloads++;
+}
 
 async function open(
   shown: string,
@@ -321,6 +329,8 @@ async function open(
   signal: AbortSignal,
   keep: (host: GlHost) => void,
 ): Promise<void> {
+  const reloading = keepView;
+  keepView = false;
   status = "loading";
   problems = [];
   const started = performance.now();
@@ -340,7 +350,10 @@ async function open(
     if (signal.aborted) return;
     console.info(`[timing] map scene ${Math.round(performance.now() - started)} ms`);
     terrain = grid;
-    view = start(read, grid);
+    view = reloading ? { ...view, z: groundAt(grid, view.x, view.y) } : start(read, grid);
+    if (reloading && terrainTools.mark)
+      chooseMark(terrainTools.mark.kind, terrainTools.mark.number);
+    if (reloading && terrainTools.chosen) chooseThing(terrainTools.chosen.number);
     sizeCanvas(target);
     keep(
       new GlHost(target, (gl) => {
@@ -549,7 +562,7 @@ async function endStroke(current: Stroke): Promise<void> {
   await terrainStrokeEnd().catch((error) => {
     refused = errorText(error);
   });
-  if (current.reload) reloads++;
+  if (current.reload) reload();
   else if (current.cliffs) {
     // The ground was redrawn as the stroke went; the cliff models once it ends.
     await terrainCliffs(mode).then(
