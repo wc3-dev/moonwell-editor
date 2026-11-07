@@ -22,6 +22,8 @@ export const terrainTools = $state<{
   cliffType: number;
   /** The Place group's choice: the kind and type of thing a click places, and the player a unit goes to. */
   place: { kind: PlaceKind; type: string | null; owner: number };
+  /** The region or camera chosen on the map in the Regions or Cameras group, for the dock; null for none. */
+  mark: { kind: "region" | "camera"; number: number; name: string; detail: string } | null;
   /** The placed thing chosen on the map in the Place group, for the dock; null for none. */
   chosen: { number: number; kind: ThingKind; name: string; owner: number; scale: number } | null;
 }>({
@@ -34,8 +36,17 @@ export const terrainTools = $state<{
   tile: null,
   cliffType: 0,
   place: { kind: "Unit", type: null, owner: 0 },
+  mark: null,
   chosen: null,
 });
+
+/** What the dock asks of the map view for regions and cameras; the view sets these while it shows. */
+export const chosenMark: {
+  rename: ((name: string) => void) | null;
+  newCamera: (() => void) | null;
+  aim: (() => void) | null;
+  look: (() => void) | null;
+} = { rename: null, newCamera: null, aim: null, look: null };
 
 /** What the dock asks of the map view for the thing chosen; the view sets these while it shows. */
 export const chosenThing: {
@@ -54,6 +65,7 @@ export function isBrushGroup(group: ToolGroup | null): group is BrushGroup {
 /** Turns `group` on (a brush group with the tool it had last), or off when it is on. */
 export function toggleGroup(group: ToolGroup): void {
   terrainTools.chosen = null;
+  terrainTools.mark = null;
   if (terrainTools.group === group) {
     terrainTools.group = null;
     return;

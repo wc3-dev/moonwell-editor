@@ -35,6 +35,7 @@ vi.mock("./gl/renderer.ts", () => ({
     moving = false;
     draw(): void {}
     setLayers(): void {}
+    setBrush(): void {}
     setHighlight(): void {
       fake.highlights++;
     }
@@ -135,9 +136,10 @@ test("hovering moves the highlight and leaves the regions' lines alone", async (
   fake.scenes.set("sd", Promise.resolve(scene()));
   render(MapView, { mode: "sd" });
   await waitFor(() => expect(fake.hosts).toBe(1));
+  const [highlights, selectMarks] = [fake.highlights, fake.selectMarks];
   await fireEvent.pointerMove(screen.getByLabelText(t("main.map")), { clientX: 5, clientY: 5 });
-  await waitFor(() => expect(fake.highlights).toBeGreaterThan(0));
-  expect(fake.selectMarks).toBe(0);
+  await waitFor(() => expect(fake.highlights).toBeGreaterThan(highlights));
+  expect(fake.selectMarks).toBe(selectMarks);
 });
 
 test.each([

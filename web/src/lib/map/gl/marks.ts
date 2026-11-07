@@ -44,8 +44,8 @@ export class MarksLayer {
   constructor(
     private readonly gl: WebGL2RenderingContext,
     private readonly terrain: Terrain,
-    private readonly regions: readonly RegionMark[],
-    private readonly cameras: readonly CameraMark[],
+    private regions: readonly RegionMark[],
+    private cameras: readonly CameraMark[],
   ) {
     this.program = program(gl, vertex, fragment);
     this.viewProjection = gl.getUniformLocation(this.program, "viewProjection");
@@ -64,6 +64,13 @@ export class MarksLayer {
   /** Draws the mark whose trigger name is `ref` white, the others in their own colours. */
   select(ref: string | null): void {
     this.selected = ref;
+    this.build();
+  }
+
+  /** Draws `regions` and `cameras` in place of those it drew, after a change to one. */
+  setMarks(regions: readonly RegionMark[], cameras: readonly CameraMark[]): void {
+    this.regions = regions;
+    this.cameras = cameras;
     this.build();
   }
 

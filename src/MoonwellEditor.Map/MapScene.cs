@@ -75,6 +75,8 @@ public static class MapScene
                 Terrain = edited.Terrain,
                 Doodads = edited.Doodads ?? read.Doodads,
                 Units = edited.Units ?? read.Units,
+                Regions = edited.Regions ?? read.Regions,
+                Cameras = edited.Cameras ?? read.Cameras,
             };
         }
 

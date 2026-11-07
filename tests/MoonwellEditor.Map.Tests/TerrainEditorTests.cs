@@ -322,6 +322,76 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
         return (terrain.Left + (at % columns * 128f), terrain.Bottom + (at / columns * 128f));
     }
 
+    [Fact]
+    public void Regions_are_drawn_on_the_grid_renamed_and_removed_each_as_one_undo_step()
+    {
+        if (Open(InstallMaps.WarChasers) is not var (folder, store, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            var count = editor.Marks().Regions.Count;
+
+            var number = editor.SetRegion(0, 10, 20, 300, 140, null);
+
+            var region = editor.Marks().Regions[number - 1];
+            Assert.Equal(count + 1, number);
+            Assert.Equal(("Region 000", 0f, 32f, 288f, 128f), (region.Name, region.Left, region.Bottom, region.Right, region.Top));
+            Assert.Equal("gg_rct_Region_000", region.Ref);
+            editor.SetRegion(number, 0, 0, 512, 512, "Spawn Point");
+            Assert.Equal(("Spawn Point", 512f), (editor.Marks().Regions[number - 1].Name, editor.Marks().Regions[number - 1].Right));
+            var taken = editor.Marks().Regions[0].Name;
+            Assert.Throws<ArgumentException>(() => editor.SetRegion(number, 0, 0, 512, 512, taken));
+            Assert.Throws<ArgumentException>(() => editor.SetRegion(0, 0, 0, 10, 10, null)); // under the grid
+
+            var report = session.Save();
+            Assert.Contains("war3map.w3r", report.Written);
+            using var reader = new BinaryReader(new MemoryStream(MapStore.Open(store.Path).Read("war3map.w3r")!));
+            Assert.Contains(reader.ReadMapRegions().Regions, saved => saved.Name == "Spawn Point");
+
+            editor.RemoveRegion(number);
+            Assert.Equal(count, editor.Marks().Regions.Count);
+            Assert.True(session.Undo());
+            Assert.Equal("Spawn Point", editor.Marks().Regions[number - 1].Name);
+            Assert.True(session.Undo());
+            Assert.Equal("Region 000", editor.Marks().Regions[number - 1].Name);
+        }
+    }
+
+    [Fact]
+    public void A_camera_is_made_aimed_and_removed()
+    {
+        if (Open(InstallMaps.WarChasers) is not var (folder, _, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            var count = editor.Marks().Cameras.Count;
+
+            var number = editor.SetCamera(0, 100, 200, 90, 304, 1650, null);
+
+            var camera = editor.Marks().Cameras[number - 1];
+            Assert.Equal(("Camera 001", 100f, 200f, 90f, 304f, 1650f), (camera.Name, camera.X, camera.Y, camera.Rotation, camera.AngleOfAttack, camera.Distance));
+            Assert.Equal(70f, camera.FieldOfView);
+            editor.SetCamera(number, 300, 400, -90, 280, 2000, "Intro");
+            camera = editor.Marks().Cameras[number - 1];
+            Assert.Equal(("Intro", 300f, 270f, 2000f), (camera.Name, camera.X, camera.Rotation, camera.Distance));
+            Assert.Equal("gg_cam_Intro", camera.Ref);
+
+            editor.RemoveCamera(number);
+            Assert.Equal(count, editor.Marks().Cameras.Count);
+            Assert.True(session.Undo());
+            Assert.True(session.Undo());
+            Assert.True(session.Undo());
+            Assert.Equal(count, editor.Marks().Cameras.Count);
+            Assert.False(session.Dirty);
+        }
+    }
+
     private static War3Net.Build.Environment.TerrainTile Corner(TerrainEditor editor, int column, int row) =>
         editor.Terrain.TerrainTiles[(row * ((int)editor.Terrain.Width + 1)) + column];
 }

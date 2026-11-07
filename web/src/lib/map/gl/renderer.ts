@@ -200,6 +200,13 @@ export class MapRenderer {
     this.changed();
   }
 
+  /** Draws `regions` and `cameras`, after a change to one. */
+  setMarks(regions: MapSceneView["regions"], cameras: MapSceneView["cameras"]): void {
+    this.scene = { ...this.scene, regions: [...regions], cameras: [...cameras] };
+    this.marks.setMarks(regions, cameras);
+    this.changed();
+  }
+
   /** Draws `things` as the placed things, after a change to one; those near `near` load first. */
   setThings(things: readonly PlacedThing[], near: [number, number]): void {
     this.scene = { ...this.scene, things: [...things] };

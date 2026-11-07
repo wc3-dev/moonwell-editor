@@ -427,6 +427,15 @@ public sealed partial class Commands
         CommandEntry.Of("terrainCliffs", (Commands c, MapSceneArgs a) => c.Ground().CliffPieces(Checked(a.Mode))),
         CommandEntry.Of("terrainThings", (Commands c, MapSceneArgs a) => c.Ground().Things(Checked(a.Mode))),
         CommandEntry.Of("terrainPlayers", (Commands c) => c.Ground().Players()),
+        CommandEntry.Of("terrainMarks", (Commands c) => c.Ground().Marks()),
+        CommandEntry.Of("terrainRegion", (Commands c, RegionArgs a) =>
+            c.Thing(editor => editor.SetRegion(a.Number, a.Left, a.Bottom, a.Right, a.Top, a.Name))),
+        CommandEntry.Of("terrainRegionRemove", (Commands c, ThingArgs a) =>
+            c.Thing(editor => editor.RemoveRegion(a.Number), a.Number)),
+        CommandEntry.Of("terrainCamera", (Commands c, CameraArgs a) =>
+            c.Thing(editor => editor.SetCamera(a.Number, a.X, a.Y, a.Rotation, a.AngleOfAttack, a.Distance, a.Name))),
+        CommandEntry.Of("terrainCameraRemove", (Commands c, ThingArgs a) =>
+            c.Thing(editor => editor.RemoveCamera(a.Number), a.Number)),
         CommandEntry.Of("terrainPlace", (Commands c, PlaceArgs a) =>
             c.Thing(editor => editor.Place(a.Kind, a.TypeId, a.X, a.Y, a.Owner))),
         CommandEntry.Of("terrainMove", (Commands c, ThingArgs a) => c.Thing(editor => editor.Move(a.Number, a.X, a.Y), a.Number)),
