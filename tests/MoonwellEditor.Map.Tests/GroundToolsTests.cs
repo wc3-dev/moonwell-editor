@@ -91,16 +91,17 @@ public sealed class GroundToolsTests
     }
 
     [Fact]
-    public void Water_lowers_the_corners_below_the_land_and_floods_them()
+    public void Water_lowers_the_corners_below_the_land_and_floods_them_as_deep_as_World_Editors()
     {
+        // Land on a hill half a level up, where the stroke begins.
         var terrain = Grids.Flat(5, 5);
         terrain.At(2, 2).Height = 0.5f;
-        var start = new StrokeStart(-1, 0, 2, 0);
+        var start = new StrokeStart(-1, 0.5f, 2, 0);
 
         GroundTools.Use(terrain, GroundTool.DeepWater, 2 * 128f, 2 * 128f, new Brush(BrushShape.Square, 1, 0), start, _ => { });
 
         var corner = terrain.At(2, 2);
-        Assert.Equal((0, true, 0f, 0f), (corner.CliffLevel, corner.IsWater, corner.WaterHeight, corner.Height));
+        Assert.Equal((0, true, 0.5f, 0.5f), (corner.CliffLevel, corner.IsWater, corner.WaterHeight, corner.Height));
         var grid = TerrainGrid.From(terrain, -89.6f);
         Assert.Equal(166.4f, grid.Water(2, 2)!.Value - grid.Ground(2, 2), 2);
     }

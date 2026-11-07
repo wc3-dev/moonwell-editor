@@ -137,7 +137,7 @@ public sealed class TerrainEditor : IMapPart
         {
             EndStroke();
             var begun = Corner(points.Count > 0 ? points[0] : (0, 0));
-            var level = begun.IsWater ? (int)MathF.Round(begun.WaterHeight) + 2 : begun.CliffLevel;
+            var level = begun.IsWater ? (int)MathF.Round(begun.WaterHeight - begun.Height) + 2 : begun.CliffLevel;
             _stroke = new OpenStroke([.. _terrain.TerrainTypes], begun.Height, level);
         }
 

@@ -34,10 +34,13 @@ public enum GroundTool
     /// <summary>Flags the corners as a ramp's: three rows across a cliff of one level make a ramp up it.</summary>
     Ramp,
 
-    /// <summary>Makes the corners shallow water: a level below the land where the stroke began.</summary>
+    /// <summary>
+    /// Makes the corners shallow water: a cliff level down, under water standing as World Editor's does below the
+    /// ground where the stroke began (38.4 deep there).
+    /// </summary>
     ShallowWater,
 
-    /// <summary>Makes the corners deep water: two levels below the land where the stroke began.</summary>
+    /// <summary>Makes the corners deep water: two cliff levels down, under the same water (166.4 deep there).</summary>
     DeepWater,
 }
 
@@ -60,8 +63,10 @@ public sealed record Brush(BrushShape Shape, int Size, float Strength);
 
 /// <summary>What the steps of one stroke share, worked out where it began.</summary>
 /// <param name="Texture">The tile a paint gives: its number in the map's list; -1 for the other tools.</param>
-/// <param name="Plateau">The Height a plateau brings the corners to: the corner's where the stroke began.</param>
-/// <param name="Level">The cliff level the stroke began on; the land's, a water corner's water level + 2, in water.</param>
+/// <param name="Plateau">The Height where the stroke began: what a plateau brings the corners to.</param>
+/// <param name="Level">
+/// The cliff level the stroke began on; in water, the land's: the water's height above the corner's Height, + 2.
+/// </param>
 /// <param name="CliffType">The cliff type a cliff tool gives the corners: its number in the map's list.</param>
 public sealed record StrokeStart(int Texture, float Plateau, int Level, int CliffType);
 
@@ -200,9 +205,12 @@ public static class GroundTools
                 _ => 0,
             };
             var level = Math.Clamp(start.Level + step, 0, HighestLevel);
-            var surface = start.Level - 2f;
+
+            // The water's surface, in Height's units: the ground where the stroke began, so the tileset's water level
+            // (−89.6) puts it below that ground as World Editor's is below level 2's.
+            var surface = start.Plateau + start.Level - 2f;
             var same = corner.CliffLevel == level && !corner.IsRamp && corner.IsWater == water
-                && (water ? corner.WaterHeight == surface && corner.Height == 0 : corner.CliffTexture == start.CliffType);
+                && (water ? corner.WaterHeight == surface : corner.CliffTexture == start.CliffType);
             if (same)
             {
                 continue;
@@ -214,9 +222,7 @@ public static class GroundTools
             corner.IsWater = water;
             if (water)
             {
-                // A flat bed, so the water is as deep as World Editor's: 38.4 shallow, 166.4 deep.
                 corner.WaterHeight = surface;
-                corner.Height = 0;
             }
             else
             {

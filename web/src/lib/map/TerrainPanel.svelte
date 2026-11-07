@@ -200,6 +200,7 @@ $effect(() => {
           bind:value={terrainTools.size}
         />
         <span class="min-w-7 rounded-ui bg-field px-1.5 text-right font-mono text-mono text-normal">{terrainTools.size}</span>
+        {#if terrainTools.group === "ground"}
         <label for="terrain-strength" class={terrainTools.tool === "Raise" || terrainTools.tool === "Lower" ? "" : "opacity-45"}
           >{t("terrain.strength")}</label
         >
@@ -219,6 +220,7 @@ $effect(() => {
             ? ''
             : 'opacity-45'}">{terrainTools.strength}</span
         >
+        {/if}
       </div>
     </section>
     {#if cliffTool && cliffTypes.length > 0}
