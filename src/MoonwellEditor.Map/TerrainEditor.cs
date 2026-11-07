@@ -19,7 +19,15 @@ namespace MoonwellEditor.Map;
 /// <param name="Rows">How many rows of corners.</param>
 /// <param name="Bytes">The corners' and their tiles' bytes.</param>
 /// <param name="Tiles">True when the map's list of tiles grew, so the page reads the whole scene again.</param>
-public sealed record TerrainPatch(int Left, int Bottom, int Columns, int Rows, byte[] Bytes, bool Tiles);
+/// <param name="Cliffs">True when cliff levels, ramps or water changed, so the cliff models change too.</param>
+public sealed record TerrainPatch(int Left, int Bottom, int Columns, int Rows, byte[] Bytes, bool Tiles, bool Cliffs);
+
+/// <summary>A cliff type the map lists, which the cliff tools offer.</summary>
+/// <param name="Number">Its number in the map's list, what a corner's cliff type holds.</param>
+/// <param name="Id">Its id in <c>TerrainArt\CliffTypes.slk</c>, <c>CLdi</c>.</param>
+/// <param name="Name">Its name, from World Editor's strings.</param>
+/// <param name="Texture">Its texture's game path, for a picture of it.</param>
+public sealed record CliffKind(int Number, string Id, string Name, string Texture);
 
 /// <summary>A tile the paint brush offers: the tileset's, then any other the map lists.</summary>
 /// <param name="Id">Its id in <c>TerrainArt\Terrain.slk</c>, <c>Idrt</c>.</param>
@@ -29,10 +37,11 @@ public sealed record TerrainPatch(int Left, int Bottom, int Columns, int Rows, b
 public sealed record GroundTile(string Id, string Name, string Texture, bool InMap);
 
 /// <summary>
-/// The map's terrain as the Terrain Editor edits it: the ground brushes change its corners, each stroke (mouse down to
-/// up) is one undo step with the object editor's, and a save writes <c>war3map.w3e</c> and <c>war3map.wpm</c>. Only the
-/// pathing cells under the tiles a stroke changed are worked out again (<see cref="Pathing"/>); the rest keep the bytes
-/// World Editor wrote (Sven, 2026-11-07), so an unedited map's pathing stays as it was. Doodads keep their height.
+/// The map's terrain as the Terrain Editor edits it: the ground, cliff and water brushes change its corners, each stroke
+/// (mouse down to up) is one undo step with the object editor's, and a save writes <c>war3map.w3e</c> and
+/// <c>war3map.wpm</c>. Only the pathing cells under the tiles a stroke changed are worked out again
+/// (<see cref="Pathing"/>); the rest keep the bytes World Editor wrote (Sven, 2026-11-07), so an unedited map's pathing
+/// stays as it was. Doodads keep their height.
 /// </summary>
 public sealed class TerrainEditor : IMapPart
 {
@@ -47,7 +56,8 @@ public sealed class TerrainEditor : IMapPart
     private readonly MapEnvironment _terrain;
     private readonly MapPathingMap? _pathingFile;
     private readonly byte[] _cells;
-    private readonly CliffTiles _cliffs;
+    private readonly Dictionary<string, Dictionary<string, Dictionary<string, int>>> _cliffModels = new(StringComparer.Ordinal);
+    private CliffTiles _cliffs;
     private readonly War3Net.Build.Info.MapInfo? _info;
     private readonly float _waterLevel;
     private readonly IReadOnlyList<PathingStamp> _stamps;
@@ -70,7 +80,7 @@ public sealed class TerrainEditor : IMapPart
         _cells = pathing?.Cells.Select(cell => (byte)cell).ToArray() ?? [];
         _info = info;
         _stamps = stamps;
-        _cliffs = Cliffs.Of(terrain, files, "sd").Tiles;
+        _cliffs = Cliffs.Of(terrain, files, "sd", Models("sd")).Tiles;
         _waterLevel = MapScene.WaterLevel(terrain, files);
         _pathing = MakePathing();
     }
@@ -110,16 +120,25 @@ public sealed class TerrainEditor : IMapPart
     /// <summary>
     /// Uses <paramref name="tool"/> at each of <paramref name="points"/>, as one more step of the current stroke, or
     /// of a new one when <paramref name="first"/> is set (or none is open). <paramref name="tile"/> is the tile a paint
-    /// gives, by its id; a tile the map does not list yet is added to its list.
+    /// gives, by its id; a tile the map does not list yet is added to its list. <paramref name="cliffType"/> is the
+    /// cliff type a cliff tool gives, its number in the map's list.
     /// </summary>
     /// <exception cref="ArgumentException">The tile is not a known one, or the map lists <see cref="MostTiles"/> already.</exception>
     public TerrainPatch Stroke(
-        GroundTool tool, IReadOnlyList<(float X, float Y)> points, Brush brush, string? tile, string mode, bool first)
+        GroundTool tool,
+        IReadOnlyList<(float X, float Y)> points,
+        Brush brush,
+        string? tile,
+        string mode,
+        bool first,
+        int cliffType = 0)
     {
         if (first || _stroke == null)
         {
             EndStroke();
-            _stroke = new OpenStroke([.. _terrain.TerrainTypes], Corner(points.Count > 0 ? points[0] : (0, 0)).Height);
+            var begun = Corner(points.Count > 0 ? points[0] : (0, 0));
+            var level = begun.IsWater ? (int)MathF.Round(begun.WaterHeight) + 2 : begun.CliffLevel;
+            _stroke = new OpenStroke([.. _terrain.TerrainTypes], begun.Height, level);
         }
 
         var texture = -1;
@@ -131,31 +150,41 @@ public sealed class TerrainEditor : IMapPart
 
         var columns = (int)_terrain.Width + 1;
         var (left, bottom, right, top) = (int.MaxValue, int.MaxValue, -1, -1);
+        var start = new StrokeStart(
+            texture, _stroke.Plateau, _stroke.Level, Math.Clamp(cliffType, 0, Math.Max(_terrain.CliffTypes.Count - 1, 0)));
         foreach (var (x, y) in points)
         {
-            GroundTools.Use(_terrain, tool, x, y, brush, texture, _stroke.Plateau, index =>
+            GroundTools.Use(_terrain, tool, x, y, brush, start, index =>
             {
-                var corner = _terrain.TerrainTiles[index];
-                _stroke.Corners.TryAdd(index, (corner.Height, corner.Texture));
+                _stroke.Corners.TryAdd(index, CornerState.Of(_terrain.TerrainTiles[index]));
                 var (column, row) = (index % columns, index / columns);
                 (left, bottom, right, top) = (Math.Min(left, column), Math.Min(bottom, row), Math.Max(right, column), Math.Max(top, row));
             });
         }
 
         var tiles = _terrain.TerrainTypes.Count != listed;
+        var cliffs = GroundTools.ChangesCliffs(tool);
         if (right < 0)
         {
-            return new TerrainPatch(0, 0, 0, 0, [], tiles);
+            return new TerrainPatch(0, 0, 0, 0, [], tiles, false);
+        }
+
+        // A cliff change reaches two tiles out: a ramp's side model is two tiles long.
+        var reach = 1;
+        if (cliffs)
+        {
+            CliffsChanged();
+            reach = 2;
         }
 
         if (_pathingFile != null)
         {
-            ForCells(left - 1, bottom - 1, right, top, index => _stroke.Cells.TryAdd(index, _cells[index]));
-            _pathing.Rebuild(_cells, left - 1, bottom - 1, right, top);
+            ForCells(left - reach, bottom - reach, right + reach - 1, top + reach - 1, index => _stroke.Cells.TryAdd(index, _cells[index]));
+            _pathing.Rebuild(_cells, left - reach, bottom - reach, right + reach - 1, top + reach - 1);
         }
 
         Version++;
-        return Patch(left - 1, bottom - 1, right + 1, top + 1, mode, tiles);
+        return Patch(left - reach, bottom - reach, right + reach, top + reach, mode, tiles, cliffs);
     }
 
     /// <summary>Closes the open stroke, keeping it as one undo step; nothing when none is open or it changed nothing.</summary>
@@ -171,7 +200,7 @@ public sealed class TerrainEditor : IMapPart
         var before = new State(stroke.Types, stroke.Corners, stroke.Cells);
         var after = new State(
             [.. _terrain.TerrainTypes],
-            stroke.Corners.Keys.ToDictionary(index => index, index => (_terrain.TerrainTiles[index].Height, _terrain.TerrainTiles[index].Texture)),
+            stroke.Corners.Keys.ToDictionary(index => index, index => CornerState.Of(_terrain.TerrainTiles[index])),
             stroke.Cells.Keys.ToDictionary(index => index, index => _cells[index]));
         _session.Record(() => Restore(before), () => Restore(after));
     }
@@ -189,6 +218,23 @@ public sealed class TerrainEditor : IMapPart
             return new GroundTile(id, row.GetValueOrDefault("comment", id), TerrainTextures.HdOrClassic(_files, stem, mode), listed.Contains(id));
         }).ToList();
     }
+
+    /// <summary>The map's cliff types, which the cliff tools offer, in a graphics mode.</summary>
+    public IReadOnlyList<CliffKind> CliffTypes(string mode)
+    {
+        var rows = (_files.Table("TerrainArt/CliffTypes.slk") ?? []).ToDictionary(row => row.Id, StringComparer.OrdinalIgnoreCase);
+        var strings = GameText.Strings(_files.File(@"UI\WorldEditStrings.txt", "sd"));
+        var textures = Cliffs.Textures(_terrain, _files, mode);
+        return _terrain.CliffTypes.Select((type, number) =>
+        {
+            var id = FourCC.Text((int)type);
+            var key = rows.TryGetValue(id, out var row) ? row.Columns.GetValueOrDefault("name", id) : id;
+            return new CliffKind(number, id, strings.GetValueOrDefault(key, id), textures[number]);
+        }).ToList();
+    }
+
+    /// <summary>The cliff and ramp models as the terrain has them now, in a graphics mode.</summary>
+    public IReadOnlyList<CliffPiece> CliffPieces(string mode) => Cliffs.Of(_terrain, _files, mode, Models(mode)).Pieces;
 
     /// <summary>The whole map's pathing cells as they stand.</summary>
     internal IReadOnlyList<byte> Cells => _cells;
@@ -212,7 +258,7 @@ public sealed class TerrainEditor : IMapPart
     }
 
     // The bytes the page redraws for corners left..right, bottom..top (clamped) and the tiles between them.
-    private TerrainPatch Patch(int left, int bottom, int right, int top, string mode, bool tiles)
+    private TerrainPatch Patch(int left, int bottom, int right, int top, string mode, bool tiles, bool cliffs)
     {
         (left, bottom) = (Math.Max(left, 0), Math.Max(bottom, 0));
         (right, top) = (Math.Min(right, (int)_terrain.Width), Math.Min(top, (int)_terrain.Height));
@@ -223,8 +269,8 @@ public sealed class TerrainEditor : IMapPart
 
         var grid = TerrainGrid.From(_terrain, _waterLevel);
         var layers = TileLayers.From(_terrain, textures, _cliffs);
-        var bytes = TerrainBytes.Patch(grid, layers, left, bottom, right, top);
-        return new TerrainPatch(left, bottom, right - left + 1, top - bottom + 1, bytes, tiles);
+        var bytes = TerrainBytes.Patch(grid, layers, _cliffs, left, bottom, right, top);
+        return new TerrainPatch(left, bottom, right - left + 1, top - bottom + 1, bytes, tiles, cliffs);
     }
 
     // The number of tile `id` in the map's list, added at its end when the map does not list it yet.
@@ -260,10 +306,9 @@ public sealed class TerrainEditor : IMapPart
             TilesChanged();
         }
 
-        foreach (var (index, (height, texture)) in state.Corners)
+        foreach (var (index, corner) in state.Corners)
         {
-            _terrain.TerrainTiles[index].Height = height;
-            _terrain.TerrainTiles[index].Texture = texture;
+            corner.Put(_terrain.TerrainTiles[index]);
         }
 
         foreach (var (index, cell) in state.Cells)
@@ -271,6 +316,7 @@ public sealed class TerrainEditor : IMapPart
             _cells[index] = cell;
         }
 
+        CliffsChanged();
         Version++;
     }
 
@@ -278,6 +324,23 @@ public sealed class TerrainEditor : IMapPart
     {
         _textures.Clear();
         _pathing = MakePathing();
+    }
+
+    private void CliffsChanged()
+    {
+        _cliffs = Cliffs.Of(_terrain, _files, "sd", Models("sd")).Tiles;
+        _pathing = MakePathing();
+    }
+
+    // The cliff models each folder has in a graphics mode, read once.
+    private Dictionary<string, Dictionary<string, int>> Models(string mode)
+    {
+        if (!_cliffModels.TryGetValue(mode, out var known))
+        {
+            known = _cliffModels[mode] = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return known;
     }
 
     private Pathing MakePathing()
@@ -381,15 +444,17 @@ public sealed class TerrainEditor : IMapPart
         return stream.ToArray();
     }
 
-    // A stroke still open: the tiles the map listed and the plateau's height when it began, and each corner's and
-    // pathing cell's value before the stroke first changed it.
-    private sealed class OpenStroke(List<TerrainType> types, float plateau)
+    // A stroke still open: the tiles the map listed, the plateau's height and the cliff level when it began, and each
+    // corner's and pathing cell's value before the stroke first changed it.
+    private sealed class OpenStroke(List<TerrainType> types, float plateau, int level)
     {
         public List<TerrainType> Types { get; } = types;
 
         public float Plateau { get; } = plateau;
 
-        public Dictionary<int, (float Height, int Texture)> Corners { get; } = [];
+        public int Level { get; } = level;
+
+        public Dictionary<int, CornerState> Corners { get; } = [];
 
         public Dictionary<int, byte> Cells { get; } = [];
     }
@@ -397,6 +462,25 @@ public sealed class TerrainEditor : IMapPart
     // The tiles listed, and the corners' and cells' values, on one side of a stroke.
     private sealed record State(
         List<TerrainType> Types,
-        IReadOnlyDictionary<int, (float Height, int Texture)> Corners,
+        IReadOnlyDictionary<int, CornerState> Corners,
         IReadOnlyDictionary<int, byte> Cells);
+
+    // A corner's values the brushes change, to put back on an undo or redo.
+    private readonly record struct CornerState(
+        float Height, int Texture, int CliffLevel, int CliffTexture, bool Ramp, bool Water, float WaterHeight)
+    {
+        public static CornerState Of(TerrainTile corner) => new(
+            corner.Height, corner.Texture, corner.CliffLevel, corner.CliffTexture, corner.IsRamp, corner.IsWater, corner.WaterHeight);
+
+        public void Put(TerrainTile corner)
+        {
+            corner.Height = Height;
+            corner.Texture = Texture;
+            corner.CliffLevel = CliffLevel;
+            corner.CliffTexture = CliffTexture;
+            corner.IsRamp = Ramp;
+            corner.IsWater = Water;
+            corner.WaterHeight = WaterHeight;
+        }
+    }
 }

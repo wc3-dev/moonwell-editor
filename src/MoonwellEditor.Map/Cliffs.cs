@@ -71,15 +71,18 @@ public static class Cliffs
 {
     private const string Table = "TerrainArt/CliffTypes.slk";
 
-    /// <summary>The cliff and ramp models of <paramref name="terrain"/>, and the tiles they cover.</summary>
+    /// <summary>
+    /// The cliff and ramp models of <paramref name="terrain"/>, and the tiles they cover. <paramref name="known"/> keeps
+    /// the models each folder has, read once, for a caller that asks again (the Terrain Editor after each cliff edit).
+    /// </summary>
     public static (IReadOnlyList<CliffPiece> Pieces, CliffTiles Tiles) Of(
-        MapEnvironment terrain, IMapGameFiles files, string mode)
+        MapEnvironment terrain, IMapGameFiles files, string mode, Dictionary<string, Dictionary<string, int>>? known = null)
     {
         var columns = (int)terrain.Width + 1;
         var rows = (int)terrain.Height + 1;
         var corners = terrain.TerrainTiles;
         var types = TypesOf(terrain, files);
-        var variations = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+        var variations = known ?? new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
         int Level(int x, int y) => corners[(y * columns) + x].CliffLevel;
         bool Ramp(int x, int y) => corners[(y * columns) + x].IsRamp;
 
