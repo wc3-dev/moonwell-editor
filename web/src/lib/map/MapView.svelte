@@ -14,7 +14,7 @@
  * With the header's ground tools on (terrainTools), a left drag is a brush stroke instead: each step goes to the app,
  * which changes the terrain and answers with the part to redraw; one request at a time, the mouse's points gathered
  * meanwhile. Raise, lower and smooth keep working while the button is held still. The brush's outline follows the
- * mouse. A cliff or water stroke redraws the ground as it goes and the cliff models when it ends.
+ * mouse. A cliff or water stroke redraws the ground and the cliff models as it goes.
  *
  * With the Place group on, a click on the ground places the type chosen in the dock, a click on a thing chooses it,
  * and a drag of the chosen thing moves it there; the keys for "turn the thing" (R) and "delete" (Delete) turn and
@@ -121,7 +121,6 @@ type Stroke = {
   last: [number, number] | null;
   repeat: number;
   reload: boolean;
-  cliffs: boolean;
 };
 let stroke: Stroke | null = null;
 /** Why the last brush step was refused, until the next stroke. */
@@ -540,7 +539,6 @@ function startStroke(event: PointerEvent): void {
     last: at,
     repeat: 0,
     reload: false,
-    cliffs: false,
   };
   if (
     terrainTools.tool === "Raise" ||
@@ -587,7 +585,9 @@ async function sendStroke(current: Stroke): Promise<void> {
       drawnVersion++;
     }
     current.reload ||= change.tiles;
-    current.cliffs ||= change.cliffs;
+    // The cliff models with each step, so the ground they hide never shows as a hole.
+    if (change.cliffs && !current.reload)
+      renderer?.setCliffs(await terrainCliffs(mode), [view.x, view.y]);
   } catch (error) {
     refused = errorText(error);
     current.pending = [];
@@ -605,15 +605,6 @@ async function endStroke(current: Stroke): Promise<void> {
     refused = errorText(error);
   });
   if (current.reload) reload();
-  else if (current.cliffs) {
-    // The ground was redrawn as the stroke went; the cliff models once it ends.
-    await terrainCliffs(mode).then(
-      (pieces) => renderer?.setCliffs(pieces, [view.x, view.y]),
-      (error) => {
-        refused = errorText(error);
-      },
-    );
-  }
 }
 
 /** The number of the placed thing under the mouse; 0 for none. */

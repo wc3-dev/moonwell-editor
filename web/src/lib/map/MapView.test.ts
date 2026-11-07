@@ -6,6 +6,7 @@ import { t } from "../text.ts";
 import MapView from "./MapView.svelte";
 import MapViewHost from "./MapViewHost.test.svelte";
 import type { MapSceneView, PlacedThing } from "./scene.ts";
+import { terrainTools } from "./terrainTools.svelte.ts";
 
 const fake = vi.hoisted(() => ({
   scenes: new Map<string, Promise<unknown>>(),
@@ -14,6 +15,7 @@ const fake = vi.hoisted(() => ({
   highlights: 0,
   reads: 0,
   patched: 0,
+  cliffAsks: 0,
   undone: { left: 0, bottom: 0, columns: 0, rows: 0, bytes: "", tiles: false, cliffs: false },
 }));
 
@@ -22,6 +24,20 @@ vi.mock("../api.ts", async (original) => ({
   mapScene: (mode: string) => {
     fake.reads++;
     return fake.scenes.get(mode);
+  },
+  terrainStroke: async () => ({
+    left: 0,
+    bottom: 0,
+    columns: 0,
+    rows: 0,
+    bytes: "",
+    tiles: false,
+    cliffs: true,
+  }),
+  terrainStrokeEnd: async () => null,
+  terrainCliffs: async () => {
+    fake.cliffAsks++;
+    return [];
   },
   terrainUndone: async () => ({ ground: fake.undone, things: false, marks: false, version: 1 }),
   terrainUrl: (mode: string) => `terrain/${mode}`,
@@ -50,6 +66,7 @@ vi.mock("./gl/renderer.ts", () => ({
     selectMark(): void {
       fake.selectMarks++;
     }
+    setCliffs(): void {}
     terrainChanged(): void {
       fake.patched++;
     }
@@ -102,6 +119,7 @@ beforeEach(() => {
   fake.highlights = 0;
   fake.reads = 0;
   fake.patched = 0;
+  fake.cliffAsks = 0;
   globalThis.ResizeObserver = NoResizeObserver as never;
   vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) =>
     setTimeout(() => draw(performance.now())),
@@ -181,4 +199,23 @@ test("an undo of a stroke redraws the part it touched, without reading the map a
   await settled();
   expect(fake.reads).toBe(1);
   expect(fake.hosts).toBe(1);
+});
+
+test("a cliff stroke shows its cliff models as it goes, not only once the button is up", async () => {
+  fake.scenes.set("sd", Promise.resolve(scene()));
+  render(MapView, { mode: "sd" });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  terrainTools.group = "cliffs";
+  terrainTools.tool = "CliffUp";
+  HTMLCanvasElement.prototype.setPointerCapture = () => {};
+  try {
+    await fireEvent.pointerDown(screen.getByLabelText(t("main.map")), {
+      button: 0,
+      clientX: 0.5,
+      clientY: 0.5,
+    });
+    await waitFor(() => expect(fake.cliffAsks).toBeGreaterThan(0));
+  } finally {
+    terrainTools.group = null;
+  }
 });
