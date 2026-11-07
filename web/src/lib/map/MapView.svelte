@@ -19,16 +19,26 @@
  * With the Place group on, a click on the ground places the type chosen in the dock, a click on a thing chooses it,
  * and a drag of the chosen thing moves it there; the keys for "turn the thing" (R) and "delete" (Delete) turn and
  * remove it (Sven, 2026-11-06). Each change is one undo step; the view then draws the app's list of things again,
- * keeping the models it has. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
- * again, as does a paint that added a tile to the map's list, once its stroke ends.
+ * keeping the models it has.
+ *
+ * With the Regions group on, a drag on the ground draws a region, a drag of one moves it, and a drag of the chosen one's
+ * corner resizes it. With the Cameras group on, a drag of a camera's cross moves what it looks at; the dock makes one
+ * from the view, aims the chosen one at the view, or looks through it. Delete removes the chosen one. An undo or redo
+ * of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene again, as does a paint
+ * that added a tile to the map's list, once its stroke ends; the view and what is chosen stay.
  */
 
 import { untrack } from "svelte";
 import {
   fileUrl,
   mapScene,
+  terrainCamera,
+  terrainCameraRemove,
   terrainCliffs,
+  terrainMarks,
   terrainPlace,
+  terrainRegion,
+  terrainRegionRemove,
   terrainStroke,
   terrainStrokeEnd,
   terrainThing,
@@ -36,7 +46,7 @@ import {
   terrainUrl,
 } from "../api.ts";
 import { actionOf, defaultKeymap, type Keymap } from "../app/keymap.ts";
-import type { ThingChange } from "../bridge.gen.ts";
+import type { CameraMark, RegionMark, ThingChange } from "../bridge.gen.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
 import { framed, numpadView, orbited, panned, ray, type View, zoomed } from "./camera.ts";
@@ -53,7 +63,13 @@ import {
   type Terrain,
   type ThingKind,
 } from "./scene.ts";
-import { brushOutline, chosenThing, isBrushGroup, terrainTools } from "./terrainTools.svelte.ts";
+import {
+  brushOutline,
+  chosenMark,
+  chosenThing,
+  isBrushGroup,
+  terrainTools,
+} from "./terrainTools.svelte.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in: `sd`, `hd` or `de`. */
@@ -83,7 +99,7 @@ const cameraReach = 96;
 let view: View = { x: 0, y: 0, z: 0, distance: 1650, yaw: 0, pitch };
 let scene: MapSceneView | null = null;
 let terrain: Terrain | null = null;
-let renderer: MapRenderer | null = null;
+let renderer: MapRenderer | null = $state.raw(null);
 let frame = 0;
 let hoverFrame = 0;
 /** A middle drag: what it does, chosen when it starts (Blender's: Shift pans, Ctrl zooms, else it orbits). */
@@ -91,6 +107,8 @@ let drag: { x: number; y: number; does: "orbit" | "pan" | "zoom" } | null = null
 let press: { x: number; y: number } | null = null;
 /** Goes up to read the scene again (after an undo of the terrain, or a paint that added a tile). */
 let reloads = $state(0);
+/** Whether the next read of the scene is a reload, which keeps the view and what is chosen. */
+let keepView = false;
 /** The terrain version the view draws: the session's when read, plus each stroke step here that changed it. */
 let drawnVersion = 0;
 /** A brush stroke under way: the points not sent yet, whether a step is on its way, and whether the button is up. */
@@ -113,6 +131,84 @@ const placing = $derived(terrainTools.group === "place" && picking.kind === null
 let thingBusy = false;
 /** A press on the chosen thing in the Place group, which a drag turns into a move. */
 let carry: { x: number; y: number; number: number; moved: boolean } | null = null;
+const marking = $derived(
+  (terrainTools.group === "regions" || terrainTools.group === "cameras") && picking.kind === null,
+);
+/** A drag in the Regions or Cameras group: drawing a region, moving one or a camera, or resizing a region. */
+let shaping: {
+  does: "draw" | "move" | "resize";
+  number: number;
+  from: [number, number];
+  to: [number, number];
+  /** The rectangle it started as (a region's), or the corner that stays (a resize's, as left = right). */
+  rect: [number, number, number, number];
+} | null = null;
+
+// The view's camera in the game's terms, and back: the game turns from east and tilts below 360.
+const degrees = (radians: number) => (radians * 180) / Math.PI;
+function aimOf(view: View): { rotation: number; angleOfAttack: number; distance: number } {
+  return {
+    rotation: 90 - degrees(view.yaw),
+    angleOfAttack: 360 - degrees(view.pitch),
+    distance: view.distance,
+  };
+}
+
+// The dock's changes to the chosen region or camera go through the view, which draws them.
+$effect(() => {
+  chosenMark.rename = (name) => {
+    const mark = terrainTools.mark;
+    const region = mark?.kind === "region" ? scene?.regions[mark.number - 1] : undefined;
+    const camera = mark?.kind === "camera" ? scene?.cameras[mark.number - 1] : undefined;
+    if (mark && region)
+      void changeMark("region", () =>
+        terrainRegion({ number: mark.number, ...rectOf(region), name }),
+      );
+    if (mark && camera)
+      void changeMark("camera", () => terrainCamera({ ...cameraArgs(mark.number, camera), name }));
+  };
+  chosenMark.newCamera = () =>
+    void changeMark("camera", () =>
+      terrainCamera({ number: 0, x: view.x, y: view.y, ...aimOf(view), name: null }),
+    );
+  chosenMark.aim = () => {
+    const mark = terrainTools.mark;
+    const camera = mark?.kind === "camera" ? scene?.cameras[mark.number - 1] : undefined;
+    if (mark && camera)
+      void changeMark("camera", () =>
+        terrainCamera({
+          number: mark.number,
+          x: view.x,
+          y: view.y,
+          ...aimOf(view),
+          name: camera.name,
+        }),
+      );
+  };
+  chosenMark.look = () => {
+    const mark = terrainTools.mark;
+    const camera = mark?.kind === "camera" ? scene?.cameras[mark.number - 1] : undefined;
+    if (!camera) return;
+    const radians = (value: number) => (value * Math.PI) / 180;
+    move({
+      x: camera.x,
+      y: camera.y,
+      z: 0,
+      distance: camera.distance,
+      yaw: radians(90 - camera.rotation),
+      pitch: Math.min(
+        Math.max(radians(360 - camera.angleOfAttack), -Math.PI / 2 + 0.001),
+        Math.PI / 2 - 0.001,
+      ),
+    });
+  };
+  return () => {
+    chosenMark.rename = null;
+    chosenMark.newCamera = null;
+    chosenMark.aim = null;
+    chosenMark.look = null;
+  };
+});
 
 // The dock's changes to the chosen thing go through the view, which draws them.
 $effect(() => {
@@ -218,9 +314,14 @@ $effect(() => {
   const version = terrainVersion;
   if (version !== drawnVersion && !stroke && !thingBusy) {
     drawnVersion = version;
-    reloads++;
+    reload();
   }
 });
+
+function reload(): void {
+  keepView = true;
+  reloads++;
+}
 
 async function open(
   shown: string,
@@ -228,6 +329,8 @@ async function open(
   signal: AbortSignal,
   keep: (host: GlHost) => void,
 ): Promise<void> {
+  const reloading = keepView;
+  keepView = false;
   status = "loading";
   problems = [];
   const started = performance.now();
@@ -247,7 +350,10 @@ async function open(
     if (signal.aborted) return;
     console.info(`[timing] map scene ${Math.round(performance.now() - started)} ms`);
     terrain = grid;
-    view = start(read, grid);
+    view = reloading ? { ...view, z: groundAt(grid, view.x, view.y) } : start(read, grid);
+    if (reloading && terrainTools.mark)
+      chooseMark(terrainTools.mark.kind, terrainTools.mark.number);
+    if (reloading && terrainTools.chosen) chooseThing(terrainTools.chosen.number);
     sizeCanvas(target);
     keep(
       new GlHost(target, (gl) => {
@@ -456,7 +562,7 @@ async function endStroke(current: Stroke): Promise<void> {
   await terrainStrokeEnd().catch((error) => {
     refused = errorText(error);
   });
-  if (current.reload) reloads++;
+  if (current.reload) reload();
   else if (current.cliffs) {
     // The ground was redrawn as the stroke went; the cliff models once it ends.
     await terrainCliffs(mode).then(
@@ -489,6 +595,142 @@ function chooseThing(number: number): void {
     ? { number, kind: thing.kind, name: thing.name, owner: thing.owner, scale: thing.scaleX }
     : null;
   selected = thing ? choose({ thing, region: null, camera: null, point: null }, null) : null;
+}
+
+function rectOf(region: RegionMark): { left: number; bottom: number; right: number; top: number } {
+  return { left: region.left, bottom: region.bottom, right: region.right, top: region.top };
+}
+
+function cameraArgs(number: number, camera: CameraMark) {
+  return {
+    number,
+    x: camera.x,
+    y: camera.y,
+    rotation: camera.rotation,
+    angleOfAttack: camera.angleOfAttack,
+    distance: camera.distance,
+    name: camera.name,
+  };
+}
+
+/** Chooses region or camera `number` (0 for none): the dock shows it, and the view draws it white. */
+function chooseMark(kind: "region" | "camera", number: number): void {
+  const region = kind === "region" && number > 0 ? scene?.regions[number - 1] : undefined;
+  const camera = kind === "camera" && number > 0 ? scene?.cameras[number - 1] : undefined;
+  const round = Math.round;
+  terrainTools.mark = region
+    ? {
+        kind,
+        number,
+        name: region.name,
+        detail: `${round(region.left)}, ${round(region.bottom)} – ${round(region.right)}, ${round(region.top)}`,
+      }
+    : camera
+      ? {
+          kind,
+          number,
+          name: camera.name,
+          detail: `${round(camera.x)}, ${round(camera.y)} · ${round(camera.rotation)}° · ${round(camera.angleOfAttack)}°`,
+        }
+      : null;
+  selected =
+    region || camera
+      ? choose({ thing: null, region: region ?? null, camera: camera ?? null, point: null }, null)
+      : null;
+}
+
+/** Sends a change to a region or camera, then draws the app's regions and cameras again and chooses the one it names. */
+async function changeMark(
+  kind: "region" | "camera",
+  change: () => Promise<ThingChange>,
+): Promise<void> {
+  if (!renderer || !scene) return;
+  thingBusy = true;
+  refused = "";
+  try {
+    const result = await change();
+    drawnVersion = result.version;
+    const marks = await terrainMarks();
+    scene = { ...scene, regions: marks.regions, cameras: marks.cameras };
+    renderer.setMarks(marks.regions, marks.cameras);
+    chooseMark(
+      kind,
+      result.number <= (kind === "region" ? marks.regions : marks.cameras).length
+        ? result.number
+        : 0,
+    );
+  } catch (error) {
+    refused = errorText(error);
+  } finally {
+    thingBusy = false;
+  }
+}
+
+/** The rectangle a drag in the Regions group makes, as left, bottom, right, top. */
+function shapedRect(drag: NonNullable<typeof shaping>): [number, number, number, number] {
+  const [x, y] = drag.to;
+  if (drag.does === "draw") return [drag.from[0], drag.from[1], x, y];
+  if (drag.does === "resize") return [drag.rect[0], drag.rect[1], x, y];
+  const [dx, dy] = [x - drag.from[0], y - drag.from[1]];
+  return [drag.rect[0] + dx, drag.rect[1] + dy, drag.rect[2] + dx, drag.rect[3] + dy];
+}
+
+function startMark(event: PointerEvent): void {
+  const at = groundUnder(event.clientX, event.clientY);
+  if (!at || !scene) return;
+  canvas?.setPointerCapture(event.pointerId);
+  if (terrainTools.group === "cameras") {
+    const camera = cameraAt(scene.cameras, at[0], at[1], Math.max(cameraReach, perPixel() * 12));
+    const number = camera ? scene.cameras.indexOf(camera) + 1 : 0;
+    chooseMark("camera", number);
+    if (camera)
+      shaping = {
+        does: "move",
+        number,
+        from: at,
+        to: at,
+        rect: [camera.x, camera.y, camera.x, camera.y],
+      };
+    return;
+  }
+  // The chosen region's corner, near enough, resizes it from the corner across.
+  const reach = Math.max(48, perPixel() * 10);
+  const chosen =
+    terrainTools.mark?.kind === "region" ? scene.regions[terrainTools.mark.number - 1] : undefined;
+  if (chosen && terrainTools.mark) {
+    for (const [cx, cy, ox, oy] of [
+      [chosen.left, chosen.bottom, chosen.right, chosen.top],
+      [chosen.right, chosen.bottom, chosen.left, chosen.top],
+      [chosen.left, chosen.top, chosen.right, chosen.bottom],
+      [chosen.right, chosen.top, chosen.left, chosen.bottom],
+    ] as const) {
+      if (Math.hypot(at[0] - cx, at[1] - cy) <= reach) {
+        shaping = {
+          does: "resize",
+          number: terrainTools.mark.number,
+          from: at,
+          to: at,
+          rect: [ox, oy, ox, oy],
+        };
+        return;
+      }
+    }
+  }
+  const region = regionAt(scene.regions, at[0], at[1]);
+  if (region) {
+    const number = scene.regions.indexOf(region) + 1;
+    chooseMark("region", number);
+    shaping = {
+      does: "move",
+      number,
+      from: at,
+      to: at,
+      rect: [region.left, region.bottom, region.right, region.top],
+    };
+    return;
+  }
+  chooseMark("region", 0);
+  shaping = { does: "draw", number: 0, from: at, to: at, rect: [at[0], at[1], at[0], at[1]] };
 }
 
 /** Sends a change to a placed thing, then draws the app's things again and chooses the thing it names. */
@@ -533,6 +775,10 @@ function onpointerdown(event: PointerEvent): void {
     startPlace(event);
     return;
   }
+  if (event.button === 0 && marking) {
+    startMark(event);
+    return;
+  }
   if (event.button === 0) {
     press = { x: event.clientX, y: event.clientY };
     return;
@@ -555,6 +801,25 @@ function onpointermove(event: PointerEvent): void {
     if (drag.does === "orbit") move(orbited(view, dx, dy));
     else if (drag.does === "pan") move(panned(view, -dx * perPixel(), dy * perPixel()));
     else move(zoomed(view, -dy / 40));
+    return;
+  }
+  if (shaping) {
+    const at = groundUnder(event.clientX, event.clientY);
+    if (at) shaping.to = at;
+    if (shaping.does === "move" && terrainTools.group === "cameras") {
+      if (renderer && terrain)
+        renderer.setBrush(
+          brushOutline(terrain.left, terrain.bottom, shaping.to[0], shaping.to[1], "Circle", 1),
+        );
+    } else {
+      const [l, b, r, t] = shapedRect(shaping);
+      renderer?.setBrush([
+        [l, b],
+        [r, b],
+        [r, t],
+        [l, t],
+      ]);
+    }
     return;
   }
   if (carry) {
@@ -601,6 +866,26 @@ function onpointerup(event: PointerEvent): void {
     void sendStroke(stroke);
     return;
   }
+  if (shaping && event.button === 0) {
+    canvas?.releasePointerCapture(event.pointerId);
+    renderer?.setBrush(null);
+    const drag = shaping;
+    shaping = null;
+    if (Math.hypot(drag.to[0] - drag.from[0], drag.to[1] - drag.from[1]) < 16) return;
+    if (terrainTools.group === "cameras") {
+      const camera = scene?.cameras[drag.number - 1];
+      if (camera)
+        void changeMark("camera", () =>
+          terrainCamera({ ...cameraArgs(drag.number, camera), x: drag.to[0], y: drag.to[1] }),
+        );
+      return;
+    }
+    const [left, bottom, right, top] = shapedRect(drag);
+    void changeMark("region", () =>
+      terrainRegion({ number: drag.number, left, bottom, right, top, name: null }),
+    );
+    return;
+  }
   if (carry && event.button === 0) {
     canvas?.releasePointerCapture(event.pointerId);
     renderer?.setBrush(null);
@@ -634,7 +919,16 @@ function onkeydown(event: KeyboardEvent): void {
   if (event.key === "Escape") {
     if (picking.kind !== null) answer(null);
     else if (placing) chooseThing(0);
+    else if (marking) chooseMark("region", 0);
     else selected = null;
+    return;
+  }
+  const mark = marking ? terrainTools.mark : null;
+  if (mark && actionOf(event, keymap) === "deleteObject") {
+    event.preventDefault();
+    void changeMark(mark.kind, () =>
+      mark.kind === "region" ? terrainRegionRemove(mark.number) : terrainCameraRemove(mark.number),
+    ).then(() => chooseMark(mark.kind, 0));
     return;
   }
   const number = placing ? terrainTools.chosen?.number : undefined;

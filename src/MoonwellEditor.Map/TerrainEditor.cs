@@ -65,6 +65,8 @@ public sealed partial class TerrainEditor : IMapPart
     private readonly float _waterLevel;
     private readonly MapDoodads? _doodads;
     private readonly MapUnits? _units;
+    private readonly MapRegions? _regions;
+    private readonly MapCameras? _cameras;
     private readonly Dictionary<string, Rgba?> _pictures = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<PathingStamp> _stamps;
     private readonly Dictionary<string, TerrainTextures> _textures = new(StringComparer.Ordinal);
@@ -79,6 +81,8 @@ public sealed partial class TerrainEditor : IMapPart
         MapPathingMap? pathing,
         MapDoodads? doodads,
         MapUnits? units,
+        MapRegions? regions,
+        MapCameras? cameras,
         War3Net.Build.Info.MapInfo? info)
     {
         _session = session;
@@ -89,6 +93,8 @@ public sealed partial class TerrainEditor : IMapPart
         _cells = pathing?.Cells.Select(cell => (byte)cell).ToArray() ?? [];
         _doodads = doodads;
         _units = units;
+        _regions = regions;
+        _cameras = cameras;
         _info = info;
         _stamps = StampsOf();
         _cliffs = Cliffs.Of(terrain, files, "sd", Models("sd")).Tiles;
@@ -117,17 +123,21 @@ public sealed partial class TerrainEditor : IMapPart
         var pathingBytes = session.Track(PathingFile);
         var doodadBytes = session.Track(DoodadsFile);
         var unitBytes = session.Track(UnitsFile);
+        var regionBytes = session.Track(RegionsFile);
+        var cameraBytes = session.Track(CamerasFile);
         var terrain = Read(terrainBytes, reader => reader.ReadMapEnvironment());
         var pathing = pathingBytes == null ? null : Read(pathingBytes, reader => reader.ReadMapPathingMap());
         var doodads = doodadBytes == null ? null : Read(doodadBytes, reader => reader.ReadMapDoodads());
         var units = unitBytes == null ? null : Read(unitBytes, reader => reader.ReadMapUnits());
+        var regions = regionBytes == null ? null : Read(regionBytes, reader => reader.ReadMapRegions());
+        var cameras = cameraBytes == null ? null : Read(cameraBytes, reader => reader.ReadMapCameras());
         if (pathing != null && (pathing.Width != terrain.Width * 4 || pathing.Height != terrain.Height * 4))
         {
             pathing = null;   // not this terrain's: left as it is
         }
 
         var read = MapReader.Read(store);
-        var editor = new TerrainEditor(session, store, files, terrain, pathing, doodads, units, read.Info);
+        var editor = new TerrainEditor(session, store, files, terrain, pathing, doodads, units, regions, cameras, read.Info);
         session.Attach(editor);
         return editor;
     }
@@ -279,6 +289,16 @@ public sealed partial class TerrainEditor : IMapPart
         if (_units != null)
         {
             yield return (UnitsFile, Write(writer => writer.Write(_units)));
+        }
+
+        if (_regions != null)
+        {
+            yield return (RegionsFile, Write(writer => writer.Write(_regions)));
+        }
+
+        if (_cameras != null)
+        {
+            yield return (CamerasFile, Write(writer => writer.Write(_cameras)));
         }
     }
 
