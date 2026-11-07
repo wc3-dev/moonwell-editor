@@ -182,7 +182,7 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
             Assert.NotEmpty(types);
             Assert.All(types, type => Assert.DoesNotContain("WESTRING", type.Name, StringComparison.Ordinal));
 
-            var patch = editor.Stroke(GroundTool.CliffUp, [(x, y)], new Brush(BrushShape.Square, 3, 0), null, "sd", first: true);
+            var patch = editor.Stroke(GroundTool.CliffUp, [(x, y)], new Brush(BrushShape.Square, 2, 0), null, "sd", first: true);
             editor.EndStroke();
 
             Assert.True(patch.Cliffs);

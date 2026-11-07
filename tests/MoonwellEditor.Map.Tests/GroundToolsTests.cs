@@ -2,21 +2,23 @@ namespace MoonwellEditor.Map.Tests;
 
 public sealed class GroundToolsTests
 {
+    // World Editor's size n covers 2n - 1 corners across, around the corner nearest the mouse (its Lost Temple, 11-07:
+    // a size 2 paint gave 3 by 3 corners, size 3 and 5 cliffs 5 by 5 and 9 by 9).
     [Theory]
     [InlineData(BrushShape.Square, 1, 1)]
-    [InlineData(BrushShape.Square, 2, 4)]
-    [InlineData(BrushShape.Square, 3, 9)]
-    [InlineData(BrushShape.Circle, 3, 9)]
-    [InlineData(BrushShape.Circle, 4, 12)]
-    [InlineData(BrushShape.Square, 4, 16)]
-    public void A_brush_covers_its_size_in_corners(BrushShape shape, int size, int corners)
+    [InlineData(BrushShape.Square, 2, 9)]
+    [InlineData(BrushShape.Square, 3, 25)]
+    [InlineData(BrushShape.Square, 5, 81)]
+    [InlineData(BrushShape.Circle, 3, 21)]
+    public void A_brush_covers_World_Editors_corners(BrushShape shape, int size, int corners)
     {
-        var terrain = Grids.Flat(11, 11);
+        var terrain = Grids.Flat(21, 21);
 
-        var covered = GroundTools.Covered(terrain, 5 * 128f, 5 * 128f, new Brush(shape, size, 0)).ToList();
+        var covered = GroundTools.Covered(terrain, 10.4f * 128f, 9.7f * 128f, new Brush(shape, size, 0)).ToList();
 
         Assert.Equal(corners, covered.Count);
-        Assert.Equal(1f, covered.Max(c => c.Weight));
+        var middle = covered.MaxBy(c => c.Weight);
+        Assert.Equal((10, 10), (middle.Column, middle.Row));
     }
 
     [Fact]
@@ -24,14 +26,14 @@ public sealed class GroundToolsTests
     {
         var terrain = Grids.Flat(4, 4);
 
-        Assert.Equal(4, GroundTools.Covered(terrain, 0, 0, new Brush(BrushShape.Square, 3, 0)).Count());
+        Assert.Equal(9, GroundTools.Covered(terrain, 0, 0, new Brush(BrushShape.Square, 3, 0)).Count());
     }
 
     [Fact]
     public void Raise_lifts_the_middle_most_and_lower_takes_it_back()
     {
         var terrain = Grids.Flat(7, 7);
-        var brush = new Brush(BrushShape.Circle, 3, 64);
+        var brush = new Brush(BrushShape.Circle, 2, 64);
         var changed = new List<int>();
 
         GroundTools.Use(terrain, GroundTool.Raise, 3 * 128f, 3 * 128f, brush, new StrokeStart(-1, 0, 2, 0), changed.Add);
@@ -63,7 +65,7 @@ public sealed class GroundToolsTests
         terrain.At(2, 2).Texture = 1;
         var changed = new List<int>();
 
-        var brush = new Brush(BrushShape.Square, 3, 0);
+        var brush = new Brush(BrushShape.Square, 2, 0);
         GroundTools.Use(terrain, GroundTool.Paint, 2 * 128f, 2 * 128f, brush, new StrokeStart(1, 0, 2, 0), changed.Add);
 
         Assert.Equal(8, changed.Count);
@@ -107,7 +109,29 @@ public sealed class GroundToolsTests
     }
 
     [Fact]
-    public void Ramp_flags_the_corners_and_leaves_their_levels()
+    public void Ramp_flags_only_World_Editors_three_corners_across_a_cliff_and_leaves_their_levels()
+    {
+        // A cliff a level up east of column 5, as World Editor's sample had; its size 3 ramp across the edge flagged the
+        // top corner and the two below it, not the plateau behind or the ground further out.
+        var terrain = Grids.Flat(11, 11);
+        for (var row = 0; row <= 10; row++)
+        {
+            for (var column = 0; column <= 5; column++)
+            {
+                terrain.At(column, row).CliffLevel = 3;
+            }
+        }
+
+        GroundTools.Use(
+            terrain, GroundTool.Ramp, 6 * 128f, 5 * 128f, new Brush(BrushShape.Square, 3, 0), new StrokeStart(-1, 0, 2, 0), _ => { });
+
+        var flagged = Enumerable.Range(4, 5).Where(column => terrain.At(column, 5).IsRamp).ToList();
+        Assert.Equal([5, 6, 7], flagged);
+        Assert.Equal((3, 2), (terrain.At(5, 5).CliffLevel, terrain.At(6, 5).CliffLevel));
+    }
+
+    [Fact]
+    public void Ramp_on_flat_ground_flags_nothing()
     {
         var terrain = Grids.Flat(5, 5);
         var changed = new List<int>();
@@ -115,8 +139,6 @@ public sealed class GroundToolsTests
         GroundTools.Use(
             terrain, GroundTool.Ramp, 2 * 128f, 2 * 128f, new Brush(BrushShape.Square, 3, 0), new StrokeStart(-1, 0, 2, 0), changed.Add);
 
-        Assert.Equal(9, changed.Count);
-        Assert.True(terrain.At(1, 1).IsRamp);
-        Assert.Equal(2, terrain.At(1, 1).CliffLevel);
+        Assert.Empty(changed);
     }
 }

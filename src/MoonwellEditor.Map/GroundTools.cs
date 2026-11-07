@@ -57,7 +57,7 @@ public enum BrushShape
 
 /// <summary>A ground brush.</summary>
 /// <param name="Shape">Its outline.</param>
-/// <param name="Size">How many corners across it is, 1 to 8.</param>
+/// <param name="Size">1 to 8, as World Editor's: 2 × Size − 1 corners across.</param>
 /// <param name="Strength">How far a raise or lower moves the ground in the brush's middle at each step, in game units.</param>
 public sealed record Brush(BrushShape Shape, int Size, float Strength);
 
@@ -72,7 +72,7 @@ public sealed record StrokeStart(int Texture, float Plateau, int Level, int Clif
 
 /// <summary>
 /// The ground brushes' rules (the editor's own, after World Editor's palette): a brush covers the corners within its
-/// outline around the corner nearest the mouse (an odd size) or the middle of the tile under it (an even size). The
+/// outline around the corner nearest the mouse, 2 × size − 1 corners across as World Editor's. The
 /// cliff and water tools set a cliff level, and the corners around follow so that no tile spans more than two levels,
 /// the most the cliff models cover (their letters go to C).
 /// </summary>
@@ -98,15 +98,11 @@ public static class GroundTools
     /// </summary>
     public static IEnumerable<(int Column, int Row, float Weight)> Covered(MapEnvironment terrain, float x, float y, Brush brush)
     {
-        var size = Math.Clamp(brush.Size, 1, Largest);
-        var u = (x - terrain.Left) / 128f;
-        var v = (y - terrain.Bottom) / 128f;
-        var (cu, cv) = size % 2 == 1 ? (MathF.Round(u), MathF.Round(v)) : (MathF.Floor(u) + 0.5f, MathF.Floor(v) + 0.5f);
-        var reach = (size - 1) / 2f;
-        var radius = size / 2f;
-
-        // The middle corners are full strength: the one at the middle of an odd brush, the four around an even one's.
-        var middle = size % 2 == 1 ? 0f : MathF.Sqrt(0.5f);
+        var across = (2 * Math.Clamp(brush.Size, 1, Largest)) - 1;
+        var cu = MathF.Round((x - terrain.Left) / 128f);
+        var cv = MathF.Round((y - terrain.Bottom) / 128f);
+        var reach = (across - 1) / 2f;
+        var radius = across / 2f;
         for (var row = (int)MathF.Ceiling(cv - reach); row <= (int)MathF.Floor(cv + reach); row++)
         {
             for (var column = (int)MathF.Ceiling(cu - reach); column <= (int)MathF.Floor(cu + reach); column++)
@@ -122,7 +118,7 @@ public static class GroundTools
                     continue;
                 }
 
-                var cosine = MathF.Cos(MathF.PI / 2f * (distance - middle) / (radius + 0.5f - middle));
+                var cosine = MathF.Cos(MathF.PI / 2f * distance / (radius + 0.5f));
                 yield return (column, row, cosine * cosine);
             }
         }
@@ -187,7 +183,7 @@ public static class GroundTools
             var corner = corners[index];
             if (tool == GroundTool.Ramp)
             {
-                if (!corner.IsRamp)
+                if (!corner.IsRamp && RampFits(terrain, index))
                 {
                     changing(index);
                     corner.IsRamp = true;
@@ -262,6 +258,29 @@ public static class GroundTools
                 }
             }
         }
+    }
+
+    // Whether a ramp may flag the corner at `index`, as World Editor's does: a corner on a cliff's top edge (a corner
+    // around it a level lower), or one of the two corners below such an edge (a level higher within two corners).
+    private static bool RampFits(MapEnvironment terrain, int index)
+    {
+        var columns = (int)terrain.Width + 1;
+        var level = terrain.TerrainTiles[index].CliffLevel;
+        var (column, row) = (index % columns, index / columns);
+        for (var j = Math.Max(row - 2, 0); j <= Math.Min(row + 2, (int)terrain.Height); j++)
+        {
+            for (var i = Math.Max(column - 2, 0); i <= Math.Min(column + 2, (int)terrain.Width); i++)
+            {
+                var other = terrain.TerrainTiles[(j * columns) + i].CliffLevel;
+                var near = Math.Abs(i - column) <= 1 && Math.Abs(j - row) <= 1;
+                if (other == level + 1 || (near && other == level - 1))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // The average Height of a corner and the up to eight around it.
