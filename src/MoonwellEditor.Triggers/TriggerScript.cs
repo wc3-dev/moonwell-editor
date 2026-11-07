@@ -300,6 +300,12 @@ public sealed partial class TriggerScript : MapScriptBuilder
     // Finds the line that makes a placed thing, by its type and place, and sets the thing's variable there.
     private bool SetWhereMade(List<string> lines, string name, bool isItem)
     {
+        // A save that wrote the placed units and items set it already.
+        if (lines.Exists(line => line.StartsWith($"    set {name} = ", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
         var type = name.Substring("gg_unit_".Length, 4);
         var number = int.Parse(name["gg_unit_0000_".Length..], CultureInfo.InvariantCulture);
         var placed = _units?.Units.FirstOrDefault(each => each.CreationNumber == number && each.TypeId.ToRawcode() == type);

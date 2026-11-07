@@ -239,6 +239,12 @@ public sealed partial class TriggerScript
 
     private bool SetWhereMadeLua(List<string> lines, string name, bool isItem)
     {
+        // A save that wrote the placed units and items set it already.
+        if (lines.Exists(line => line.StartsWith(name + " = ", StringComparison.Ordinal) && !line.EndsWith(" = nil", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
         var type = name.Substring("gg_unit_".Length, 4);
         var number = int.Parse(name["gg_unit_0000_".Length..], CultureInfo.InvariantCulture);
         var placed = _units?.Units.FirstOrDefault(each => each.CreationNumber == number && each.TypeId.ToRawcode() == type);
