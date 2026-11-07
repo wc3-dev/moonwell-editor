@@ -150,6 +150,92 @@ public sealed class TerrainEditorTests(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public void A_cliff_up_makes_cliff_models_and_cliff_pathing_and_undo_takes_them_back()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, _, session, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            // Flat land at level 2, no water or ramps for three corners round, away from the edges.
+            var terrain = editor.Terrain;
+            var columns = (int)terrain.Width + 1;
+            var at = Enumerable.Range(0, terrain.TerrainTiles.Count).First(index =>
+            {
+                var (column, row) = (index % columns, index / columns);
+                return column > 30 && row > 30 && column < terrain.Width - 30 && row < terrain.Height - 30
+                    && Enumerable.Range(-3, 7).All(dy => Enumerable.Range(-3, 7).All(dx =>
+                    {
+                        var corner = terrain.TerrainTiles[index + (dy * columns) + dx];
+                        return corner.CliffLevel == 2 && !corner.IsWater && !corner.IsRamp;
+                    }));
+            });
+            var (column, row) = (at % columns, at / columns);
+            var (x, y) = (terrain.Left + (column * 128f), terrain.Bottom + (row * 128f));
+            var piecesBefore = editor.CliffPieces("sd").Count;
+            var cells = editor.Cells.ToArray();
+            var types = editor.CliffTypes("sd");
+            Assert.NotEmpty(types);
+            Assert.All(types, type => Assert.DoesNotContain("WESTRING", type.Name, StringComparison.Ordinal));
+
+            var patch = editor.Stroke(GroundTool.CliffUp, [(x, y)], new Brush(BrushShape.Square, 3, 0), null, "sd", first: true);
+            editor.EndStroke();
+
+            Assert.True(patch.Cliffs);
+            Assert.Equal(3, Corner(editor, column, row).CliffLevel);
+            Assert.True(editor.CliffPieces("sd").Count > piecesBefore);
+            // The tile between the raised corners and the land below it is a cliff now.
+            var cell = ((row - 2) * 4 * ((int)terrain.Width * 4)) + ((column - 2) * 4);
+            Assert.Equal(0xCA, editor.Cells[cell]);
+
+            Assert.True(session.Undo());
+            Assert.Equal(2, Corner(editor, column, row).CliffLevel);
+            Assert.Equal(piecesBefore, editor.CliffPieces("sd").Count);
+            Assert.Equal(cells, editor.Cells);
+            Assert.False(session.Dirty);
+        }
+    }
+
+    [Fact]
+    public void Shallow_water_on_land_makes_a_pool_whose_middle_is_shallow_water_in_the_pathing()
+    {
+        if (Open(InstallMaps.LostTemple) is not var (folder, _, _, editor))
+        {
+            return;
+        }
+
+        using (folder)
+        {
+            var terrain = editor.Terrain;
+            var columns = (int)terrain.Width + 1;
+            var at = Enumerable.Range(0, terrain.TerrainTiles.Count).First(index =>
+            {
+                var (column, row) = (index % columns, index / columns);
+                return column > 30 && row > 30 && column < terrain.Width - 30 && row < terrain.Height - 30
+                    && editor.Cells[(row * 4 * ((int)terrain.Width * 4)) + (column * 4)] == 0x40
+                    && Enumerable.Range(-4, 9).All(dy => Enumerable.Range(-4, 9).All(dx =>
+                    {
+                        var corner = terrain.TerrainTiles[index + (dy * columns) + dx];
+                        return corner.CliffLevel == 2 && !corner.IsWater && !corner.IsRamp;
+                    }));
+            });
+            var (column, row) = (at % columns, at / columns);
+            var (x, y) = (terrain.Left + (column * 128f), terrain.Bottom + (row * 128f));
+
+            var patch = editor.Stroke(GroundTool.ShallowWater, [(x, y)], new Brush(BrushShape.Square, 5, 0), null, "sd", first: true);
+            editor.EndStroke();
+
+            Assert.True(patch.Cliffs);
+            Assert.Equal((1, true), (Corner(editor, column, row).CliffLevel, Corner(editor, column, row).IsWater));
+            var grid = TerrainGrid.From(terrain, -89.6f);
+            Assert.Equal(38.4f, grid.Water(column, row)!.Value - grid.Ground(column, row), 2);
+            Assert.Equal(0x08, editor.Cells[(row * 4 * ((int)terrain.Width * 4)) + (column * 4)]);
+        }
+    }
+
     private static War3Net.Build.Environment.TerrainTile Corner(TerrainEditor editor, int column, int row) =>
         editor.Terrain.TerrainTiles[(row * ((int)editor.Terrain.Width + 1)) + column];
 }

@@ -65,8 +65,8 @@ export function readTerrain(buffer: ArrayBuffer, left: number, bottom: number): 
 
 /**
  * Writes a terrain edit's patch (TerrainBytes.Patch: int32 left, bottom, columns and rows of corners; their ground,
- * relief and water; then the tiles between them, four layers each) over `terrain`. Throws when the bytes are not of
- * their size or the corners are not the terrain's.
+ * relief and water; then the tiles between them, four layers each, then their flags) over `terrain`. Throws when the
+ * bytes are not of their size or the corners are not the terrain's.
  */
 export function patchTerrain(terrain: Terrain, buffer: ArrayBuffer): void {
   if (buffer.byteLength < 16) throw new Error("The terrain patch is cut short.");
@@ -84,7 +84,7 @@ export function patchTerrain(terrain: Terrain, buffer: ArrayBuffer): void {
     rows < 1 ||
     left + columns > terrain.columns ||
     bottom + rows > terrain.rows ||
-    buffer.byteLength !== 16 + corners * 12 + tiles * 8
+    buffer.byteLength !== 16 + corners * 12 + tiles * 9
   ) {
     throw new Error("The terrain patch is not of its size.");
   }
@@ -92,6 +92,7 @@ export function patchTerrain(terrain: Terrain, buffer: ArrayBuffer): void {
   const relief = new Float32Array(buffer, 16 + corners * 4, corners);
   const water = new Float32Array(buffer, 16 + corners * 8, corners);
   const layers = new Uint8Array(buffer, 16 + corners * 12, tiles * 8);
+  const flags = new Uint8Array(buffer, 16 + corners * 12 + tiles * 8, tiles);
   for (let row = 0; row < rows; row++) {
     const to = (bottom + row) * terrain.columns + left;
     terrain.ground.set(ground.subarray(row * columns, (row + 1) * columns), to);
@@ -102,6 +103,7 @@ export function patchTerrain(terrain: Terrain, buffer: ArrayBuffer): void {
   for (let row = 0; row < rows - 1; row++) {
     const to = ((bottom + row) * (terrain.columns - 1) + left) * 8;
     terrain.layers.set(layers.subarray(row * across * 8, (row + 1) * across * 8), to);
+    terrain.tiles.set(flags.subarray(row * across, (row + 1) * across), to / 8);
   }
 }
 

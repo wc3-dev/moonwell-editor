@@ -40,7 +40,7 @@ type PickTarget = {
 export class MapRenderer {
   private readonly ground: GroundLayer;
   private readonly water: WaterLayer;
-  private readonly cliffs: ModelLayer;
+  private cliffs: ModelLayer;
   private readonly things: ModelLayer;
   private readonly markers: MarkerLayer;
   private readonly highlight: MarkerLayer;
@@ -189,6 +189,22 @@ export class MapRenderer {
     this.ground.refresh();
     this.water.refresh();
     this.marks.refresh();
+    this.changed();
+  }
+
+  /** Draws `pieces` as the cliff and ramp models, after a cliff or water stroke changed them; those near `near` load first. */
+  setCliffs(pieces: MapSceneView["cliffs"], near: [number, number]): void {
+    const old = this.cliffs;
+    this.cliffs = new ModelLayer(
+      this.gl,
+      this.terrain,
+      cliffBatches({ ...this.scene, cliffs: pieces }),
+      this.url,
+      this.changed,
+      () => {},
+    );
+    old.dispose();
+    void this.cliffs.load(near).then(this.changed);
     this.changed();
   }
 

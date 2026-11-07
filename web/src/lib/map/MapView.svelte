@@ -14,12 +14,19 @@
  * With the header's ground tools on (terrainTools), a left drag is a brush stroke instead: each step goes to the app,
  * which changes the terrain and answers with the part to redraw; one request at a time, the mouse's points gathered
  * meanwhile. Raise, lower and smooth keep working while the button is held still. The brush's outline follows the
- * mouse. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
+ * mouse. A cliff or water stroke redraws the ground as it goes and the cliff models when it ends. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
  * again, as does a paint that added a tile to the map's list, once its stroke ends.
  */
 
 import { untrack } from "svelte";
-import { fileUrl, mapScene, terrainStroke, terrainStrokeEnd, terrainUrl } from "../api.ts";
+import {
+  fileUrl,
+  mapScene,
+  terrainCliffs,
+  terrainStroke,
+  terrainStrokeEnd,
+  terrainUrl,
+} from "../api.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
 import { framed, numpadView, orbited, panned, ray, type View, zoomed } from "./camera.ts";
@@ -36,7 +43,7 @@ import {
   type Terrain,
   type ThingKind,
 } from "./scene.ts";
-import { brushOutline, terrainTools } from "./terrainTools.svelte.ts";
+import { brushOutline, isBrushGroup, terrainTools } from "./terrainTools.svelte.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in: `sd`, `hd` or `de`. */
@@ -83,11 +90,12 @@ type Stroke = {
   last: [number, number] | null;
   repeat: number;
   reload: boolean;
+  cliffs: boolean;
 };
 let stroke: Stroke | null = null;
 /** Why the last brush step was refused, until the next stroke. */
 let refused = $state("");
-const editing = $derived(terrainTools.group === "ground" && picking.kind === null);
+const editing = $derived(isBrushGroup(terrainTools.group) && picking.kind === null);
 
 /** The kinds a layer switch shows or hides. */
 const thingLayers: { kinds: ThingKind[]; key: TextKey }[] = [
@@ -347,6 +355,7 @@ function startStroke(event: PointerEvent): void {
     last: at,
     repeat: 0,
     reload: false,
+    cliffs: false,
   };
   if (
     terrainTools.tool === "Raise" ||
@@ -382,6 +391,7 @@ async function sendStroke(current: Stroke): Promise<void> {
       size: terrainTools.size,
       strength: terrainTools.strength,
       tile: terrainTools.tool === "Paint" ? terrainTools.tile : null,
+      cliffType: terrainTools.cliffType,
       first: current.first,
       mode,
     });
@@ -392,6 +402,7 @@ async function sendStroke(current: Stroke): Promise<void> {
       drawnVersion++;
     }
     current.reload ||= change.tiles;
+    current.cliffs ||= change.cliffs;
   } catch (error) {
     refused = errorText(error);
     current.pending = [];
@@ -409,6 +420,15 @@ async function endStroke(current: Stroke): Promise<void> {
     refused = errorText(error);
   });
   if (current.reload) reloads++;
+  else if (current.cliffs) {
+    // The ground was redrawn as the stroke went; the cliff models once it ends.
+    await terrainCliffs(mode).then(
+      (pieces) => renderer?.setCliffs(pieces, [view.x, view.y]),
+      (error) => {
+        refused = errorText(error);
+      },
+    );
+  }
 }
 
 function onpointerdown(event: PointerEvent): void {

@@ -10,6 +10,8 @@ import type {
   CellEdit,
   CellsChanged,
   ChoiceList,
+  CliffKind,
+  CliffPiece,
   CloseRequest,
   Column,
   CurrentMap,
@@ -347,6 +349,16 @@ export function terrainStroke(args: TerrainStrokeArgs): Promise<TerrainChange> {
 /** Closes the open ground stroke as one undo step. */
 export function terrainStrokeEnd(): Promise<null> {
   return call("terrainStrokeEnd");
+}
+
+/** The map's cliff types, which the cliff tools offer, in a graphics mode. */
+export function terrainCliffTypes(mode: string): Promise<CliffKind[]> {
+  return call("terrainCliffTypes", { mode });
+}
+
+/** The cliff and ramp models as the terrain has them now, after a cliff or water stroke. */
+export function terrainCliffs(mode: string): Promise<CliffPiece[]> {
+  return call("terrainCliffs", { mode });
 }
 
 /** The tiles the paint brush offers in a graphics mode: the tileset's, then the map's others. */
