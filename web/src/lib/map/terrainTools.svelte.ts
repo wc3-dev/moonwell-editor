@@ -86,7 +86,7 @@ export const largestBrush = 8;
 /**
  * The outline of a brush of `size` at `x`, `y` (2 × size − 1 corners across, as World Editor's), as a loop of points on
  * the map: round or square around the corner nearest, half a tile outside the corners it covers, as the app's
- * GroundTools.Covered counts them.
+ * GroundTools.Covered counts them. A ramp (`tiles`) covers 2 × size − 1 tiles around the tile under it instead.
  */
 export function brushOutline(
   left: number,
@@ -95,9 +95,11 @@ export function brushOutline(
   y: number,
   shape: BrushShape,
   size: number,
+  tiles = false,
 ): [number, number][] {
-  const cx = left + Math.round((x - left) / 128) * 128;
-  const cy = bottom + Math.round((y - bottom) / 128) * 128;
+  const snap = (value: number) => (tiles ? Math.floor(value) + 0.5 : Math.round(value));
+  const cx = left + snap((x - left) / 128) * 128;
+  const cy = bottom + snap((y - bottom) / 128) * 128;
   const radius = ((2 * size - 1) / 2) * 128;
   if (shape === "Square") {
     return [

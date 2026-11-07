@@ -521,6 +521,7 @@ function showBrush(at: [number, number] | null): void {
           at[1],
           terrainTools.shape,
           terrainTools.size,
+          terrainTools.tool === "Ramp",
         )
       : null,
   );
