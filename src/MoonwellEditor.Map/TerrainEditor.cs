@@ -23,6 +23,12 @@ namespace MoonwellEditor.Map;
 /// <param name="Cliffs">True when cliff levels, ramps or water changed, so the cliff models change too.</param>
 public sealed record TerrainPatch(int Left, int Bottom, int Columns, int Rows, byte[] Bytes, bool Tiles, bool Cliffs);
 
+/// <summary>What the undos and redos since the page last asked changed, for it to redraw just that.</summary>
+/// <param name="Ground">The corners they changed, as a stroke's patch; no corners when none.</param>
+/// <param name="Things">True when placed things changed.</param>
+/// <param name="Marks">True when regions or cameras changed.</param>
+public sealed record TerrainRedraw(TerrainPatch Ground, bool Things, bool Marks);
+
 /// <summary>A cliff type the map lists, which the cliff tools offer.</summary>
 /// <param name="Number">Its number in the map's list, what a corner's cliff type holds.</param>
 /// <param name="Id">Its id in <c>TerrainArt\CliffTypes.slk</c>, <c>CLdi</c>.</param>
@@ -72,6 +78,7 @@ public sealed partial class TerrainEditor : IMapPart
     private readonly Dictionary<string, TerrainTextures> _textures = new(StringComparer.Ordinal);
     private Pathing _pathing;
     private OpenStroke? _stroke;
+    private Unseen _unseen = new();
 
     private TerrainEditor(
         Session session,
@@ -230,6 +237,20 @@ public sealed partial class TerrainEditor : IMapPart
         _session.Record(() => Restore(before), () => Restore(after));
     }
 
+    /// <summary>
+    /// What the undos and redos since the last call changed, in a graphics mode, so the page redraws just that.
+    /// </summary>
+    public TerrainRedraw Redrawn(string mode)
+    {
+        var unseen = _unseen;
+        _unseen = new Unseen();
+        var reach = unseen.Cliffs ? 2 : 1;
+        var ground = unseen.Right < 0
+            ? new TerrainPatch(0, 0, 0, 0, [], unseen.Tiles, false)
+            : Patch(unseen.Left - reach, unseen.Bottom - reach, unseen.Right + reach, unseen.Top + reach, mode, unseen.Tiles, unseen.Cliffs);
+        return new TerrainRedraw(ground, unseen.Things, unseen.Marks);
+    }
+
     /// <summary>The tiles the paint brush offers in a graphics mode: the tileset's, then the map's others.</summary>
     public IReadOnlyList<GroundTile> Tiles(string mode)
     {
@@ -349,11 +370,18 @@ public sealed partial class TerrainEditor : IMapPart
             _terrain.TerrainTypes.Clear();
             _terrain.TerrainTypes.AddRange(state.Types);
             TilesChanged();
+            _unseen.Tiles = true;
         }
 
+        var columns = (int)_terrain.Width + 1;
         foreach (var (index, corner) in state.Corners)
         {
-            corner.Put(_terrain.TerrainTiles[index]);
+            var tile = _terrain.TerrainTiles[index];
+            var was = CornerState.Of(tile);
+            _unseen.Cliffs |= (was.CliffLevel, was.CliffTexture, was.Ramp, was.Water, was.WaterHeight)
+                != (corner.CliffLevel, corner.CliffTexture, corner.Ramp, corner.Water, corner.WaterHeight);
+            _unseen.Add(index % columns, index / columns);
+            corner.Put(tile);
         }
 
         foreach (var (index, cell) in state.Cells)
@@ -508,6 +536,32 @@ public sealed partial class TerrainEditor : IMapPart
         public Dictionary<int, CornerState> Corners { get; } = [];
 
         public Dictionary<int, byte> Cells { get; } = [];
+    }
+
+    // What undos and redos changed that the page has not redrawn yet: the corners' bounds (none while Right is -1).
+    private sealed class Unseen
+    {
+        public int Left { get; private set; } = int.MaxValue;
+
+        public int Bottom { get; private set; } = int.MaxValue;
+
+        public int Right { get; private set; } = -1;
+
+        public int Top { get; private set; } = -1;
+
+        public bool Tiles { get; set; }
+
+        public bool Cliffs { get; set; }
+
+        public bool Things { get; set; }
+
+        public bool Marks { get; set; }
+
+        public void Add(int column, int row)
+        {
+            (Left, Bottom) = (Math.Min(Left, column), Math.Min(Bottom, row));
+            (Right, Top) = (Math.Max(Right, column), Math.Max(Top, row));
+        }
     }
 
     // The tiles listed, and the corners' and cells' values, on one side of a stroke.

@@ -199,7 +199,7 @@ public sealed class CommandTableTests(GameDataFixture fixture, ITestOutputHelper
             "terminalClose", "terminalResize", "terminalShells", "terminalStart", "terminalWrite", "terrainCamera",
             "terrainCameraRemove", "terrainCliffTypes", "terrainCliffs", "terrainMarks", "terrainMove", "terrainOwn",
             "terrainPlace", "terrainPlayers", "terrainRegion", "terrainRegionRemove", "terrainRemove", "terrainResize",
-            "terrainStroke", "terrainStrokeEnd", "terrainThings", "terrainTiles", "terrainTurn", "tree", "trigger",
+            "terrainStroke", "terrainStrokeEnd", "terrainThings", "terrainTiles", "terrainTurn", "terrainUndone", "tree", "trigger",
             "triggerAdd", "triggerCards", "triggerCatalog", "triggerCode", "triggerDelete", "triggerFolded",
             "triggerFunctionAdd", "triggerFunctionChange", "triggerFunctionCopy", "triggerFunctionDelete",
             "triggerFunctionEnable", "triggerFunctionMove", "triggerFunctionPaste", "triggerHeader", "triggerMove",

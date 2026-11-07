@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { later } from "../../test/fakeApp.ts";
 import { t } from "../text.ts";
 import MapView from "./MapView.svelte";
+import MapViewHost from "./MapViewHost.test.svelte";
 import type { MapSceneView, PlacedThing } from "./scene.ts";
 
 const fake = vi.hoisted(() => ({
@@ -11,11 +12,18 @@ const fake = vi.hoisted(() => ({
   hosts: 0,
   selectMarks: 0,
   highlights: 0,
+  reads: 0,
+  patched: 0,
+  undone: { left: 0, bottom: 0, columns: 0, rows: 0, bytes: "", tiles: false, cliffs: false },
 }));
 
 vi.mock("../api.ts", async (original) => ({
   ...(await original<typeof import("../api.ts")>()),
-  mapScene: (mode: string) => fake.scenes.get(mode),
+  mapScene: (mode: string) => {
+    fake.reads++;
+    return fake.scenes.get(mode);
+  },
+  terrainUndone: async () => ({ ground: fake.undone, things: false, marks: false, version: 1 }),
   terrainUrl: (mode: string) => `terrain/${mode}`,
 }));
 
@@ -41,6 +49,9 @@ vi.mock("./gl/renderer.ts", () => ({
     }
     selectMark(): void {
       fake.selectMarks++;
+    }
+    terrainChanged(): void {
+      fake.patched++;
     }
     pickAt(): number {
       return 1;
@@ -89,6 +100,8 @@ beforeEach(() => {
   fake.hosts = 0;
   fake.selectMarks = 0;
   fake.highlights = 0;
+  fake.reads = 0;
+  fake.patched = 0;
   globalThis.ResizeObserver = NoResizeObserver as never;
   vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) =>
     setTimeout(() => draw(performance.now())),
@@ -152,4 +165,20 @@ test.each([
   await waitFor(() => expect(fake.hosts).toBe(1));
   await fireEvent.pointerMove(screen.getByLabelText(t("main.map")), { clientX: 5, clientY: 5 });
   await waitFor(() => expect(screen.getByText(new RegExp(shown))).toBeTruthy());
+});
+
+test("an undo of a stroke redraws the part it touched, without reading the map again", async () => {
+  // A 1 by 1 patch of corner (1, 1): its head, then three floats.
+  const patch = new ArrayBuffer(16 + 12);
+  new Int32Array(patch, 0, 4).set([1, 1, 1, 1]);
+  const bytes = btoa(String.fromCharCode(...new Uint8Array(patch)));
+  fake.undone = { left: 1, bottom: 1, columns: 1, rows: 1, bytes, tiles: false, cliffs: false };
+  fake.scenes.set("sd", Promise.resolve(scene()));
+  const view = render(MapViewHost, { terrainVersion: 0 });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  await view.rerender({ terrainVersion: 1 });
+  await waitFor(() => expect(fake.patched).toBe(1));
+  await settled();
+  expect(fake.reads).toBe(1);
+  expect(fake.hosts).toBe(1);
 });

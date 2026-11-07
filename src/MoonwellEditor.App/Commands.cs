@@ -49,6 +49,13 @@ public sealed record ThingChange(int Number, int Version);
 /// <param name="Cliffs">True when cliffs, ramps or water changed: the view asks for the cliff models once the stroke ends.</param>
 public sealed record TerrainChange(int Left, int Bottom, int Columns, int Rows, string Bytes, bool Tiles, bool Cliffs);
 
+/// <summary>What the undos and redos since the page last asked changed, for it to redraw just that.</summary>
+/// <param name="Ground">The part of the terrain they changed, as a stroke's; no columns when none.</param>
+/// <param name="Things">True when placed things changed: the view asks for them again.</param>
+/// <param name="Marks">True when regions or cameras changed: the view asks for them again.</param>
+/// <param name="Version">The terrain's version (<see cref="TerrainEditor.Version"/>) this answer brings the view to.</param>
+public sealed record TerrainUndone(TerrainChange Ground, bool Things, bool Marks, int Version);
+
 /// <summary>What the <c>closeRequested</c> event carries.</summary>
 /// <param name="Dirty">True when the window saw the map with unsaved edits.</param>
 public sealed record CloseRequest(bool Dirty);
@@ -423,6 +430,7 @@ public sealed partial class Commands
         CommandEntry.Of("mapScene", (Commands c, MapSceneArgs a) => c.MapSceneOf(a.Mode)),
         CommandEntry.Of("terrainStroke", (Commands c, TerrainStrokeArgs a) => c.TerrainStroke(a)),
         CommandEntry.Do("terrainStrokeEnd", (Commands c) => c.EndStroke()),
+        CommandEntry.Of("terrainUndone", (Commands c, MapSceneArgs a) => c.TerrainUndone(Checked(a.Mode))),
         CommandEntry.Of("terrainTiles", (Commands c, MapSceneArgs a) => c.Ground().Tiles(Checked(a.Mode))),
         CommandEntry.Of("terrainCliffs", (Commands c, MapSceneArgs a) => c.Ground().CliffPieces(Checked(a.Mode))),
         CommandEntry.Of("terrainThings", (Commands c, MapSceneArgs a) => c.Ground().Things(Checked(a.Mode))),
@@ -768,21 +776,23 @@ public sealed partial class Commands
         {
             var points = args.Points.Where(point => point.Length == 2).Select(point => (point[0], point[1])).ToList();
             var brush = new Brush(args.Shape, args.Size, args.Strength);
-            var patch = editor.Stroke(args.Tool, points, brush, args.Tile, args.Mode, args.First, args.CliffType);
-            return new TerrainChange(
-                patch.Left,
-                patch.Bottom,
-                patch.Columns,
-                patch.Rows,
-                Convert.ToBase64String(patch.Bytes),
-                patch.Tiles,
-                patch.Cliffs);
+            return Sent(editor.Stroke(args.Tool, points, brush, args.Tile, args.Mode, args.First, args.CliffType));
         }
         catch (ArgumentException exception)
         {
             throw new CommandException(ErrorCode.BadValue, exception.Message);
         }
     }
+
+    private TerrainUndone TerrainUndone(string mode)
+    {
+        var editor = Ground();
+        var redrawn = editor.Redrawn(mode);
+        return new TerrainUndone(Sent(redrawn.Ground), redrawn.Things, redrawn.Marks, editor.Version);
+    }
+
+    private static TerrainChange Sent(TerrainPatch patch) => new(
+        patch.Left, patch.Bottom, patch.Columns, patch.Rows, Convert.ToBase64String(patch.Bytes), patch.Tiles, patch.Cliffs);
 
     // A change to a placed thing, which gives the thing's number; a refused one is the page's mistake to show.
     private ThingChange Thing(Func<TerrainEditor, int> change)

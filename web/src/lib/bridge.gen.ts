@@ -1212,6 +1212,18 @@ export type TerrainTexture = {
   extended: boolean;
 };
 
+/** What the undos and redos since the page last asked changed, for it to redraw just that. */
+export type TerrainUndone = {
+  /** The part of the terrain they changed, as a stroke's; no columns when none. */
+  ground: TerrainChange;
+  /** True when placed things changed: the view asks for them again. */
+  things: boolean;
+  /** True when regions or cameras changed: the view asks for them again. */
+  marks: boolean;
+  /** The terrain's version (TerrainEditor.Version) this answer brings the view to. */
+  version: number;
+};
+
 /** A piece of a sentence: text, and when it is a parameter the parameter. */
 export type TextPart = {
   /** The text shown. */
@@ -1552,6 +1564,7 @@ export type Commands = {
   terrainThings: { args: MapSceneArgs; answer: PlacedThing[] };
   terrainTiles: { args: MapSceneArgs; answer: GroundTile[] };
   terrainTurn: { args: ThingArgs; answer: ThingChange };
+  terrainUndone: { args: MapSceneArgs; answer: TerrainUndone };
   tree: { args: KindArgs; answer: TreeEntry[] };
   trigger: { args: IdArgs; answer: TriggerView };
   triggerAdd: { args: TriggerAddArgs; answer: NewTriggerItem };
