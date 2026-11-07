@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groundAt, readTerrain } from "./scene.ts";
+import { groundAt, patchTerrain, readTerrain } from "./scene.ts";
 import { terrainBytes } from "./testTerrain.ts";
 
 describe("readTerrain", () => {
@@ -48,5 +48,53 @@ describe("groundAt", () => {
   it("reads the edge outside the grid", () => {
     expect(groundAt(terrain, 500, 500)).toBeCloseTo(128, 3);
     expect(groundAt(terrain, -500, 0)).toBeCloseTo(0, 3);
+  });
+});
+
+describe("patchTerrain", () => {
+  // A patch of corners 1..2 by 0..1 of a 3 by 2 terrain: ground 10, 11 / 12, 13, and its one tile's layers.
+  function patch(left: number, columns: number, size = 16 + 4 * 12 + 8): ArrayBuffer {
+    const buffer = new ArrayBuffer(size);
+    const view = new DataView(buffer);
+    for (const [at, value] of [left, 0, columns, 2].entries()) view.setInt32(at * 4, value, true);
+    const floats = new Float32Array(buffer, 16, 12);
+    floats.set([10, 11, 12, 13, 1, 1, 1, 1, Number.NaN, Number.NaN, Number.NaN, Number.NaN]);
+    new Uint8Array(buffer, 64, 8).set([5, 16, 255, 255, 255, 255, 255, 255]);
+    return buffer;
+  }
+
+  it("writes the corners and the tile over the terrain, leaving the rest", () => {
+    const terrain = readTerrain(
+      terrainBytes(
+        3,
+        2,
+        (i) => i,
+        () => Number.NaN,
+      ),
+      0,
+      0,
+    );
+
+    patchTerrain(terrain, patch(1, 2));
+
+    expect(Array.from(terrain.ground)).toEqual([0, 10, 11, 3, 12, 13]);
+    expect(Array.from(terrain.layers.subarray(0, 2))).toEqual([3, 19]);
+    expect(Array.from(terrain.layers.subarray(8, 10))).toEqual([5, 16]);
+  });
+
+  it("refuses a patch of another size or off the terrain", () => {
+    const terrain = readTerrain(
+      terrainBytes(
+        3,
+        2,
+        (i) => i,
+        () => Number.NaN,
+      ),
+      0,
+      0,
+    );
+
+    expect(() => patchTerrain(terrain, patch(1, 2, 70))).toThrow();
+    expect(() => patchTerrain(terrain, patch(2, 2))).toThrow();
   });
 });

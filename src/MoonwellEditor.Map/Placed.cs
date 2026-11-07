@@ -310,7 +310,7 @@ public static class Placed
     }
 
     // A field's value in the mode: the map's own when it changes the field, else the mode's standard value.
-    private static string? Text(ObjectView view, string field, string mode, int level)
+    internal static string? Text(ObjectView view, string field, string mode, int level)
     {
         var found = view.Fields.FirstOrDefault(each => each.Id == field && (each.Level == level || level == 0))
             ?? view.Fields.FirstOrDefault(each => each.Id == field);

@@ -290,7 +290,10 @@ export function later<T>(value: T): { answer: Promise<T>; release: () => void } 
 /** Mounts the page against an app that has a map open, on the Object Editor. */
 export async function openApp(
   answers: Record<string, unknown> = {},
-  current: CurrentMap = { map: arena, session: { dirty: false, changedObjects: 0 } },
+  current: CurrentMap = {
+    map: arena,
+    session: { dirty: false, changedObjects: 0, terrainVersion: 0, terrainChanged: false },
+  },
 ): Promise<FakeApp> {
   const app = new FakeApp({
     currentMap: current,

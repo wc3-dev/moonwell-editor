@@ -112,7 +112,7 @@ public sealed class BridgeTests
     [Fact]
     public void An_event_is_written_as_before() =>
         Assert.Equal(
-            "{\"event\":\"sessionChanged\",\"payload\":{\"dirty\":true,\"changedObjects\":2}}",
+            "{\"event\":\"sessionChanged\",\"payload\":{\"dirty\":true,\"changedObjects\":2,\"terrainVersion\":0,\"terrainChanged\":false}}",
             Bridge.Event(BridgeEvents.SessionChanged, new SessionState(true, 2)));
 
     [Fact]

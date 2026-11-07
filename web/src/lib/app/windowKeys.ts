@@ -84,7 +84,8 @@ export function answerKey(
     const answer = inTable(action);
     if (answer) return answer;
   }
-  if (place.page === "map" && !(action && keysEverywhere.includes(action))) return left;
+  // The map takes undo and redo too: the Terrain Editor's strokes are undo steps.
+  if (place.page === "map" && !(action && keysOfTheScripts.includes(action))) return left;
   if (isEscape) return { command: "dismiss" };
   if (!action) return left;
   if (place.page === "triggers" && (action === "rename" || action === "deleteObject")) {

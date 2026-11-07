@@ -10,9 +10,16 @@
  * Hovering highlights what is under the mouse and a click selects it; the line at the bottom names it, with the name
  * triggers use for it. In pick mode (`pickOnMap`, for the trigger editor) a click on the asked kind answers, Esc
  * cancels.
+ *
+ * With the header's ground tools on (terrainTools), a left drag is a brush stroke instead: each step goes to the app,
+ * which changes the terrain and answers with the part to redraw; one request at a time, the mouse's points gathered
+ * meanwhile. Raise, lower and smooth keep working while the button is held still. The brush's outline follows the
+ * mouse. An undo or redo of the terrain (the session's terrainVersion moving on without a stroke here) reads the scene
+ * again, as does a paint that added a tile to the map's list, once its stroke ends.
  */
 
-import { fileUrl, mapScene, terrainUrl } from "../api.ts";
+import { untrack } from "svelte";
+import { fileUrl, mapScene, terrainStroke, terrainStrokeEnd, terrainUrl } from "../api.ts";
 import { errorText } from "../errors.ts";
 import { type TextKey, t } from "../text.ts";
 import { framed, numpadView, orbited, panned, ray, type View, zoomed } from "./camera.ts";
@@ -21,14 +28,24 @@ import { allLayers, type Layers, MapRenderer } from "./gl/renderer.ts";
 import { groundPoint } from "./groundRay.ts";
 import { answer, picking } from "./pick.svelte.ts";
 import { cameraAt, choose, type Pick, type PickKind, regionAt } from "./picking.ts";
-import { groundAt, type MapSceneView, readTerrain, type Terrain, type ThingKind } from "./scene.ts";
+import {
+  groundAt,
+  type MapSceneView,
+  patchTerrain,
+  readTerrain,
+  type Terrain,
+  type ThingKind,
+} from "./scene.ts";
+import { brushOutline, terrainTools } from "./terrainTools.svelte.ts";
 
 type Props = {
   /** The graphics mode the map is drawn in: `sd`, `hd` or `de`. */
   mode: string;
+  /** The session's terrain version (SessionState.terrainVersion): when it moves on, the terrain changed. */
+  terrainVersion?: number;
 };
 
-let { mode }: Props = $props();
+let { mode, terrainVersion = 0 }: Props = $props();
 
 let canvas: HTMLCanvasElement | undefined = $state();
 let status = $state<"loading" | "ready" | "failed">("loading");
@@ -53,6 +70,24 @@ let hoverFrame = 0;
 /** A middle drag: what it does, chosen when it starts (Blender's: Shift pans, Ctrl zooms, else it orbits). */
 let drag: { x: number; y: number; does: "orbit" | "pan" | "zoom" } | null = null;
 let press: { x: number; y: number } | null = null;
+/** Goes up to read the scene again (after an undo of the terrain, or a paint that added a tile). */
+let reloads = $state(0);
+/** The terrain version the view draws: the session's when read, plus each stroke step here that changed it. */
+let drawnVersion = 0;
+/** A brush stroke under way: the points not sent yet, whether a step is on its way, and whether the button is up. */
+type Stroke = {
+  pending: number[][];
+  first: boolean;
+  busy: boolean;
+  ended: boolean;
+  last: [number, number] | null;
+  repeat: number;
+  reload: boolean;
+};
+let stroke: Stroke | null = null;
+/** Why the last brush step was refused, until the next stroke. */
+let refused = $state("");
+const editing = $derived(terrainTools.group === "ground" && picking.kind === null);
 
 /** The kinds a layer switch shows or hides. */
 const thingLayers: { kinds: ThingKind[]; key: TextKey }[] = [
@@ -84,6 +119,7 @@ $effect(() => {
 $effect(() => {
   const shown = mode;
   const target = canvas;
+  void reloads;
   if (!target) return;
   let host: GlHost | null = null;
   const stop = new AbortController();
@@ -127,6 +163,20 @@ $effect(() => {
   renderer?.setLayers(layers);
 });
 
+// The brush's outline shows only while the ground tools are on.
+$effect(() => {
+  if (!editing) renderer?.setBrush(null);
+});
+
+// An undo or redo of the terrain: read the scene again (not while a stroke of this view's is under way).
+$effect(() => {
+  const version = terrainVersion;
+  if (version !== drawnVersion && !stroke) {
+    drawnVersion = version;
+    reloads++;
+  }
+});
+
 async function open(
   shown: string,
   target: HTMLCanvasElement,
@@ -137,6 +187,7 @@ async function open(
   problems = [];
   const started = performance.now();
   try {
+    drawnVersion = untrack(() => terrainVersion);
     const read = await mapScene(shown);
     if (signal.aborted) return;
     problems = read.problems;
@@ -251,7 +302,120 @@ function onwheel(event: WheelEvent): void {
   move(zoomed(view, -Math.sign(event.deltaY)));
 }
 
+/** The ground under the mouse, as x and y; null off the map. */
+function groundUnder(clientX: number, clientY: number): [number, number] | null {
+  if (!canvas || !terrain) return null;
+  const box = canvas.getBoundingClientRect();
+  const scale = canvas.width / Math.max(box.width, 1);
+  const { origin, direction } = ray(
+    view,
+    canvas.width,
+    canvas.height,
+    (clientX - box.left) * scale,
+    (clientY - box.top) * scale,
+  );
+  const point = groundPoint(terrain, origin, direction);
+  return point ? [point[0], point[1]] : null;
+}
+
+function showBrush(at: [number, number] | null): void {
+  if (!renderer || !terrain) return;
+  renderer.setBrush(
+    at
+      ? brushOutline(
+          terrain.left,
+          terrain.bottom,
+          at[0],
+          at[1],
+          terrainTools.shape,
+          terrainTools.size,
+        )
+      : null,
+  );
+}
+
+function startStroke(event: PointerEvent): void {
+  const at = groundUnder(event.clientX, event.clientY);
+  if (!at) return;
+  canvas?.setPointerCapture(event.pointerId);
+  refused = "";
+  const begun: Stroke = {
+    pending: [at],
+    first: true,
+    busy: false,
+    ended: false,
+    last: at,
+    repeat: 0,
+    reload: false,
+  };
+  if (
+    terrainTools.tool === "Raise" ||
+    terrainTools.tool === "Lower" ||
+    terrainTools.tool === "Smooth"
+  ) {
+    begun.repeat = window.setInterval(() => {
+      if (begun.last && !begun.ended) {
+        begun.pending.push(begun.last);
+        void sendStroke(begun);
+      }
+    }, 100);
+  }
+  stroke = begun;
+  void sendStroke(begun);
+}
+
+/** Sends the points gathered, unless a step is on its way; ends the stroke once the button is up and all are sent. */
+async function sendStroke(current: Stroke): Promise<void> {
+  if (current.busy) return;
+  if (current.pending.length === 0) {
+    if (current.ended) await endStroke(current);
+    return;
+  }
+  const points = current.pending;
+  current.pending = [];
+  current.busy = true;
+  try {
+    const change = await terrainStroke({
+      tool: terrainTools.tool,
+      points,
+      shape: terrainTools.shape,
+      size: terrainTools.size,
+      strength: terrainTools.strength,
+      tile: terrainTools.tool === "Paint" ? terrainTools.tile : null,
+      first: current.first,
+      mode,
+    });
+    current.first = false;
+    if (change.columns > 0 && terrain && renderer) {
+      patchTerrain(terrain, Uint8Array.from(atob(change.bytes), (c) => c.charCodeAt(0)).buffer);
+      renderer.terrainChanged();
+      drawnVersion++;
+    }
+    current.reload ||= change.tiles;
+  } catch (error) {
+    refused = errorText(error);
+    current.pending = [];
+    current.ended = true;
+  } finally {
+    current.busy = false;
+  }
+  await sendStroke(current);
+}
+
+async function endStroke(current: Stroke): Promise<void> {
+  window.clearInterval(current.repeat);
+  if (stroke === current) stroke = null;
+  await terrainStrokeEnd().catch((error) => {
+    refused = errorText(error);
+  });
+  if (current.reload) reloads++;
+}
+
 function onpointerdown(event: PointerEvent): void {
+  if (event.button === 0 && editing) {
+    startStroke(event);
+    return;
+  }
   if (event.button === 0) {
     press = { x: event.clientX, y: event.clientY };
     return;
@@ -276,6 +440,20 @@ function onpointermove(event: PointerEvent): void {
     else move(zoomed(view, -dy / 40));
     return;
   }
+  if (editing) {
+    const at = groundUnder(event.clientX, event.clientY);
+    showBrush(at);
+    if (stroke && at && !stroke.ended) {
+      const last = stroke.last;
+      // A point every quarter of the brush, at least every 32 game units, as the mouse goes.
+      const spacing = Math.max(32, terrainTools.size * 32);
+      if (!last || Math.hypot(at[0] - last[0], at[1] - last[1]) >= spacing) {
+        stroke.pending.push(at);
+        stroke.last = at;
+        void sendStroke(stroke);
+      }
+    }
+  }
   // What is under the mouse, once a frame.
   const { clientX, clientY } = event;
   if (hoverFrame) cancelAnimationFrame(hoverFrame);
@@ -289,6 +467,12 @@ function onpointerup(event: PointerEvent): void {
   if (drag) {
     canvas?.releasePointerCapture(event.pointerId);
     drag = null;
+    return;
+  }
+  if (stroke && event.button === 0) {
+    canvas?.releasePointerCapture(event.pointerId);
+    stroke.ended = true;
+    void sendStroke(stroke);
     return;
   }
   if (event.button !== 0 || !press) return;
@@ -305,6 +489,7 @@ function onpointerup(event: PointerEvent): void {
 
 function onpointerleave(): void {
   hovered = null;
+  if (!stroke) showBrush(null);
 }
 
 function onkeydown(event: KeyboardEvent): void {
@@ -388,7 +573,7 @@ function ownerOf(pick: Pick): string {
     {onkeydown}
     oncontextmenu={(event) => event.preventDefault()}
   ></canvas>
-  {#if status !== "ready" || problems.length > 0 || software}
+  {#if status !== "ready" || problems.length > 0 || software || refused}
     <div class="pointer-events-none absolute left-3 top-3 flex max-w-md flex-col gap-1">
       {#if status === "loading"}
         <p class="rounded-ui bg-panel/90 px-2 py-1 text-muted">{t("mapView.loading")}</p>
@@ -397,6 +582,9 @@ function ownerOf(pick: Pick): string {
       {/if}
       {#if software}
         <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning">{t("mapView.software")}</p>
+      {/if}
+      {#if refused}
+        <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning" data-testid="terrain-refused">{refused}</p>
       {/if}
       {#each problems as problem (problem)}
         <p class="rounded-ui bg-panel/90 px-2 py-1 text-warning">{problem}</p>

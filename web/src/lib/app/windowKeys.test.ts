@@ -122,16 +122,13 @@ describe("on the table page", () => {
 describe("on the map page", () => {
   const map = on("map");
 
-  test.each<Action>(["save", "settings"])("%s runs", (action) => {
+  test.each<Action>(["save", "settings", "undo", "redo"])("%s runs", (action) => {
     expect(answerKey(action, false, map)).toEqual({ command: action, prevent: true });
   });
 
-  test.each<Action>(["undo", "rename", "deleteObject", "back", "copy"])(
-    "%s is the view's",
-    (action) => {
-      expect(answerKey(action, false, map)).toEqual({});
-    },
-  );
+  test.each<Action>(["rename", "deleteObject", "back", "copy"])("%s is the view's", (action) => {
+    expect(answerKey(action, false, map)).toEqual({});
+  });
 
   test("Esc is the view's", () => {
     expect(answerKey(undefined, true, map)).toEqual({});

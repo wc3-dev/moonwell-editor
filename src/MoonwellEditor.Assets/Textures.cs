@@ -10,7 +10,7 @@ public sealed record Rgba(int Width, int Height, byte[] Pixels);
 
 /// <summary>
 /// Turns the game's textures into images: BLP (through War3Net's reader) and DDS (through Pfim's), the two kinds its
-/// icons are stored as, and writes them as PNG for the page.
+/// icons are stored as, and TGA (Pfim's too), as pathing maps are; and writes them as PNG for the page.
 /// </summary>
 public static class Textures
 {
@@ -33,17 +33,23 @@ public static class Textures
             }
         }
 
-        return bytes.Length >= 128 && bytes[0] == 'D' && bytes[1] == 'D' && bytes[2] == 'S' && bytes[3] == ' '
-            ? Dds(bytes)
+        if (bytes.Length >= 128 && bytes[0] == 'D' && bytes[1] == 'D' && bytes[2] == 'S' && bytes[3] == ' ')
+        {
+            return Decoded(() => Dds.Create(bytes, new PfimConfig()));
+        }
+
+        // A TGA has no mark: its third byte is its image type, 2 or 10 for colour, 3 or 11 for grey (the pathing maps).
+        return bytes.Length >= 18 && bytes[1] == 0 && bytes[2] is 2 or 3 or 10 or 11
+            ? Decoded(() => Targa.Create(bytes, new PfimConfig()))
             : null;
     }
 
-    // A DDS file, read with Pfim (Sven, 2026-10-28): its largest image, as RGBA.
-    private static Rgba? Dds(byte[] bytes)
+    // A DDS (Sven, 2026-10-28) or TGA file, read with Pfim: its largest image, as RGBA, top row first.
+    private static Rgba? Decoded(Func<IImage> open)
     {
         try
         {
-            using var image = Pfim.Dds.Create(bytes, new PfimConfig());
+            using var image = open();
             if (image.Compressed)
             {
                 image.Decompress();
@@ -54,6 +60,7 @@ public static class Textures
             {
                 ImageFormat.Rgba32 => 4,
                 ImageFormat.Rgb24 => 3,
+                ImageFormat.Rgb8 => 1,
                 _ => 0,
             };
             if (size == 0 || width <= 0 || height <= 0 || image.DataLen < image.Stride * height)
@@ -69,8 +76,8 @@ public static class Textures
                 {
                     var from = (y * image.Stride) + (x * size);
                     var to = ((y * width) + x) * 4;
-                    pixels[to] = image.Data[from + 2];
-                    pixels[to + 1] = image.Data[from + 1];
+                    pixels[to] = image.Data[from + (size == 1 ? 0 : 2)];
+                    pixels[to + 1] = image.Data[from + (size == 1 ? 0 : 1)];
                     pixels[to + 2] = image.Data[from];
                     pixels[to + 3] = size == 4 ? image.Data[from + 3] : (byte)255;
                 }

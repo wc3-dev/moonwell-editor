@@ -67,7 +67,7 @@ public sealed class TerrainTextures(IReadOnlyList<TerrainTexture> all, int bligh
     /// A ground texture's file: outside Classic its HD version, the <c>_diffuse</c> file (2048 by 1024 where Classic's
     /// is 512 by 256), when the install has one, as HiveWE takes it (*claim*); else the Classic one.
     /// </summary>
-    private static string HdOrClassic(IMapGameFiles files, string stem, string mode) =>
+    internal static string HdOrClassic(IMapGameFiles files, string stem, string mode) =>
         mode != "sd" && files.File(stem + "_diffuse.blp", mode) != null ? stem + "_diffuse.blp" : stem + ".blp";
 
     /// <summary>The number of the texture with this id; -1 when the map has none.</summary>
