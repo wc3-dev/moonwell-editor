@@ -84,9 +84,9 @@ export function chooseTool(tool: GroundTool): void {
 export const largestBrush = 8;
 
 /**
- * The outline of a brush of `size` corners across at `x`, `y`, as a loop of points on the map: round or square around
- * the corner nearest (an odd size) or the middle of the tile under it (an even size), half a tile outside the corners
- * it covers, as the app's GroundTools.Covered counts them.
+ * The outline of a brush of `size` at `x`, `y` (2 × size − 1 corners across, as World Editor's), as a loop of points on
+ * the map: round or square around the corner nearest, half a tile outside the corners it covers, as the app's
+ * GroundTools.Covered counts them.
  */
 export function brushOutline(
   left: number,
@@ -96,12 +96,9 @@ export function brushOutline(
   shape: BrushShape,
   size: number,
 ): [number, number][] {
-  const u = (x - left) / 128;
-  const v = (y - bottom) / 128;
-  const [cu, cv] =
-    size % 2 === 1 ? [Math.round(u), Math.round(v)] : [Math.floor(u) + 0.5, Math.floor(v) + 0.5];
-  const [cx, cy] = [left + cu * 128, bottom + cv * 128];
-  const radius = (size / 2) * 128;
+  const cx = left + Math.round((x - left) / 128) * 128;
+  const cy = bottom + Math.round((y - bottom) / 128) * 128;
+  const radius = ((2 * size - 1) / 2) * 128;
   if (shape === "Square") {
     return [
       [cx - radius, cy - radius],

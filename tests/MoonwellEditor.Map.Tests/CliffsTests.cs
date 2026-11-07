@@ -130,4 +130,33 @@ public sealed class CliffsTests(ITestOutputHelper output)
             Assert.All(textures, texture => Assert.NotNull(files.File(texture, mode)));
         }
     }
+
+    [Theory]
+    [InlineData("sd", 2)]
+    [InlineData("hd", 2)]
+    [InlineData("sd", 3)]
+    [InlineData("hd", 3)]
+    public void Three_cliff_ups_in_one_place_have_a_model_for_every_cliff_tile(string mode, int size)
+    {
+        var files = InstallGameFiles.Open();
+        if (files == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        // Gate row E2: Cliff up three times in one place, on Lost Temple's snow cliff.
+        var terrain = Grids.Flat(15, 15);
+        terrain.CliffTypes.Add(War3Net.Build.Environment.CliffType.I_Snow);
+        var brush = new Brush(BrushShape.Square, size, 0);
+        for (var level = 2; level < 5; level++)
+        {
+            GroundTools.Use(terrain, GroundTool.CliffUp, 7 * 128f, 7 * 128f, brush, new StrokeStart(-1, 0, level, 0), _ => { });
+        }
+
+        var (pieces, _) = Cliffs.Of(terrain, files, mode);
+
+        var missing = pieces.Where(piece => files.File(piece.Model, mode) == null).Select(piece => $"{piece.Column},{piece.Row} {piece.Model}");
+        Assert.Empty(missing);
+    }
 }
