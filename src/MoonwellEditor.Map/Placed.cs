@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
+using MoonwellEditor.Assets;
 using MoonwellEditor.Files;
 using MoonwellEditor.Model;
 using War3Net.Build.Environment;
@@ -123,10 +124,12 @@ public static class Placed
     private const string StartLocation = "sloc";
 
     /// <summary>The doodads, destructables, units, items and start locations of the map, in a graphics mode.</summary>
-    public static IReadOnlyList<PlacedThing> Things(MapFiles files, TerrainGrid? grid, Session session, string mode)
+    public static IReadOnlyList<PlacedThing> Things(
+        MapFiles files, TerrainGrid? grid, Session session, IMapGameFiles game, string mode)
     {
         var things = new List<PlacedThing>();
         var types = new Dictionary<(ObjectKind, string), ObjectView?>();
+        var cells = new Dictionary<string, (int Width, int Height)?>(StringComparer.OrdinalIgnoreCase);
         ObjectView? View(ObjectKind kind, string id)
         {
             if (!types.TryGetValue((kind, id), out var view))
@@ -153,13 +156,16 @@ public static class Placed
             var fixedRotation = look == null ? -1f : Number(look, prefix + "fxr", mode, 0, -1f);
             if (fixedRotation >= 0)
             {
-                // The game ignores a fixed-rotation type's facing; a bridge stands where CreateDestructable moves
-                // one (docs/game-facts.md, 10-27; seen on YT16, other types *claim*).
+                // The game ignores a fixed-rotation type's facing, and puts the destructable where CreateDestructable
+                // puts one (docs/game-facts.md, Destructables, 10-27 and 11-08).
                 facing = fixedRotation * MathF.PI / 180f;
-                if (kind == ThingKind.Destructable)
+                if (kind == ThingKind.Destructable && view != null && CellsOf(view, game, cells) is var (width, height))
                 {
-                    x = (64f * MathF.Truncate(x / 64f)) + 32f;
-                    y = 64f * MathF.Truncate(y / 64f);
+                    // The texture's width lies along x, except at a facing of exactly 0 or 180.
+                    var across = fixedRotation is 0f or 180f ? height : width;
+                    var up = fixedRotation is 0f or 180f ? width : height;
+                    x = OnGrid(x, across);
+                    y = OnGrid(y, up);
                 }
             }
 
@@ -237,6 +243,35 @@ public static class Placed
     }
 
     // A unit type's shadow image; null for none ("_" or nothing, as a building has) or one of no size.
+    // Along one axis, where the game puts a destructable whose pathing texture is `cells` across: the 64 grid toward
+    // 0, then 32 further from 0 when half the cells is odd, a place of 0 counting as above (docs/game-facts.md).
+    internal static float OnGrid(float at, int cells)
+    {
+        var grid = 64f * MathF.Truncate(at / 64f);
+        return cells / 2 % 2 == 1 ? grid + (at < 0 ? -32f : 32f) : grid;
+    }
+
+    // The cells of a destructable type's pathing texture (bptx), its width and height; null for a type with none, which
+    // the game leaves where it is asked to stand (to a quarter, too little to draw).
+    private static (int Width, int Height)? CellsOf(
+        ObjectView view, IMapGameFiles game, Dictionary<string, (int Width, int Height)?> known)
+    {
+        var path = Text(view, "bptx", "sd", 0);
+        if (string.IsNullOrEmpty(path) || path == "_")
+        {
+            return null;
+        }
+
+        if (!known.TryGetValue(path, out var cells))
+        {
+            cells = known[path] = game.File(path, "sd") is { } bytes && Textures.Decode(bytes) is { } picture
+                ? (picture.Width, picture.Height)
+                : null;
+        }
+
+        return cells;
+    }
+
     private static UnitShadow? ShadowOf(ObjectView look, string mode)
     {
         var image = Text(look, "ushu", mode, 0);

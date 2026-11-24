@@ -91,7 +91,7 @@ public static class MapScene
                 problems.Add(Texts.Get("app.mapView.noTerrain"));
             }
 
-            var things = Placed.Things(read, null, session, mode);
+            var things = Placed.Things(read, null, session, files, mode);
             return (new MapSceneView(0, 0, 0, 0, "", [], [], [], new WaterLook("", 0, 0, 0, 0, 0),
                 new SceneLights(DayLights.Default, DayLights.Default, []), things, regions,
                 cameras, problems), []);
@@ -114,7 +114,7 @@ public static class MapScene
             pieces,
             Look(water, read.Info),
             DayLights.Read(tileset, files, mode),
-            Placed.Things(read, grid, session, mode),
+            Placed.Things(read, grid, session, files, mode),
             regions,
             cameras,
             problems);

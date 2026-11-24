@@ -94,6 +94,32 @@ public sealed class TriggerCatalogTests(ITestOutputHelper output)
         Assert.Empty(wrong);
     }
 
+    // TriggerJass.Condition writes a condition of three arguments as "( a op b )" and any other by its own name.
+    [Fact]
+    public void Every_condition_of_three_arguments_is_a_comparison_and_none_has_a_script_name()
+    {
+        var catalog = InstallMaps.Catalog;
+        if (catalog == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var conditions = catalog.Functions.Where(function => function.Kind == FunctionKind.Condition).ToList();
+        var wrong = conditions
+            .Where(function => function.Arguments.Count == 3
+                ? !function.Name.StartsWith("OperatorCompare", StringComparison.Ordinal)
+                    || !function.Arguments[1].EndsWith("Operator", StringComparison.Ordinal)
+                : function.Name is not ("GetBooleanAnd" or "GetBooleanOr" or "AndMultiple" or "OrMultiple"))
+            .Select(function => $"{function.Name}: {string.Join(", ", function.Arguments)}")
+            .Concat(conditions.Where(function => catalog.CallScriptNames.ContainsKey(function.Name)).Select(each => each.Name))
+            .ToList();
+        output.WriteLine(string.Join("\n", wrong));
+
+        Assert.NotEmpty(conditions);
+        Assert.Empty(wrong);
+    }
+
     [Fact]
     public void A_presets_text_is_the_editors()
     {
