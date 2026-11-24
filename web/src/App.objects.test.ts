@@ -371,6 +371,7 @@ describe("editing a field", () => {
     const app = await openApp({ setField: unit(knightEntry, { name: "Squire" }) });
     await showObject(/Footman/);
     await showObject(/Knight/);
+    await screen.findByRole("heading", { name: /Knight/ });
     const box = screen.getByRole("textbox", { name: "Name" });
     box.focus();
     await fireEvent.input(box, { target: { value: "Squire" } });

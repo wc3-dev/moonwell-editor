@@ -266,7 +266,7 @@ test("a save asked as a stroke ends waits for the stroke's last points", async (
   render(MapView, { mode: "sd", queued: queue.run });
   await waitFor(() => expect(fake.hosts).toBe(1));
   terrainTools.group = "ground";
-  terrainTools.tool = "Paint";
+  terrainTools.tool = "Raise";
   HTMLCanvasElement.prototype.setPointerCapture = () => {};
   HTMLCanvasElement.prototype.releasePointerCapture = () => {};
   const first = later(null);
@@ -274,9 +274,9 @@ test("a save asked as a stroke ends waits for the stroke's last points", async (
   try {
     const map = screen.getByLabelText(t("main.map"));
     await fireEvent.pointerDown(map, { button: 0, clientX: 0.5, clientY: 0.5 });
-    // The first step is on its way; the mouse goes on and the button comes up.
-    await fireEvent.pointerMove(map, { clientX: 1.5, clientY: 1.5 });
-    await fireEvent.pointerUp(map, { button: 0, clientX: 1.5, clientY: 1.5 });
+    // The first step is on its way while Raise's repeat gathers another point; then the button comes up.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await fireEvent.pointerUp(map, { button: 0, clientX: 0.5, clientY: 0.5 });
     const saved = queue.run(async () => {
       fake.asked.push("save");
     });
