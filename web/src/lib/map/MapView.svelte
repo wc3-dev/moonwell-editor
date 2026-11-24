@@ -598,6 +598,16 @@ async function sendStroke(current: Stroke): Promise<void> {
   await sendStroke(current);
 }
 
+/** The button is up (or the pointer gone): the stroke ends once the points gathered are sent. */
+function finishStroke(current: Stroke): void {
+  if (current.ended) return;
+  current.ended = true;
+  void sendStroke(current);
+}
+
+// A stroke's repeat stops with the view.
+$effect(() => () => window.clearInterval(stroke?.repeat));
+
 async function endStroke(current: Stroke): Promise<void> {
   window.clearInterval(current.repeat);
   if (stroke === current) stroke = null;
@@ -893,13 +903,14 @@ function onpointerup(event: PointerEvent): void {
     drag = null;
     return;
   }
-  if (stroke && event.button === 0) {
+  // The pointerup comes when the last button is let go, which is not the left one when another was pressed meanwhile
+  // (Pointer Events' chorded buttons): a stroke, a shape or a carry ends on any.
+  if (stroke) {
     canvas?.releasePointerCapture(event.pointerId);
-    stroke.ended = true;
-    void sendStroke(stroke);
+    finishStroke(stroke);
     return;
   }
-  if (shaping && event.button === 0) {
+  if (shaping) {
     canvas?.releasePointerCapture(event.pointerId);
     renderer?.setBrush(null);
     const drag = shaping;
@@ -919,7 +930,7 @@ function onpointerup(event: PointerEvent): void {
     );
     return;
   }
-  if (carry && event.button === 0) {
+  if (carry) {
     canvas?.releasePointerCapture(event.pointerId);
     renderer?.setBrush(null);
     const { number, moved } = carry;
@@ -941,6 +952,15 @@ function onpointerup(event: PointerEvent): void {
     return;
   }
   selected = pick;
+}
+
+/** The browser took the pointer away (a cancel, or the capture lost): a stroke ends, a drag is dropped. */
+function letGo(): void {
+  if (stroke) finishStroke(stroke);
+  if (shaping || carry) renderer?.setBrush(null);
+  shaping = null;
+  carry = null;
+  drag = null;
 }
 
 function onpointerleave(): void {
@@ -1052,6 +1072,8 @@ function ownerOf(pick: Pick): string {
     {onpointermove}
     {onpointerup}
     {onpointerleave}
+    onpointercancel={letGo}
+    onlostpointercapture={letGo}
     {onkeydown}
     oncontextmenu={(event) => event.preventDefault()}
   ></canvas>
