@@ -5,7 +5,7 @@ import App from "../App.svelte";
 import type { CurrentMap, FieldView, MapInfo, ObjectView, TreeEntry } from "../lib/api.ts";
 import type { GameDataState } from "../lib/app/gameData.ts";
 import { loadHotkeys } from "../lib/app/keymap.ts";
-import { homeNotice } from "../lib/home/notice.svelte.ts";
+import { clearHomeNotice } from "../lib/home/notice.svelte.ts";
 import { loadState } from "../lib/home/state.svelte.ts";
 import { loadSettings, prefs } from "../lib/prefs.svelte.ts";
 import { t } from "../lib/text.ts";
@@ -235,7 +235,7 @@ export function appTests(): void {
     loadSettings(null);
     loadHotkeys(null);
     loadState(null);
-    homeNotice.text = "";
+    clearHomeNotice();
     prefs.alphaNotice = false;
   });
 
@@ -246,7 +246,7 @@ export function appTests(): void {
     loadSettings(null);
     loadHotkeys(null);
     loadState(null);
-    homeNotice.text = "";
+    clearHomeNotice();
   });
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeApp, Refusal, themeFileText } from "../test/fakeApp.ts";
-import { homeNotice } from "./home/notice.svelte.ts";
+import { clearHomeNotice, homeNotice } from "./home/notice.svelte.ts";
 import { loadSettings, prefs } from "./prefs.svelte.ts";
 import { colorKeys, parseTheme } from "./themes/format.ts";
 import { shippedThemes } from "./themes/shipped.ts";
@@ -108,7 +108,7 @@ describe("the user's themes", () => {
   afterEach(() => {
     loadUserThemes([]);
     loadSettings(null);
-    homeNotice.text = "";
+    clearHomeNotice();
     delete window.chrome;
   });
 

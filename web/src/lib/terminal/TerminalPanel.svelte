@@ -31,15 +31,19 @@ function startDrag(event: PointerEvent): void {
   const from = event.clientY;
   const started = height;
   handle.setPointerCapture(event.pointerId);
+  const listening = new AbortController();
   const move = (each: PointerEvent) => (height = fitting(started + from - each.clientY));
+  // The drag ends, once, when the button is let go or the browser cancels the pointer (the window lost the focus).
   const stop = () => {
-    handle.removeEventListener("pointermove", move);
-    handle.removeEventListener("pointerup", stop);
+    listening.abort();
     setState("terminalHeight", height);
     terminals.focusAsked++;
   };
-  handle.addEventListener("pointermove", move);
-  handle.addEventListener("pointerup", stop);
+  const options = { signal: listening.signal };
+  handle.addEventListener("pointermove", move, options);
+  handle.addEventListener("pointerup", stop, options);
+  handle.addEventListener("pointercancel", stop, options);
+  handle.addEventListener("lostpointercapture", stop, options);
 }
 
 async function pickShell(button: HTMLElement): Promise<void> {

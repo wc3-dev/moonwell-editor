@@ -536,6 +536,56 @@ describe("hotkeys.json", () => {
     expect(written(app)).toEqual([]);
   });
 
+  // What Chromium on Windows sends for AltGr 7 on a Swedish keyboard: the Ctrl Windows adds, AltGr itself, then the
+  // character, each with Ctrl and Alt down.
+  const altGr = { ctrlKey: true, altKey: true, modifierAltGraph: true };
+  async function pressAltGr(key: string): Promise<void> {
+    await press("Control", { ctrlKey: true });
+    await press("AltGraph", altGr);
+    await press(key, altGr);
+  }
+
+  async function listenFor(name: string): Promise<void> {
+    await press("F10");
+    await fireEvent.click(await screen.findByRole("tab", { name: t("settings.tab.hotkeys") }));
+    const row = (await screen.findByText(name)).parentElement as HTMLElement;
+    await fireEvent.click(
+      row.querySelector<HTMLButtonElement>("button.font-mono") as HTMLButtonElement,
+    );
+  }
+
+  test("an AltGr character is set in Settings, and runs its command", async () => {
+    bootWith({ hotkeys: "{}" });
+    const app = await openApp();
+    await listenFor(t("hotkey.settings"));
+    await pressAltGr("{");
+    await waitFor(() => expect(written(app)).toHaveLength(1));
+    expect(written(app)[0]).toEqual({
+      file: "hotkeys.json",
+      text: '{\n  "settings": ["Ctrl+Alt+{"]\n}',
+    });
+
+    await press("Escape");
+    await waitFor(() =>
+      expect(screen.queryByRole("tab", { name: t("settings.tab.hotkeys") })).toBeNull(),
+    );
+    await pressAltGr("{");
+    expect(await screen.findByRole("tab", { name: t("settings.tab.hotkeys") })).toBeTruthy();
+  });
+
+  test("a dead key, an IME's key and Caps Lock are not set; the next real key is", async () => {
+    bootWith({ hotkeys: "{}" });
+    const app = await openApp();
+    await listenFor(t("hotkey.settings"));
+    await press("Dead");
+    await press("Process");
+    await press("CapsLock");
+    await press("Unidentified");
+    await press("F7");
+    await waitFor(() => expect(written(app)).toHaveLength(1));
+    expect(written(app)[0]).toEqual({ file: "hotkeys.json", text: '{\n  "settings": ["F7"]\n}' });
+  });
+
   test("a key set in Settings is edited into the file, with its comments", async () => {
     bootWith({ hotkeys: '{\n  // mine\n  "save": ["F5"]\n}' });
     const app = await openApp();

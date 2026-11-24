@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { FakeApp, field, footmanEntry, knightEntry, unit } from "../../test/fakeApp.ts";
+import { FakeApp, field, footmanEntry, knightEntry, later, unit } from "../../test/fakeApp.ts";
 import type { FieldView } from "../api.ts";
 import { loadState } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
@@ -97,6 +97,72 @@ describe("saving", () => {
     expect(onclose).not.toHaveBeenCalled();
     await fireEvent.click(close());
     await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
+  });
+
+  test("closing while a save is on its way waits for its answer, and a refusal keeps the editor open", async () => {
+    let answer: (problem: string | null) => void = () => {};
+    const onfields = vi.fn(
+      (_edits: Edits) =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(TooltipEditor, { view, onfields, onclose });
+    await fireEvent.input(box(), { target: { value: "New" } });
+    await waitFor(() => expect(onfields).toHaveBeenCalledOnce());
+
+    await fireEvent.click(close());
+    await settled();
+    expect(onclose).not.toHaveBeenCalled();
+    answer("The object is read-only");
+    await screen.findByText("The object is read-only");
+    expect(onclose).not.toHaveBeenCalled();
+    expect(box().value).toBe("New");
+  });
+
+  test("closing while a save is on its way closes once it went through", async () => {
+    let answer: (problem: string | null) => void = () => {};
+    const onfields = vi.fn(
+      (_edits: Edits) =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(TooltipEditor, { view, onfields, onclose });
+    await fireEvent.input(box(), { target: { value: "New" } });
+    await waitFor(() => expect(onfields).toHaveBeenCalledOnce());
+
+    await fireEvent.click(close());
+    answer(null);
+    await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
+    expect(onfields).toHaveBeenCalledOnce();
+  });
+
+  test("a text typed in before the listed abilities are here keeps its box and the focus", async () => {
+    const ability = later(unit(footmanEntry, { id: "AHbz", kind: "ability", name: "Blizzard" }));
+    new FakeApp({ object: () => ability.answer });
+    const withAbilities = unit(footmanEntry, {
+      fields: [
+        field({ id: "utip", label: "Tooltip", value: "Old" }),
+        field({
+          id: "uabi",
+          label: "Abilities",
+          type: "objectList",
+          listOf: "Ability",
+          value: "AHbz",
+        }),
+      ],
+    });
+    render(TooltipEditor, { view: withAbilities, onfields: vi.fn(async () => null), onclose });
+    const typedIn = box();
+    typedIn.focus();
+    await fireEvent.input(typedIn, { target: { value: "New" } });
+
+    ability.release();
+    await settled();
+    await settled();
+    expect(box()).toBe(typedIn);
+    expect(document.activeElement).toBe(typedIn);
   });
 
   test("there are no Save and Cancel buttons", () => {

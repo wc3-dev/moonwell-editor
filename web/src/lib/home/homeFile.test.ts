@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { FakeApp, Refusal } from "../../test/fakeApp.ts";
 import { HomeFile } from "./homeFile.svelte.ts";
-import { homeNotice } from "./notice.svelte.ts";
+import { clearHomeNotice, homeNotice } from "./notice.svelte.ts";
 
 const starter = '{\n  "$schema": "./schemas/mine.schema.json"\n}\n';
 const mine = () => new HomeFile("settings.json", starter);
@@ -14,7 +14,7 @@ const written = (app: FakeApp) =>
 
 afterEach(() => {
   delete window.chrome;
-  homeNotice.text = "";
+  clearHomeNotice();
 });
 
 describe("taking a text", () => {

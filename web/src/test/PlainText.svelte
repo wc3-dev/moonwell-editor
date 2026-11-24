@@ -16,6 +16,8 @@ export function color(css: string | null): void {
 }
 
 export function insert(): void {}
+
+export function redescribe(): void {}
 </script>
 
 <input aria-label={label} data-colour={colour} value={markup} {onfocus} oninput={(event) => onchange(event.currentTarget.value)} />

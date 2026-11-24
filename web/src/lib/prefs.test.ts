@@ -3,7 +3,7 @@ import { waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { FakeApp, Refusal } from "../test/fakeApp.ts";
 import { codeThemes } from "./codeThemes.ts";
-import { homeNotice } from "./home/notice.svelte.ts";
+import { clearHomeNotice, homeNotice } from "./home/notice.svelte.ts";
 import schema from "./home/schemas/settings.schema.json";
 import {
   emptySettings,
@@ -40,13 +40,13 @@ const written = (app: FakeApp): string[] =>
 beforeEach(() => {
   localStorage.clear();
   loadSettings(null);
-  homeNotice.text = "";
+  clearHomeNotice();
 });
 
 afterEach(async () => {
   delete window.chrome;
   loadSettings(null);
-  homeNotice.text = "";
+  clearHomeNotice();
 });
 
 describe("reading settings.json", () => {
@@ -334,7 +334,7 @@ describe("writing settings.json", () => {
     expect(written(app)).toEqual(['{"editor.confirm": false, "appearance.uiScale": 120}']);
   });
 
-  test("a write the app refuses sets the one notice and leaves the setting changed", async () => {
+  test("a write the app refuses sets the notice, the latest failure, and leaves the setting changed", async () => {
     let count = 0;
     const app = new FakeApp({ writeHome: () => new Refusal("failed", `Failure ${++count}`) });
     loadSettings("{}");
@@ -343,8 +343,8 @@ describe("writing settings.json", () => {
     setPref("uiScale", 80);
     await app.idle();
     await waitFor(() => expect(app.count("writeHome")).toBe(2));
-    expect(homeNotice.text).toContain("Failure 1");
-    expect(homeNotice.text).not.toContain("Failure 2");
+    await waitFor(() => expect(homeNotice.text).toContain("Failure 2"));
+    expect(homeNotice.text).not.toContain("Failure 1");
     expect(prefs.uiScale).toBe(80);
   });
 

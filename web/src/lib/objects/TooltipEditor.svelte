@@ -17,7 +17,7 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
 import { RadioGroup } from "bits-ui";
-import { onDestroy } from "svelte";
+import { onDestroy, untrack } from "svelte";
 import { type FieldView, iconUrl, type ObjectView, object } from "../api.ts";
 import { uiIcons } from "../gameIcons.ts";
 import { graphics } from "../graphics.svelte.ts";
@@ -259,6 +259,15 @@ $effect(() => {
   };
 });
 
+// Once the listed abilities are here, the chips that name them say what they are. The texts are not made again, which
+// would take the focus, the cursor and the undo history from one being typed in.
+$effect(() => {
+  if (listed === null) return;
+  untrack(() => {
+    for (const editor of Object.values(editors)) editor?.redescribe();
+  });
+});
+
 // What the `/` lists: the object's own values, then the listed abilities'; nothing for a buff.
 const sources = $derived(
   view.kind === "buff"
@@ -376,15 +385,23 @@ async function save(): Promise<string | null> {
   });
   if (edits.length === 0) return null;
   for (const { field, value } of edits) sent[keyOf(field)] = value;
-  const problem = await onfields(edits);
+  const asked = onfields(edits);
+  onTheWay.add(asked);
+  const problem = await asked.finally(() => onTheWay.delete(asked));
   if (problem !== null) for (const { field } of edits) delete sent[keyOf(field)];
   error = problem ?? "";
   return problem;
 }
 
-// A text refused stays to be put right; closing again gives it up.
+// The saves sent and not answered yet: closing waits for them, as one may yet be refused.
+const onTheWay = new Set<Promise<string | null>>();
+
+// A text refused stays to be put right; closing again gives it up. A save on its way when the editor is closed is
+// waited for, and a new refusal from it keeps the editor open too.
 async function close(): Promise<void> {
   const shown = error;
+  const answers = await Promise.all(onTheWay);
+  if (answers.some((problem) => problem !== null && problem !== shown)) return;
   const problem = await save();
   if (problem === null || problem === shown) onclose();
 }
@@ -406,8 +423,8 @@ onDestroy(() => {
     onfocusin={() => (focused = key)}
     onfocusout={() => (focused = null)}
   >
-    <!-- Made again once the listed abilities are here, so the chips that name them say what they are. -->
-    {#key `${key}:${listed !== null}:${swaps}`}
+    <!-- Made again when the commas are swapped; the listed abilities only re-describe the chips (see above). -->
+    {#key `${key}:${swaps}`}
       <RichText
         bind:this={editors[key]}
         markup={drafts[key] ?? part.field.value}

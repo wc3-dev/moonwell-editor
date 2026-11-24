@@ -6,6 +6,7 @@ import { loadSettings, prefs } from "../prefs.svelte.ts";
 import { type HomeBoot, homeNotice } from "./home.ts";
 import { parseObject } from "./jsonc.ts";
 import { moveFromStorage, moveIfNeeded } from "./move.ts";
+import { clearHomeNotice } from "./notice.svelte.ts";
 import { loadState, stateOf } from "./state.svelte.ts";
 
 const storageOf = (items: Record<string, unknown>): Pick<Storage, "getItem"> => ({
@@ -269,7 +270,7 @@ describe("moveIfNeeded", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    homeNotice.text = "";
+    clearHomeNotice();
   });
 
   afterEach(async () => {
@@ -277,7 +278,7 @@ describe("moveIfNeeded", () => {
     localStorage.clear();
     loadSettings(null);
     loadState(null);
-    homeNotice.text = "";
+    clearHomeNotice();
   });
 
   test("does nothing when settings.json is there", async () => {
