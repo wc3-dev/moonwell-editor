@@ -24,7 +24,7 @@ import type { Pages } from "./pages.svelte.ts";
  * An object copied, for Ctrl V to paste as a new custom object. There is no cut: a paste never
  * deletes the object it came from.
  */
-type Clip = { kind: Kind; id: string; name: string; baseId: string };
+type Clip = { kind: Kind; id: string; name: string; baseId: string; map: string };
 
 /** The new-object dialog: the base, the id typed (the next free one to start with), and why it failed. */
 type Creating = {
@@ -56,7 +56,12 @@ export function hasTooltip(each: Kind): boolean {
 export class ObjectActions {
   creating = $state<Creating | null>(null);
   deleting = $state.raw<Deleting | null>(null);
-  clipboard = $state.raw<Clip | null>(null);
+  #clipped = $state.raw<Clip | null>(null);
+  /** The object copied, while the map it was copied in is open: custom ids repeat from map to map. */
+  get clipboard(): Clip | null {
+    const clip = this.#clipped;
+    return clip && clip.map === this.#session.map?.path ? clip : null;
+  }
   /** The object renamed in its tree row, by id. */
   renaming = $state<string | null>(null);
   editingTooltip = $state(false);
@@ -148,8 +153,9 @@ export class ObjectActions {
   /** Keeps the object for Ctrl V. */
   clip(each: Kind, id: string): void {
     const entry = this.#objects.entryOf(each, id);
-    if (!entry) return;
-    this.clipboard = { kind: each, id, name: entry.name, baseId: entry.baseId ?? id };
+    const map = this.#session.map?.path;
+    if (!entry || !map) return;
+    this.#clipped = { kind: each, id, name: entry.name, baseId: entry.baseId ?? id, map };
     this.#notices.say(t("notice.copied", { name: entry.name, id }));
   }
 
