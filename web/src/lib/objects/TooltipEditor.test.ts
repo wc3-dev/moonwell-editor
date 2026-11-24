@@ -99,6 +99,45 @@ describe("saving", () => {
     await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
   });
 
+  test("closing while a save is on its way waits for its answer, and a refusal keeps the editor open", async () => {
+    let answer: (problem: string | null) => void = () => {};
+    const onfields = vi.fn(
+      (_edits: Edits) =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(TooltipEditor, { view, onfields, onclose });
+    await fireEvent.input(box(), { target: { value: "New" } });
+    await waitFor(() => expect(onfields).toHaveBeenCalledOnce());
+
+    await fireEvent.click(close());
+    await settled();
+    expect(onclose).not.toHaveBeenCalled();
+    answer("The object is read-only");
+    await screen.findByText("The object is read-only");
+    expect(onclose).not.toHaveBeenCalled();
+    expect(box().value).toBe("New");
+  });
+
+  test("closing while a save is on its way closes once it went through", async () => {
+    let answer: (problem: string | null) => void = () => {};
+    const onfields = vi.fn(
+      (_edits: Edits) =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    render(TooltipEditor, { view, onfields, onclose });
+    await fireEvent.input(box(), { target: { value: "New" } });
+    await waitFor(() => expect(onfields).toHaveBeenCalledOnce());
+
+    await fireEvent.click(close());
+    answer(null);
+    await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
+    expect(onfields).toHaveBeenCalledOnce();
+  });
+
   test("there are no Save and Cancel buttons", () => {
     open();
     const dialog = within(screen.getByRole("dialog"));

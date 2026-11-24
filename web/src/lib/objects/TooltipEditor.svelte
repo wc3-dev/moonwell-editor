@@ -376,15 +376,23 @@ async function save(): Promise<string | null> {
   });
   if (edits.length === 0) return null;
   for (const { field, value } of edits) sent[keyOf(field)] = value;
-  const problem = await onfields(edits);
+  const asked = onfields(edits);
+  onTheWay.add(asked);
+  const problem = await asked.finally(() => onTheWay.delete(asked));
   if (problem !== null) for (const { field } of edits) delete sent[keyOf(field)];
   error = problem ?? "";
   return problem;
 }
 
-// A text refused stays to be put right; closing again gives it up.
+// The saves sent and not answered yet: closing waits for them, as one may yet be refused.
+const onTheWay = new Set<Promise<string | null>>();
+
+// A text refused stays to be put right; closing again gives it up. A save on its way when the editor is closed is
+// waited for, and a new refusal from it keeps the editor open too.
 async function close(): Promise<void> {
   const shown = error;
+  const answers = await Promise.all(onTheWay);
+  if (answers.some((problem) => problem !== null && problem !== shown)) return;
   const problem = await save();
   if (problem === null || problem === shown) onclose();
 }
