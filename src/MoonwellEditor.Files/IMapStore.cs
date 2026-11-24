@@ -53,8 +53,8 @@ public static class MapStore
 
     /// <summary>
     /// Opens the map at <paramref name="path"/>: a folder as a <see cref="MapFolder"/> (a Moonwell project's folder as
-    /// the map in its <c>map/</c>), a <c>.w3x</c> or <c>.w3m</c> file (letter case ignored) as a
-    /// <see cref="MapArchive"/>. Throws <see cref="FileNotFoundException"/> when there is neither a folder nor a file,
+    /// the map in its <c>map.w3x/</c>, else its <c>map/</c>), a <c>.w3x</c> or <c>.w3m</c> file (letter case ignored)
+    /// as a <see cref="MapArchive"/>. Throws <see cref="FileNotFoundException"/> when there is neither a folder nor a file,
     /// <see cref="InvalidDataException"/> ("Not a map: ...") for any other file, and <see cref="MapArchiveException"/>
     /// when the file is not an archive that can be read.
     /// </summary>
@@ -81,14 +81,19 @@ public static class MapStore
         throw new FileNotFoundException(Texts.Get("app.map.nothingAt", ("path", full)), full);
     }
 
-    // A folder that is no map itself but holds one in map/, where a Moonwell project keeps it; null for any other.
+    // A folder that is no map itself but holds one where a Moonwell project keeps it: map.w3x/ (Moonwell 0.20.1 on),
+    // else map/, the first that is a map, as Moonwell's build looks; null for any other.
     private static string? ProjectMap(string folder)
     {
         const string MapFile = "war3map.w3i";
-        var map = System.IO.Path.Combine(folder, "map");
-        return !File.Exists(System.IO.Path.Combine(folder, MapFile)) && File.Exists(System.IO.Path.Combine(map, MapFile))
-            ? map
-            : null;
+        if (File.Exists(System.IO.Path.Combine(folder, MapFile)))
+        {
+            return null;
+        }
+
+        return new[] { "map.w3x", "map" }
+            .Select(name => System.IO.Path.Combine(folder, name))
+            .FirstOrDefault(map => File.Exists(System.IO.Path.Combine(map, MapFile)));
     }
 
     private static List<string> MakeObjectAndStringFiles()
