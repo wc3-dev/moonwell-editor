@@ -55,7 +55,7 @@ public sealed partial class TerrainEditor
     public IReadOnlyList<PlacedThing> Things(string mode)
     {
         var files = new MapFiles(_terrain, _doodads, _units, null, null, _info, null, []);
-        return Placed.Things(files, TerrainGrid.From(_terrain, _waterLevel), _session, mode);
+        return Placed.Things(files, TerrainGrid.From(_terrain, _waterLevel), _session, _files, mode);
     }
 
     /// <summary>The players a placed unit can belong to: the map's, then Neutral Hostile and Neutral Passive.</summary>

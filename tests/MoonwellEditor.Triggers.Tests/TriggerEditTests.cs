@@ -516,6 +516,32 @@ public sealed class TriggerEditTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_variable_renamed_as_a_tree_item_is_renamed_everywhere()
+    {
+        var document = LostTemple();
+        if (document == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var category = Initialization(document);
+        var id = document.Add(TriggerItemKind.Trigger, category);
+        var path = document.AddFunction(id, null, 0, 0, FunctionKind.Action, "TriggerSleepAction");
+        var variable = document.AddVariable(new VariableInput("Delay", "real", false, 1, "1.5"), category);
+        document.SetParameter(id, path + "/p0", new ParamInput(ParameterKind.Variable, "Delay"));
+
+        document.Rename(variable, "Pause");
+
+        var read = Reread(document);
+        var definition = Assert.Single(read.Variables);
+        Assert.Equal(("Pause", "real", false, 1, "1.5"), (definition.Name, definition.Type, definition.IsArray, definition.ArraySize, definition.InitialValue));
+        Assert.Equal("Pause", read.TriggerItems.OfType<TriggerVariableDefinition>().Single().Name);
+        Assert.Equal("Pause", document.Trigger(id, new Names()).Actions[0].Sentence.Single(part => part.Parameter != null).Text);
+        Assert.Throws<TriggerEditException>(() => document.Rename(variable, "not a name"));
+    }
+
+    [Fact]
     public void A_deleted_variable_leaves_its_parameters_without_a_value()
     {
         var document = LostTemple();
