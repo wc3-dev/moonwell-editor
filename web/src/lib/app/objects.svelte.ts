@@ -20,6 +20,7 @@ import { newTableState, type TableState } from "../objects/table.ts";
 import { isHidden } from "../objects/tree.ts";
 import { prefs } from "../prefs.svelte.ts";
 import { t } from "../text.ts";
+import { sendTyped } from "../typing.ts";
 import type { CommandQueue } from "./commandQueue.ts";
 import type { History } from "./history.svelte.ts";
 
@@ -173,6 +174,8 @@ export class Objects {
 
   /** Shows an object, and remembers it in the history unless the history is being walked. */
   show = async (each: Kind, id: string, remember = true): Promise<void> => {
+    // What was typed for the object shown goes to it now, while `edit` still finds it as the current one.
+    sendTyped();
     if (remember) this.#history.visit({ kind: each, id }, this.#scrollPosition());
     this.kind = each;
     this.picked[each] = id;
@@ -198,6 +201,7 @@ export class Objects {
       this.show(each, id);
       return;
     }
+    sendTyped();
     this.kind = each;
     this.ensureTree(each);
     this.#objectAsked++;

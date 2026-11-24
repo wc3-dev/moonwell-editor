@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PlacedThing } from "../scene.ts";
 import { readTerrain } from "../scene.ts";
 import { terrainBytes } from "../testTerrain.ts";
-import { shadowQuads } from "./unitShadows.ts";
+import { shadowQuads, UnitShadowLayer } from "./unitShadows.ts";
+
+vi.mock("./program.ts", () => ({ program: () => ({}) }));
 
 const flat = readTerrain(
   terrainBytes(5, 5, () => 64),
@@ -76,5 +78,49 @@ describe("shadowQuads", () => {
       "ReplaceableTextures\\Shadows\\Shadow.blp",
     ]);
     expect(quads.get("ReplaceableTextures\\Shadows\\Shadow.blp")?.[2]).toBeCloseTo(66, 3);
+  });
+});
+
+/** A WebGL context that makes an object for every create call and keeps the textures bound. */
+function fakeGl(): { gl: WebGL2RenderingContext; bound: unknown[]; deleted: unknown[] } {
+  const bound: unknown[] = [];
+  const deleted: unknown[] = [];
+  const gl = new Proxy(
+    {},
+    {
+      get: (_, name: string) => {
+        if (name === "bindTexture")
+          return (_target: unknown, texture: unknown) => bound.push(texture);
+        if (name === "deleteTexture") return (texture: unknown) => deleted.push(texture);
+        if (name.startsWith("create")) return () => ({});
+        return () => null;
+      },
+    },
+  ) as WebGL2RenderingContext;
+  return { gl, bound, deleted };
+}
+
+const shadowPath = unit({}).shadow?.texture ?? "";
+
+describe("UnitShadowLayer", () => {
+  it("keeps its pictures when the units are laid again, after a change to them or to the ground", () => {
+    const { gl, bound, deleted } = fakeGl();
+    const layer = new UnitShadowLayer(gl, [unit({})], flat);
+    const picture = {} as WebGLTexture;
+    layer.setPicture(shadowPath, picture);
+    layer.place([unit({ x: 400 })], flat);
+    expect(layer.wanted).toEqual([]);
+    layer.draw(new Float32Array(16));
+    expect(bound).toContain(picture);
+    expect(deleted).not.toContain(picture);
+  });
+
+  it("wants only the pictures of units it has not loaded", () => {
+    const { gl } = fakeGl();
+    const layer = new UnitShadowLayer(gl, [unit({})], flat);
+    layer.setPicture(shadowPath, {} as WebGLTexture);
+    const flyer = { texture: "Flyer.blp", x: 0, y: 0, width: 10, height: 10 };
+    layer.place([unit({}), unit({ shadow: flyer })], flat);
+    expect(layer.wanted).toEqual(["Flyer.blp"]);
   });
 });

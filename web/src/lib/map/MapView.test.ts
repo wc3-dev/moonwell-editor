@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { later } from "../../test/fakeApp.ts";
+import { CommandQueue } from "../app/commandQueue.ts";
 import { t } from "../text.ts";
 import MapView from "./MapView.svelte";
 import MapViewHost from "./MapViewHost.test.svelte";
@@ -16,6 +17,10 @@ const fake = vi.hoisted(() => ({
   reads: 0,
   patched: 0,
   cliffAsks: 0,
+  strokeEnds: 0,
+  /** What was asked of the app, in order; and an answer a stroke step waits for, when set. */
+  asked: [] as string[],
+  hold: null as Promise<unknown> | null,
   undone: { left: 0, bottom: 0, columns: 0, rows: 0, bytes: "", tiles: false, cliffs: false },
 }));
 
@@ -25,16 +30,24 @@ vi.mock("../api.ts", async (original) => ({
     fake.reads++;
     return fake.scenes.get(mode);
   },
-  terrainStroke: async () => ({
-    left: 0,
-    bottom: 0,
-    columns: 0,
-    rows: 0,
-    bytes: "",
-    tiles: false,
-    cliffs: true,
-  }),
-  terrainStrokeEnd: async () => null,
+  terrainStroke: async () => {
+    fake.asked.push("stroke");
+    await fake.hold;
+    return {
+      left: 0,
+      bottom: 0,
+      columns: 0,
+      rows: 0,
+      bytes: "",
+      tiles: false,
+      cliffs: true,
+    };
+  },
+  terrainStrokeEnd: async () => {
+    fake.asked.push("end");
+    fake.strokeEnds++;
+    return null;
+  },
   terrainCliffs: async () => {
     fake.cliffAsks++;
     return [];
@@ -120,6 +133,9 @@ beforeEach(() => {
   fake.reads = 0;
   fake.patched = 0;
   fake.cliffAsks = 0;
+  fake.strokeEnds = 0;
+  fake.asked = [];
+  fake.hold = null;
   globalThis.ResizeObserver = NoResizeObserver as never;
   vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) =>
     setTimeout(() => draw(performance.now())),
@@ -215,6 +231,62 @@ test("a cliff stroke shows its cliff models as it goes, not only once the button
       clientY: 0.5,
     });
     await waitFor(() => expect(fake.cliffAsks).toBeGreaterThan(0));
+  } finally {
+    terrainTools.group = null;
+  }
+});
+
+// A second button pressed while the first is down gives no pointerdown, and the last one let go gives the pointerup
+// (Pointer Events, chorded buttons): after left, then right, then left up and right up, the pointerup is the right's.
+test.each([
+  [
+    "the last button let go is another",
+    (map: HTMLElement) => fireEvent.pointerUp(map, { button: 2 }),
+  ],
+  ["the browser cancels the pointer", (map: HTMLElement) => fireEvent.pointerCancel(map)],
+  ["the view loses the pointer", (map: HTMLElement) => fireEvent.lostPointerCapture(map)],
+])("a brush stroke ends when %s", async (_, end) => {
+  fake.scenes.set("sd", Promise.resolve(scene()));
+  render(MapView, { mode: "sd" });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  terrainTools.group = "ground";
+  terrainTools.tool = "Raise";
+  HTMLCanvasElement.prototype.setPointerCapture = () => {};
+  HTMLCanvasElement.prototype.releasePointerCapture = () => {};
+  try {
+    const map = screen.getByLabelText(t("main.map"));
+    await fireEvent.pointerDown(map, { button: 0, clientX: 0.5, clientY: 0.5 });
+    await end(map);
+    await waitFor(() => expect(fake.strokeEnds).toBe(1));
+  } finally {
+    terrainTools.group = null;
+  }
+});
+
+test("a save asked as a stroke ends waits for the stroke's last points", async () => {
+  fake.scenes.set("sd", Promise.resolve(scene()));
+  const queue = new CommandQueue();
+  render(MapView, { mode: "sd", queued: queue.run });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  terrainTools.group = "ground";
+  terrainTools.tool = "Raise";
+  HTMLCanvasElement.prototype.setPointerCapture = () => {};
+  HTMLCanvasElement.prototype.releasePointerCapture = () => {};
+  const first = later(null);
+  fake.hold = first.answer;
+  try {
+    const map = screen.getByLabelText(t("main.map"));
+    await fireEvent.pointerDown(map, { button: 0, clientX: 0.5, clientY: 0.5 });
+    // The first step is on its way while Raise's repeat gathers another point; then the button comes up.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await fireEvent.pointerUp(map, { button: 0, clientX: 0.5, clientY: 0.5 });
+    const saved = queue.run(async () => {
+      fake.asked.push("save");
+    });
+    fake.hold = null;
+    first.release();
+    await saved;
+    expect(fake.asked).toEqual(["stroke", "stroke", "end", "save"]);
   } finally {
     terrainTools.group = null;
   }

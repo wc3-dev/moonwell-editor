@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
 import { arena, FakeApp, later } from "../../test/fakeApp.ts";
+import { terrainTools } from "../map/terrainTools.svelte.ts";
+import { typing } from "../typing.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
 import { MapSession } from "./mapSession.svelte.ts";
@@ -45,6 +47,48 @@ test("a save while one runs does nothing", async () => {
   report.release();
   await expect(first).resolves.toBe(true);
   expect(app.count("save")).toBe(1);
+});
+
+test("another map or a reload lets go of what was chosen on the map", async () => {
+  new FakeApp({ tree: [], reload: arena });
+  const each = session();
+  await each.show(arena);
+  const choose = () => {
+    terrainTools.chosen = { number: 5, kind: "Unit", name: "Footman", owner: 0, scale: 1 };
+    terrainTools.mark = { kind: "region", number: 2, name: "Spawn", detail: "" };
+    terrainTools.place.type = "h000";
+  };
+  choose();
+  await each.show({ ...arena, path: "C:/maps/Other.w3x" });
+  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([
+    null,
+    null,
+    null,
+  ]);
+  choose();
+  await each.reloadFromDisk(true);
+  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([
+    null,
+    null,
+    null,
+  ]);
+});
+
+test("a reload sends what was typed first, so it is dropped with the other edits, not sent into the map read again", async () => {
+  const app = new FakeApp({ tree: [], reload: arena });
+  const each = session();
+  await each.show(arena);
+  let reloadsBeforeSend: number | null = null;
+  const stop = typing(() => {
+    stop();
+    reloadsBeforeSend = app.count("reload");
+  });
+  try {
+    await each.reloadFromDisk(true);
+    expect(reloadsBeforeSend).toBe(0);
+  } finally {
+    stop();
+  }
 });
 
 test("a map shows with its problems open", async () => {

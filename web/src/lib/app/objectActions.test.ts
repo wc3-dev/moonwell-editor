@@ -18,6 +18,7 @@ afterEach(() => {
 const standard = { ...knightEntry, id: "hkni", baseId: null, changed: false };
 
 let app: FakeApp;
+let session: MapSession;
 
 async function actions(): Promise<ObjectActions> {
   app = new FakeApp({ tree: [footmanEntry, knightEntry, standard], object: unit(footmanEntry) });
@@ -25,7 +26,7 @@ async function actions(): Promise<ObjectActions> {
   const notices = new Notices();
   const pages = new Pages();
   const objects = new Objects({ queue, history: new History(), scrollPosition: () => undefined });
-  const session = new MapSession({
+  session = new MapSession({
     queue,
     notices,
     objects,
@@ -88,6 +89,15 @@ test("Paste waits for a copy of the same kind", async () => {
   each.clip("unit", "h000");
   const pasted = t("menu.pasteObject", { name: "Footman" });
   expect(entry(each.menuItems("unit", "h001") ?? undefined, pasted)?.disabled).toBe(false);
+});
+
+test("a copy is not pasted into another map, where its id names another object", async () => {
+  const each = await actions();
+  each.clip("unit", "h000");
+  await session.show({ ...arena, name: "Other", path: "C:/maps/Other.w3x" });
+  expect(entry(each.menuItems("unit", "h001") ?? undefined, t("menu.paste"))?.disabled).toBe(true);
+  await each.paste();
+  expect(app.count("nextId")).toBe(0);
 });
 
 test("a paste's id is asked for like the object copied, as a unit is a hero by its id", async () => {
