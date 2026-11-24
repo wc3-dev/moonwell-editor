@@ -61,17 +61,18 @@ void main() {
   color = texture(picture, vUv);
 }`;
 
-type Picture = {
+type Quads = {
   path: string;
   vao: WebGLVertexArrayObject;
+  buffer: WebGLBuffer;
   count: number;
-  texture: WebGLTexture | null;
 };
 
 export class UnitShadowLayer {
   private readonly program: WebGLProgram;
-  private readonly pictures: Picture[] = [];
-  private readonly buffers: WebGLBuffer[] = [];
+  private quads: Quads[] = [];
+  /** The pictures loaded, by path: they stay when the units are laid again. */
+  private readonly pictures = new Map<string, WebGLTexture>();
   private readonly uniforms: Record<string, WebGLUniformLocation | null>;
 
   constructor(
@@ -86,6 +87,13 @@ export class UnitShadowLayer {
         gl.getUniformLocation(this.program, name),
       ]),
     );
+    this.place(things, terrain);
+  }
+
+  /** Lays the units' pictures again, after a change to the units or to the ground under them. */
+  place(things: readonly PlacedThing[], terrain: Terrain): void {
+    const { gl } = this;
+    this.dropQuads();
     for (const [path, vertices] of shadowQuads(things, terrain)) {
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -97,49 +105,55 @@ export class UnitShadowLayer {
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 20, 12);
       gl.bindVertexArray(null);
-      this.buffers.push(buffer);
-      this.pictures.push({ path, vao, count: vertices.length / 5, texture: null });
+      this.quads.push({ path, vao, buffer, count: vertices.length / 5 });
     }
   }
 
-  /** The pictures the layer waits for. */
+  /** The pictures the layer waits for: those its units use that are not loaded. */
   get wanted(): string[] {
-    return this.pictures.map((picture) => picture.path);
+    return this.quads.map((quads) => quads.path).filter((path) => !this.pictures.has(path));
   }
 
   setPicture(path: string, texture: WebGLTexture): void {
-    const picture = this.pictures.find((each) => each.path === path);
-    if (picture) picture.texture = texture;
+    // A picture asked for twice (by a load and by a change while it was on its way) keeps the first.
+    if (this.pictures.has(path)) this.gl.deleteTexture(texture);
+    else this.pictures.set(path, texture);
   }
 
   draw(viewProjection: mat4): void {
     const { gl } = this;
-    if (this.pictures.length === 0) return;
+    if (this.quads.length === 0) return;
     gl.useProgram(this.program);
     gl.uniformMatrix4fv(this.uniforms.viewProjection ?? null, false, viewProjection);
     gl.uniform1i(this.uniforms.picture ?? null, 0);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false);
-    for (const picture of this.pictures) {
-      if (!picture.texture) continue;
+    for (const quads of this.quads) {
+      const texture = this.pictures.get(quads.path);
+      if (!texture) continue;
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, picture.texture);
-      gl.bindVertexArray(picture.vao);
-      gl.drawArrays(gl.TRIANGLES, 0, picture.count);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.bindVertexArray(quads.vao);
+      gl.drawArrays(gl.TRIANGLES, 0, quads.count);
     }
     gl.depthMask(true);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
 
-  dispose(): void {
-    const { gl } = this;
-    for (const picture of this.pictures) {
-      gl.deleteVertexArray(picture.vao);
-      if (picture.texture) gl.deleteTexture(picture.texture);
+  private dropQuads(): void {
+    for (const quads of this.quads) {
+      this.gl.deleteVertexArray(quads.vao);
+      this.gl.deleteBuffer(quads.buffer);
     }
-    for (const buffer of this.buffers) gl.deleteBuffer(buffer);
-    gl.deleteProgram(this.program);
+    this.quads = [];
+  }
+
+  dispose(): void {
+    this.dropQuads();
+    for (const texture of this.pictures.values()) this.gl.deleteTexture(texture);
+    this.pictures.clear();
+    this.gl.deleteProgram(this.program);
   }
 }
