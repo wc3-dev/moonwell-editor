@@ -385,6 +385,28 @@ describe("its top edge", () => {
     );
   });
 
+  // The browser cancels a pointer when the window loses the focus mid-drag.
+  test("a drag the browser cancels ends there, and the next drag moves it once", async () => {
+    const app = await openWithTerminal();
+    Element.prototype.setPointerCapture = () => {};
+    const handle = screen.getByTitle(t("terminal.resize"));
+    await fireEvent.pointerDown(handle, { clientY: 500, pointerId: 1 });
+    await fireEvent.pointerMove(handle, { clientY: 450, pointerId: 1 });
+    await fireEvent.pointerCancel(handle, { pointerId: 1 });
+    await fireEvent.pointerMove(handle, { clientY: 300, pointerId: 1 });
+    expect(panel()?.style.height).toBe("290px");
+    await waitFor(() =>
+      expect(app.args("setState")).toEqual({ key: "terminalHeight", value: 290 }),
+    );
+
+    const saves = () => app.log.filter((each) => each.command === "setState").length;
+    const before = saves();
+    await drag();
+    await app.idle();
+    expect(panel()?.style.height).toBe("390px");
+    expect(saves()).toBe(before + 1);
+  });
+
   test("starts at the height state.json remembers", async () => {
     loadState('{"terminalHeight": 300}');
     await openWithTerminal();
