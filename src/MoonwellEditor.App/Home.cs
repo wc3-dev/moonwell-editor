@@ -608,8 +608,33 @@ public sealed class Home : IDisposable
         return TryRead(At("state.json"), out var text) ? ObjectIn(text) ?? new JsonObject() : null;
     }
 
-    private JsonObject StateToChange() =>
-        LoadState() ?? throw new IOException("state.json is there but cannot be read, so it is left as it is.");
+    // The state to change and save. A file with a mistake (a key twice, which the page still reads) starts over, but is
+    // first kept as state.json.bak, so what it held is not lost.
+    private JsonObject StateToChange()
+    {
+        var path = At("state.json");
+        if (!File.Exists(path))
+        {
+            return LegacyState();
+        }
+
+        if (!TryRead(path, out var text))
+        {
+            throw new IOException("state.json is there but cannot be read, so it is left as it is.");
+        }
+
+        if (ObjectIn(text) is { } state)
+        {
+            return state;
+        }
+
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            File.Copy(path, path + ".bak", true);
+        }
+
+        return new JsonObject();
+    }
 
     private static List<string> Maps(JsonObject state)
     {

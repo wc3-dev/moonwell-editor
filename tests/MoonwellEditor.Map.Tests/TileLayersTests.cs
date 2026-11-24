@@ -58,6 +58,23 @@ public sealed class TileLayersTests(ITestOutputHelper output)
         }
     }
 
+    // War3Net splits a corner's variation byte four and four; the map file holds the ground's in the low five bits and
+    // the cliff's in the top three (docs/game-facts.md), so `<< 4` gives the byte back before `& 0x1F` and `>> 5` split it.
+    [Theory]
+    [InlineData(0b101_10001, 17, 5)]
+    [InlineData(0b000_11111, 31, 0)]
+    [InlineData(0b111_00000, 0, 7)]
+    public void A_corners_byte_splits_five_for_the_ground_and_three_for_the_cliff(int whole, int ground, int cliff)
+    {
+        var corner = Grids.Flat(2, 2).At(0, 0);
+        corner.Variation = whole & 0x0F;
+        corner.CliffVariation = whole >> 4;
+
+        Assert.Equal(whole, Cliffs.Raw(corner));
+        Assert.Equal(ground, Cliffs.Raw(corner) & 0x1F);
+        Assert.Equal(cliff, Cliffs.CliffVariation(corner));
+    }
+
     [Fact]
     public void Mixed_corners_draw_lowest_first_then_by_corner_mask()
     {

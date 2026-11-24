@@ -175,7 +175,8 @@ public sealed partial class TriggerDocument
     }
 
     /// <summary>
-    /// Renames a category, trigger, script or comment. A trigger's parameters that name it (<c>gg_trg_</c>) follow.
+    /// Renames a category, trigger, script or comment. A trigger's parameters that name it (<c>gg_trg_</c>) follow. A
+    /// variable is renamed as <see cref="SetVariable"/> does it.
     /// </summary>
     public void Rename(int id, string name)
     {
@@ -185,6 +186,15 @@ public sealed partial class TriggerDocument
         if (name.Length == 0)
         {
             throw new TriggerEditException(Texts.Get("app.triggers.emptyName"));
+        }
+
+        // Its definition and the parameters that use it carry the name too, not only its row in the tree.
+        if (old is TriggerVariableDefinition)
+        {
+            var variable = _triggers.Variables.First(each => each.Id == id);
+            SetVariable(id, new VariableInput(
+                name, variable.Type, variable.IsArray, variable.ArraySize, variable.IsInitialized ? variable.InitialValue : ""));
+            return;
         }
 
         // Two triggers may not end up with one name in the script: "A B" and "A_B" are the same there.
