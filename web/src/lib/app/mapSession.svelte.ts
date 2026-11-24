@@ -220,6 +220,9 @@ export class MapSession {
   /** Reads the map again from disk; with `discard`, unsaved edits are dropped. */
   async reloadFromDisk(discard: boolean): Promise<void> {
     if (!this.map) return;
+    // What was typed goes before the reload (which drops it with the other edits), not into the map read again when
+    // its box goes.
+    sendTyped();
     try {
       this.#setMap(await this.#queue.run(() => reload(discard)));
       await this.#afterReload();

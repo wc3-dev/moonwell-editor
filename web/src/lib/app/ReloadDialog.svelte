@@ -1,5 +1,6 @@
 <script lang="ts">
 import { t, tCount } from "../text.ts";
+import { hasTyped } from "../typing.ts";
 import Dialog from "../ui/Dialog.svelte";
 import DialogButton from "../ui/DialogButton.svelte";
 import { getEditor } from "./editor.svelte.ts";
@@ -22,7 +23,8 @@ const { session } = getEditor();
         look="primary"
         onclick={() => {
           session.confirmingReload = false;
-          session.reloadFromDisk(session.state?.dirty ?? false);
+          // A typed value is sent before the reload, which then holds an edit to drop.
+          session.reloadFromDisk((session.state?.dirty ?? false) || hasTyped());
         }}
       >
         {t("dialog.reload.button")}

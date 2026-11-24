@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "vitest";
 import { arena, FakeApp, later } from "../../test/fakeApp.ts";
 import { terrainTools } from "../map/terrainTools.svelte.ts";
+import { typing } from "../typing.ts";
 import { CommandQueue } from "./commandQueue.ts";
 import { History } from "./history.svelte.ts";
 import { MapSession } from "./mapSession.svelte.ts";
@@ -63,6 +64,23 @@ test("another map or a reload lets go of what was chosen on the map", async () =
   choose();
   await each.reloadFromDisk(true);
   expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([null, null, null]);
+});
+
+test("a reload sends what was typed first, so it is dropped with the other edits, not sent into the map read again", async () => {
+  const app = new FakeApp({ tree: [], reload: arena });
+  const each = session();
+  await each.show(arena);
+  let reloadsBeforeSend: number | null = null;
+  const stop = typing(() => {
+    stop();
+    reloadsBeforeSend = app.count("reload");
+  });
+  try {
+    await each.reloadFromDisk(true);
+    expect(reloadsBeforeSend).toBe(0);
+  } finally {
+    stop();
+  }
 });
 
 test("a map shows with its problems open", async () => {
