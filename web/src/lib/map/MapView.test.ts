@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { later } from "../../test/fakeApp.ts";
+import { CommandQueue } from "../app/commandQueue.ts";
 import { t } from "../text.ts";
 import MapView from "./MapView.svelte";
 import MapViewHost from "./MapViewHost.test.svelte";
@@ -17,6 +18,9 @@ const fake = vi.hoisted(() => ({
   patched: 0,
   cliffAsks: 0,
   strokeEnds: 0,
+  /** What was asked of the app, in order; and an answer a stroke step waits for, when set. */
+  asked: [] as string[],
+  hold: null as Promise<unknown> | null,
   undone: { left: 0, bottom: 0, columns: 0, rows: 0, bytes: "", tiles: false, cliffs: false },
 }));
 
@@ -26,16 +30,21 @@ vi.mock("../api.ts", async (original) => ({
     fake.reads++;
     return fake.scenes.get(mode);
   },
-  terrainStroke: async () => ({
-    left: 0,
-    bottom: 0,
-    columns: 0,
-    rows: 0,
-    bytes: "",
-    tiles: false,
-    cliffs: true,
-  }),
+  terrainStroke: async () => {
+    fake.asked.push("stroke");
+    await fake.hold;
+    return {
+      left: 0,
+      bottom: 0,
+      columns: 0,
+      rows: 0,
+      bytes: "",
+      tiles: false,
+      cliffs: true,
+    };
+  },
   terrainStrokeEnd: async () => {
+    fake.asked.push("end");
     fake.strokeEnds++;
     return null;
   },
@@ -125,6 +134,8 @@ beforeEach(() => {
   fake.patched = 0;
   fake.cliffAsks = 0;
   fake.strokeEnds = 0;
+  fake.asked = [];
+  fake.hold = null;
   globalThis.ResizeObserver = NoResizeObserver as never;
   vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) =>
     setTimeout(() => draw(performance.now())),
@@ -244,6 +255,35 @@ test.each([
     await fireEvent.pointerDown(map, { button: 0, clientX: 0.5, clientY: 0.5 });
     await end(map);
     await waitFor(() => expect(fake.strokeEnds).toBe(1));
+  } finally {
+    terrainTools.group = null;
+  }
+});
+
+test("a save asked as a stroke ends waits for the stroke's last points", async () => {
+  fake.scenes.set("sd", Promise.resolve(scene()));
+  const queue = new CommandQueue();
+  render(MapView, { mode: "sd", queued: queue.run });
+  await waitFor(() => expect(fake.hosts).toBe(1));
+  terrainTools.group = "ground";
+  terrainTools.tool = "Paint";
+  HTMLCanvasElement.prototype.setPointerCapture = () => {};
+  HTMLCanvasElement.prototype.releasePointerCapture = () => {};
+  const first = later(null);
+  fake.hold = first.answer;
+  try {
+    const map = screen.getByLabelText(t("main.map"));
+    await fireEvent.pointerDown(map, { button: 0, clientX: 0.5, clientY: 0.5 });
+    // The first step is on its way; the mouse goes on and the button comes up.
+    await fireEvent.pointerMove(map, { clientX: 1.5, clientY: 1.5 });
+    await fireEvent.pointerUp(map, { button: 0, clientX: 1.5, clientY: 1.5 });
+    const saved = queue.run(async () => {
+      fake.asked.push("save");
+    });
+    fake.hold = null;
+    first.release();
+    await saved;
+    expect(fake.asked).toEqual(["stroke", "stroke", "end", "save"]);
   } finally {
     terrainTools.group = null;
   }

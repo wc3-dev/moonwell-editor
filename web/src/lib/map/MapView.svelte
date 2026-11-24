@@ -79,9 +79,16 @@ type Props = {
   terrainVersion?: number;
   /** The keys, for the Place group's turn and delete. */
   keymap?: Keymap;
+  /** Runs an edit after those asked before it (the edit queue), so a save or close asked after it waits for it. */
+  queued?: <T>(run: () => Promise<T>) => Promise<T>;
 };
 
-let { mode, terrainVersion = 0, keymap = defaultKeymap() }: Props = $props();
+let {
+  mode,
+  terrainVersion = 0,
+  keymap = defaultKeymap(),
+  queued = (run) => run(),
+}: Props = $props();
 
 let canvas: HTMLCanvasElement | undefined = $state();
 let status = $state<"loading" | "ready" | "failed">("loading");
@@ -121,6 +128,10 @@ type Stroke = {
   last: [number, number] | null;
   repeat: number;
   reload: boolean;
+  /** The stroke holds the edit queue from its first step to its end: `ready` once it has it, `release` lets it go. */
+  ready: Promise<void>;
+  release: () => void;
+  done: boolean;
 };
 let stroke: Stroke | null = null;
 /** Why the last brush step was refused, until the next stroke. */
@@ -539,7 +550,19 @@ function startStroke(event: PointerEvent): void {
     last: at,
     repeat: 0,
     reload: false,
+    ready: Promise.resolve(),
+    release: () => {},
+    done: false,
   };
+  begun.ready = new Promise((started) => {
+    void queued(() => {
+      started();
+      return new Promise<void>((done) => {
+        begun.release = done;
+        if (begun.done) done();
+      });
+    });
+  });
   if (
     terrainTools.tool === "Raise" ||
     terrainTools.tool === "Lower" ||
@@ -567,6 +590,7 @@ async function sendStroke(current: Stroke): Promise<void> {
   current.pending = [];
   current.busy = true;
   try {
+    await current.ready;
     const change = await terrainStroke({
       tool: terrainTools.tool,
       points,
@@ -605,8 +629,13 @@ function finishStroke(current: Stroke): void {
   void sendStroke(current);
 }
 
-// A stroke's repeat stops with the view.
-$effect(() => () => window.clearInterval(stroke?.repeat));
+// A stroke's repeat stops with the view, and lets the edit queue go.
+$effect(() => () => {
+  if (!stroke) return;
+  window.clearInterval(stroke.repeat);
+  stroke.done = true;
+  stroke.release();
+});
 
 async function endStroke(current: Stroke): Promise<void> {
   window.clearInterval(current.repeat);
@@ -614,6 +643,8 @@ async function endStroke(current: Stroke): Promise<void> {
   await terrainStrokeEnd().catch((error) => {
     refused = errorText(error);
   });
+  current.done = true;
+  current.release();
   if (current.reload) reload();
 }
 
@@ -691,7 +722,7 @@ async function changeMark(
   thingBusy = true;
   refused = "";
   try {
-    const result = await change();
+    const result = await queued(change);
     drawnVersion = result.version;
     const marks = await terrainMarks();
     scene = { ...scene, regions: marks.regions, cameras: marks.cameras };
@@ -707,6 +738,8 @@ async function changeMark(
   } finally {
     thingBusy = false;
   }
+  // An undo or redo that came while this was on its way.
+  if (untrack(() => terrainVersion) !== drawnVersion) void catchUp();
 }
 
 /** The rectangle a drag in the Regions group makes, as left, bottom, right, top. */
@@ -782,7 +815,7 @@ async function changeThing(change: () => Promise<ThingChange>): Promise<void> {
   thingBusy = true;
   refused = "";
   try {
-    const result = await change();
+    const result = await queued(change);
     drawnVersion = result.version;
     const things = await terrainThings(mode);
     scene = { ...scene, things };
@@ -793,6 +826,8 @@ async function changeThing(change: () => Promise<ThingChange>): Promise<void> {
   } finally {
     thingBusy = false;
   }
+  // An undo or redo that came while this was on its way.
+  if (untrack(() => terrainVersion) !== drawnVersion) void catchUp();
 }
 
 function startPlace(event: PointerEvent): void {
