@@ -54,7 +54,7 @@ export class MapRenderer {
   private readonly shadowMap: ShadowMap | null;
   private readonly noShadow: ShadowMap;
   /** Classic's unit shadow pictures; null in HD and Definitive Edition, which cast shadows instead. */
-  private unitShadows: UnitShadowLayer | null;
+  private readonly unitShadows: UnitShadowLayer | null;
   private layers: Layers = allLayers;
   private pickTarget: PickTarget | null = null;
   private stopped = false;
@@ -189,6 +189,8 @@ export class MapRenderer {
     this.ground.refresh();
     this.water.refresh();
     this.marks.refresh();
+    // Classic's shadows lie at the ground's height under each unit.
+    this.unitShadows?.place(this.scene.things, this.terrain);
     this.changed();
   }
 
@@ -212,10 +214,8 @@ export class MapRenderer {
     this.scene = { ...this.scene, things: [...things] };
     this.marked = things.filter((thing) => !thing.model);
     this.markShown();
-    this.unitShadows?.dispose();
-    this.unitShadows = this.terrainLight.pbr
-      ? null
-      : new UnitShadowLayer(this.gl, things, this.terrain);
+    this.unitShadows?.place(things, this.terrain);
+    void Promise.all(this.loadUnitShadows());
     void this.things.replace(thingBatches(things), near).then(this.changed);
     this.changed();
   }
@@ -323,6 +323,18 @@ export class MapRenderer {
     return this.pickTarget;
   }
 
+  /** Loads the unit shadows' pictures not loaded yet (Classic's). */
+  private loadUnitShadows(): Promise<void>[] {
+    return (this.unitShadows?.wanted ?? []).map(async (path) => {
+      const data = await this.bytes(path);
+      const picture = data && !this.stopped ? makeTexture(this.gl, data) : null;
+      if (picture) {
+        this.unitShadows?.setPicture(path, picture);
+        this.changed();
+      }
+    });
+  }
+
   private async load(near: [number, number]): Promise<void> {
     const started = performance.now();
     await Promise.all([
@@ -336,14 +348,7 @@ export class MapRenderer {
       }),
       // The water's first frame with the ground; the rest after, so the models need not wait for them.
       this.loadWaterFrame(0),
-      ...(this.unitShadows?.wanted ?? []).map(async (path) => {
-        const data = await this.bytes(path);
-        const picture = data && !this.stopped ? makeTexture(this.gl, data) : null;
-        if (picture) {
-          this.unitShadows?.setPicture(path, picture);
-          this.changed();
-        }
-      }),
+      ...this.loadUnitShadows(),
       (async () => {
         if (!this.terrainLight.pbr) return;
         const data = await this.bytes(ripplesPath);

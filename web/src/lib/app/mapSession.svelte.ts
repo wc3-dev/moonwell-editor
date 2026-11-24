@@ -12,6 +12,7 @@ import {
 } from "../api.ts";
 import { BridgeError } from "../bridge.ts";
 import { errorText } from "../errors.ts";
+import { forgetMapChoices } from "../map/terrainTools.svelte.ts";
 import { savedText } from "../objects/values.ts";
 import { prefs } from "../prefs.svelte.ts";
 import type { Terminals } from "../terminal/terminals.svelte.ts";
@@ -156,6 +157,7 @@ export class MapSession {
 
   #setMap(info: MapInfo): void {
     this.map = info;
+    forgetMapChoices();
     this.#pages.mapChanged();
     this.problemsOpen = info.problems.length > 0;
   }
@@ -218,6 +220,9 @@ export class MapSession {
   /** Reads the map again from disk; with `discard`, unsaved edits are dropped. */
   async reloadFromDisk(discard: boolean): Promise<void> {
     if (!this.map) return;
+    // What was typed goes before the reload (which drops it with the other edits), not into the map read again when
+    // its box goes.
+    sendTyped();
     try {
       this.#setMap(await this.#queue.run(() => reload(discard)));
       await this.#afterReload();

@@ -367,6 +367,20 @@ describe("editing a field", () => {
     expect(commands.indexOf("setField")).toBeLessThan(commands.indexOf("save"));
   });
 
+  test("walking back sends what was typed to the object it was typed for", async () => {
+    const app = await openApp({ setField: unit(knightEntry, { name: "Squire" }) });
+    await showObject(/Footman/);
+    await showObject(/Knight/);
+    await screen.findByRole("heading", { name: /Knight/ });
+    const box = screen.getByRole("textbox", { name: "Name" });
+    box.focus();
+    await fireEvent.input(box, { target: { value: "Squire" } });
+    await press("ArrowLeft", { altKey: true });
+    await screen.findByRole("heading", { name: /Footman/ });
+    await waitFor(() => expect(app.count("setField")).toBe(1));
+    expect(app.args("setField")).toMatchObject({ id: "h001", value: "Squire" });
+  });
+
   test("an edit asked after another waits for it", async () => {
     const first = later(unit(footmanEntry, { name: "Squire" }));
     const app = await openApp({
