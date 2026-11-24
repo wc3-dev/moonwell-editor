@@ -17,7 +17,7 @@ import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import Eraser from "@lucide/svelte/icons/eraser";
 import Plus from "@lucide/svelte/icons/plus";
 import { RadioGroup } from "bits-ui";
-import { onDestroy } from "svelte";
+import { onDestroy, untrack } from "svelte";
 import { type FieldView, iconUrl, type ObjectView, object } from "../api.ts";
 import { uiIcons } from "../gameIcons.ts";
 import { graphics } from "../graphics.svelte.ts";
@@ -259,6 +259,15 @@ $effect(() => {
   };
 });
 
+// Once the listed abilities are here, the chips that name them say what they are. The texts are not made again, which
+// would take the focus, the cursor and the undo history from one being typed in.
+$effect(() => {
+  if (listed === null) return;
+  untrack(() => {
+    for (const editor of Object.values(editors)) editor?.redescribe();
+  });
+});
+
 // What the `/` lists: the object's own values, then the listed abilities'; nothing for a buff.
 const sources = $derived(
   view.kind === "buff"
@@ -414,8 +423,8 @@ onDestroy(() => {
     onfocusin={() => (focused = key)}
     onfocusout={() => (focused = null)}
   >
-    <!-- Made again once the listed abilities are here, so the chips that name them say what they are. -->
-    {#key `${key}:${listed !== null}:${swaps}`}
+    <!-- Made again when the commas are swapped; the listed abilities only re-describe the chips (see above). -->
+    {#key `${key}:${swaps}`}
       <RichText
         bind:this={editors[key]}
         markup={drafts[key] ?? part.field.value}

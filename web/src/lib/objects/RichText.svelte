@@ -303,6 +303,18 @@ export function color(css: string | null): void {
   (value ? chain.setMark(colorMark, { color: value }) : chain.unsetMark(colorMark)).run();
 }
 
+/**
+ * Says again what each placeholder chip stands for, once `describe` knows more (the listed abilities came), in place:
+ * the text, its cursor, its undo history and the focus stay. A chip is an atom, so the editor ignores the change.
+ */
+export function redescribe(): void {
+  for (const chip of root?.querySelectorAll<HTMLElement>("[data-token]") ?? []) {
+    const { label, title } = describe(chip.dataset.token ?? "");
+    if (chip.textContent !== label) chip.textContent = label;
+    if (chip.title !== title) chip.title = title;
+  }
+}
+
 /** Puts a placeholder in at the cursor (over the selection), or at the end when the text never had the cursor. */
 export function insert(token: string): void {
   editor

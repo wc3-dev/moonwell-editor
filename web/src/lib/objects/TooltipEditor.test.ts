@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { FakeApp, field, footmanEntry, knightEntry, unit } from "../../test/fakeApp.ts";
+import { FakeApp, field, footmanEntry, knightEntry, later, unit } from "../../test/fakeApp.ts";
 import type { FieldView } from "../api.ts";
 import { loadState } from "../home/state.svelte.ts";
 import { t } from "../text.ts";
@@ -136,6 +136,33 @@ describe("saving", () => {
     answer(null);
     await waitFor(() => expect(onclose).toHaveBeenCalledOnce());
     expect(onfields).toHaveBeenCalledOnce();
+  });
+
+  test("a text typed in before the listed abilities are here keeps its box and the focus", async () => {
+    const ability = later(unit(footmanEntry, { id: "AHbz", kind: "ability", name: "Blizzard" }));
+    new FakeApp({ object: () => ability.answer });
+    const withAbilities = unit(footmanEntry, {
+      fields: [
+        field({ id: "utip", label: "Tooltip", value: "Old" }),
+        field({
+          id: "uabi",
+          label: "Abilities",
+          type: "objectList",
+          listOf: "Ability",
+          value: "AHbz",
+        }),
+      ],
+    });
+    render(TooltipEditor, { view: withAbilities, onfields: vi.fn(async () => null), onclose });
+    const typedIn = box();
+    typedIn.focus();
+    await fireEvent.input(typedIn, { target: { value: "New" } });
+
+    ability.release();
+    await settled();
+    await settled();
+    expect(box()).toBe(typedIn);
+    expect(document.activeElement).toBe(typedIn);
   });
 
   test("there are no Save and Cancel buttons", () => {
