@@ -67,6 +67,22 @@ describe("the keymap", () => {
     expect(actionOf(press("1", { ctrl: true }), keymap)).toBe("showTriggers");
   });
 
+  it("takes no AltGr, dead key, IME key or Caps Lock alone as a key", () => {
+    for (const key of ["AltGraph", "Dead", "Process", "Unidentified", "CapsLock"]) {
+      expect(keyOf(press(key, { ctrl: true, alt: true }))).toBeNull();
+    }
+  });
+
+  // Windows sends AltGr as Ctrl and Alt; a browser may also leave them out. Either way the key set is the key matched.
+  it("finds the action of an AltGr character whichever modifiers the browser gives it", () => {
+    for (const mods of [{ ctrl: true, alt: true }, {}]) {
+      const keymap = defaultKeymap();
+      keymap.showTriggers = [keyOf(press("{", mods)) as string];
+      expect(actionOf(press("{", mods), keymap)).toBe("showTriggers");
+      expect(actionOf(press("7", mods), keymap)).toBeUndefined();
+    }
+  });
+
   it("shows arrows as arrows", () => {
     expect(shownKey("Alt+ArrowRight")).toBe("Alt →");
   });

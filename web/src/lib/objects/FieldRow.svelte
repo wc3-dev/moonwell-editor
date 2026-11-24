@@ -157,6 +157,7 @@ async function flip(event: MouseEvent): Promise<void> {
         <AssetPicker
           kind={field.asset}
           value={field.value}
+          list={field.meta === "modelList"}
           label={field.label}
           onpick={(path) => onset(field, path)}
           {objectKind}

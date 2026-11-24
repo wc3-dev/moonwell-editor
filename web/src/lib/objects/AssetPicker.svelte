@@ -2,7 +2,9 @@
 /**
  * The picker of an icon or a model field (Sven, 2026-10-27): a button beside the box opens a search of the game's
  * icons (as a grid of them) or models (as a list, with the one last under the pointer turning in a preview). A click puts
- * the path into the field as World Editor writes it; any other path (an import) is typed in the box.
+ * the path into the field as World Editor writes it; any other path (an import) is typed in the box. A field that holds
+ * a comma list of models (`modelList`: an ability's art) previews and marks the list's models, and a pick replaces the
+ * list's first model only, keeping the rest (the agent's call, 2026-11-24); the others are typed in the box.
  */
 
 import Box from "@lucide/svelte/icons/box";
@@ -20,6 +22,8 @@ type Props = {
   kind: "icon" | "model";
   /** The field's value now. */
   value: string;
+  /** The value is a comma list of models (`modelList`). */
+  list?: boolean;
   label: string;
   /** Sends a value; answers with why it was refused, or null. */
   onpick: (path: string) => Promise<string | null>;
@@ -30,7 +34,16 @@ type Props = {
   suggested?: string[];
 };
 
-let { kind, value, label, onpick, objectKind, fieldId, suggested = [] }: Props = $props();
+let {
+  kind,
+  value,
+  list: isList = false,
+  label,
+  onpick,
+  objectKind,
+  fieldId,
+  suggested = [],
+}: Props = $props();
 
 let open = $state(false);
 let button: HTMLButtonElement | undefined = $state();
@@ -45,9 +58,19 @@ const order = $derived(
   kind === "icon" ? inList(suggested) : inFolders(modelFolders(objectKind, fieldId)),
 );
 const shown = $derived(list ? ranked(list.paths, query, kind === "icon" ? 240 : 300, order) : []);
+// A list's paths are its entries, empty ones dropped; any other value is one path.
+const entries = $derived(
+  isList
+    ? value
+        .split(",")
+        .map((each) => each.trim())
+        .filter(Boolean)
+    : [value.trim()].filter(Boolean),
+);
+const current = $derived(new Set(entries.map((each) => each.toLowerCase())));
 // The model the preview shows: the one last under the pointer, which stays when the pointer leaves the list (Sven,
-// 2026-10-29), else the field's. Each opening starts with the field's.
-const previewed = $derived(hovered ?? (value.trim() || null));
+// 2026-10-29), else the field's (a list's first). Each opening starts with the field's.
+const previewed = $derived(hovered ?? entries[0] ?? null);
 $effect(() => {
   if (open) hovered = null;
 });
@@ -70,8 +93,15 @@ $effect(() => {
   };
 });
 
+/** The field's value with `path` picked: the path, or for a list the list with its first model replaced. */
+function picked(path: string): string {
+  if (!isList) return path;
+  const rest = value.split(",").slice(1);
+  return [path, ...rest].join(",");
+}
+
 async function pick(path: string): Promise<void> {
-  const refused = await onpick(path);
+  const refused = await onpick(picked(path));
   if (refused) {
     problem = refused;
     return;
@@ -125,7 +155,7 @@ function focusOnMount(element: HTMLInputElement): void {
           {#each shown as path (path)}
             <button
               type="button"
-              class="rounded-ui border p-0.5 hover:border-accent {path.toLowerCase() === value.trim().toLowerCase()
+              class="rounded-ui border p-0.5 hover:border-accent {current.has(path.toLowerCase())
                 ? 'border-accent bg-accent-background'
                 : 'border-transparent'}"
               title={path}
@@ -142,9 +172,10 @@ function focusOnMount(element: HTMLInputElement): void {
               <button
                 type="button"
                 role="option"
-                aria-selected={path.toLowerCase() === value.trim().toLowerCase()}
-                class="shrink-0 truncate rounded-ui px-1.5 py-0.5 text-left font-mono text-mono hover:bg-hover {path.toLowerCase() ===
-                value.trim().toLowerCase()
+                aria-selected={current.has(path.toLowerCase())}
+                class="shrink-0 truncate rounded-ui px-1.5 py-0.5 text-left font-mono text-mono hover:bg-hover {current.has(
+                  path.toLowerCase(),
+                )
                   ? 'text-accent-text'
                   : 'text-soft'}"
                 title={path}

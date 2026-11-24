@@ -216,13 +216,30 @@ export function watchHotkeys(apply: (keymap: Keymap) => void): () => void {
   });
 }
 
-const modifierKeys = new Set(["Control", "Shift", "Alt", "Meta"]);
+// The presses that are no key of their own: modifiers (AltGr too), a dead key waiting for the next (´ ¨ ^ on a Swedish
+// keyboard), an IME's composing, a key the browser can't name, and the locks.
+const notKeys = new Set([
+  "Control",
+  "Shift",
+  "Alt",
+  "Meta",
+  "AltGraph",
+  "Dead",
+  "Process",
+  "Unidentified",
+  "CapsLock",
+]);
 
-/** The key a key press is, as the keymap writes it; null for a modifier alone. */
-export function keyOf(
-  event: Pick<KeyboardEvent, "key" | "ctrlKey" | "shiftKey" | "altKey">,
-): string | null {
-  if (modifierKeys.has(event.key)) return null;
+/** A key press, as `keyOf` reads it. */
+export type KeyPress = Pick<KeyboardEvent, "key" | "ctrlKey" | "shiftKey" | "altKey">;
+
+/**
+ * The key a key press is, as the keymap writes it; null for a press that is no key of its own (a modifier alone, a dead
+ * key). A character typed with AltGr (`{` is AltGr 7 on a Swedish keyboard) is the character with the Ctrl and Alt
+ * Windows sends AltGr as, `Ctrl+Alt+{`, the same whichever way it was typed (the agent's call, 2026-11-24).
+ */
+export function keyOf(event: KeyPress): string | null {
+  if (notKeys.has(event.key)) return null;
   const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
   return [event.ctrlKey && "Ctrl", event.altKey && "Alt", event.shiftKey && "Shift", key]
     .filter(Boolean)
@@ -230,10 +247,7 @@ export function keyOf(
 }
 
 /** The action a key press asks for in the keymap; undefined for none. */
-export function actionOf(
-  event: Pick<KeyboardEvent, "key" | "ctrlKey" | "shiftKey" | "altKey">,
-  keymap: Keymap,
-): Action | undefined {
+export function actionOf(event: KeyPress, keymap: Keymap): Action | undefined {
   const key = keyOf(event);
   if (!key) return undefined;
   return actionList.find((each) => keymap[each.action].includes(key))?.action;

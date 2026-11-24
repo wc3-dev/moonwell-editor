@@ -11,18 +11,19 @@ import {
   writeHome,
   writeSchemas,
 } from "./home.ts";
+import { clearHomeNotice } from "./notice.svelte.ts";
 import hotkeysSchema from "./schemas/hotkeys.schema.json?raw";
 import settingsSchema from "./schemas/settings.schema.json?raw";
 import themeSchema from "./schemas/theme.schema.json?raw";
 
 beforeEach(() => {
-  homeNotice.text = "";
+  clearHomeNotice();
 });
 
 afterEach(async () => {
   delete window.chrome;
   delete window.moonwellHome;
-  homeNotice.text = "";
+  clearHomeNotice();
 });
 
 describe("homeBoot", () => {
@@ -67,14 +68,45 @@ describe("writeHome", () => {
     expect(homeNotice.text).toContain("Disk full");
   });
 
-  test("the notice is set the first time and stays as it was", async () => {
+  test("the notice shows the latest failure", async () => {
     let count = 0;
     new FakeApp({ writeHome: () => new Refusal("failed", `Failure ${++count}`) });
     await writeHome("settings.json", "{}");
-    const first = homeNotice.text;
-    await writeHome("settings.json", '{"a": 1}');
-    expect(first).toContain("Failure 1");
-    expect(homeNotice.text).toBe(first);
+    expect(homeNotice.text).toContain("Failure 1");
+    await writeHome("hotkeys.json", "{}");
+    expect(homeNotice.text).toContain("Failure 2");
+    expect(homeNotice.text).not.toContain("Failure 1");
+  });
+
+  test("a write of the file that went through takes its notice away", async () => {
+    let refuse = true;
+    new FakeApp({
+      writeHome: () => (refuse ? new Refusal("failed", "settings.json is held") : null),
+    });
+    await writeHome("settings.json", "{}");
+    expect(homeNotice.text).toContain("settings.json is held");
+    refuse = false;
+    expect(await writeHome("settings.json", '{"a": 1}')).toBe(true);
+    expect(homeNotice.text).toBe("");
+  });
+
+  test("a write of another file leaves the notice, and an earlier failure shows again once the latest is put right", async () => {
+    const held = new Set(["settings.json", "hotkeys.json"]);
+    new FakeApp({
+      writeHome: ({ file }: { file: string }) =>
+        held.has(file) ? new Refusal("failed", `${file} is held`) : null,
+    });
+    await writeHome("settings.json", "{}");
+    await writeHome("hotkeys.json", "{}");
+    expect(homeNotice.text).toContain("hotkeys.json is held");
+    await writeHome("themes/mine.json", "{}");
+    expect(homeNotice.text).toContain("hotkeys.json is held");
+    held.delete("hotkeys.json");
+    await writeHome("hotkeys.json", "{}");
+    expect(homeNotice.text).toContain("settings.json is held");
+    held.delete("settings.json");
+    await writeHome("settings.json", "{}");
+    expect(homeNotice.text).toBe("");
   });
 
   test("outside the window it is a notice too", async () => {
@@ -95,6 +127,15 @@ describe("keepState", () => {
     expect(await keepState("favourites", [])).toBe(false);
     expect(homeNotice.text).toContain("state.json is held");
   });
+
+  test("a value kept after a refusal takes the notice away", async () => {
+    let refuse = true;
+    new FakeApp({ setState: () => (refuse ? new Refusal("failed", "state.json is held") : null) });
+    await keepState("favourites", []);
+    refuse = false;
+    expect(await keepState("tooltipColours", [])).toBe(true);
+    expect(homeNotice.text).toBe("");
+  });
 });
 
 describe("openHome", () => {
@@ -112,16 +153,23 @@ describe("openHome", () => {
     expect(homeNotice.text).toBe(
       t("home.notOpened", { where: ".moonwell/themes/mine.json", error: "No program opens it" }),
     );
-    homeNotice.text = "";
+    clearHomeNotice();
     expect(await openHome()).toBe(false);
     expect(homeNotice.text).toContain(".moonwell:");
   });
 
-  test("leaves the first notice as it is, as a write that failed does", async () => {
-    new FakeApp({ openHome: new Refusal("failed", "No program opens it") });
-    homeNotice.text = "An earlier notice";
+  test("shows over an earlier failure, and an open that went through takes it away", async () => {
+    let refuse = true;
+    new FakeApp({
+      writeHome: new Refusal("failed", "Disk full"),
+      openHome: () => (refuse ? new Refusal("failed", "No program opens it") : null),
+    });
+    await writeHome("settings.json", "{}");
     await openHome("themes");
-    expect(homeNotice.text).toBe("An earlier notice");
+    expect(homeNotice.text).toContain("No program opens it");
+    refuse = false;
+    await openHome("themes");
+    expect(homeNotice.text).toContain("Disk full");
   });
 });
 

@@ -8,7 +8,7 @@ import type { HomeBoot, HomeChange } from "../bridge.gen.ts";
 import { call, on } from "../bridge.ts";
 import { errorText } from "../errors.ts";
 import { t } from "../text.ts";
-import { homeNotice } from "./notice.svelte.ts";
+import { failed, homeNotice, succeeded } from "./notice.svelte.ts";
 
 export type { HomeBoot } from "../bridge.gen.ts";
 export { homeNotice };
@@ -34,29 +34,33 @@ export function homeBoot(): HomeBoot {
   return globalThis.window?.moonwellHome ?? emptyBoot;
 }
 
-/** Tells Settings about a write that failed, the first time. */
-function notSaved(error: unknown): void {
-  if (homeNotice.text === "") homeNotice.text = t("home.notSaved", { error: errorText(error) });
+/** Tells Settings about a write of `file` that failed. */
+function notSaved(file: string, error: unknown): void {
+  failed(`write:${file}`, t("home.notSaved", { error: errorText(error) }));
 }
 
-/** Tells Settings about a file or folder that could not be opened, the first time. */
+/** The folder, or one of its files or folders, as a notice names it. */
+const placeOf = (file: string | undefined) =>
+  file === undefined ? ".moonwell" : `.moonwell/${file}`;
+
+/** Tells Settings about a file or folder that could not be opened. */
 function notOpened(file: string | undefined, error: unknown): void {
-  if (homeNotice.text !== "") return;
-  const where = file === undefined ? ".moonwell" : `.moonwell/${file}`;
-  homeNotice.text = t("home.notOpened", { where, error: errorText(error) });
+  const where = placeOf(file);
+  failed(`open:${where}`, t("home.notOpened", { where, error: errorText(error) }));
 }
 
 /**
  * Writes one of the files the page owns: `settings.json`, `hotkeys.json`, `themes/<name>.json` or
  * `schemas/<name>.schema.json`. A write that fails sets `homeNotice` and still answers, `false`: the page goes on with
- * what it has. A write that went through answers `true`.
+ * what it has. A write that went through answers `true`, and takes away the notice of that file's failed write.
  */
 export async function writeHome(file: string, text: string): Promise<boolean> {
   try {
     await call("writeHome", { file, text });
+    succeeded(`write:${file}`);
     return true;
   } catch (error) {
-    notSaved(error);
+    notSaved(file, error);
     return false;
   }
 }
@@ -68,9 +72,10 @@ export async function writeHome(file: string, text: string): Promise<boolean> {
 export async function keepState(key: string, value: unknown): Promise<boolean> {
   try {
     await call("setState", { key, value });
+    succeeded("write:state.json");
     return true;
   } catch (error) {
-    notSaved(error);
+    notSaved("state.json", error);
     return false;
   }
 }
@@ -83,6 +88,7 @@ export async function keepState(key: string, value: unknown): Promise<boolean> {
 export async function openHome(file?: string): Promise<boolean> {
   try {
     await call("openHome", file === undefined ? {} : { file });
+    succeeded(`open:${placeOf(file)}`);
     return true;
   } catch (error) {
     notOpened(file, error);

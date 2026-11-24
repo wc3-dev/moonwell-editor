@@ -38,10 +38,16 @@ function drag(event: PointerEvent, set: (x: number, y: number) => void): void {
   };
   at(event);
   element.onpointermove = at;
-  element.onpointerup = () => {
+  // The drag ends when the button is let go, or when the browser cancels the pointer (the window lost the focus).
+  const end = (): void => {
     element.onpointermove = null;
     element.onpointerup = null;
+    element.onpointercancel = null;
+    element.onlostpointercapture = null;
   };
+  element.onpointerup = end;
+  element.onpointercancel = end;
+  element.onlostpointercapture = end;
 }
 
 function setSquare(x: number, y: number): void {
