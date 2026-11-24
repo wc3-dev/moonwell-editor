@@ -273,9 +273,11 @@ onMount(() => {
       // Copied text is the game's markup.
       clipboardTextSerializer: (slice) =>
         markupOf(segmentsOfDoc(slice.content.toJSON() ?? []), newline),
-      // A paste is read as the game's markup; a one-line text takes its lines, `|n` too, as one.
+      // A paste is read as the game's markup; a one-line text takes its lines, `|n` too, as one. A clipboard with no
+      // text (an image, files) pastes nothing, as the browser would, and leaves the selection.
       handlePaste: (_, event) => {
         const text = event.clipboardData?.getData("text/plain") ?? "";
+        if (text === "") return true;
         editor?.commands.insertContent(inlineOf(segmentsOf(text, single)));
         return true;
       },
