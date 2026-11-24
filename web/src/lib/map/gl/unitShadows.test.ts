@@ -89,7 +89,8 @@ function fakeGl(): { gl: WebGL2RenderingContext; bound: unknown[]; deleted: unkn
     {},
     {
       get: (_, name: string) => {
-        if (name === "bindTexture") return (_target: unknown, texture: unknown) => bound.push(texture);
+        if (name === "bindTexture")
+          return (_target: unknown, texture: unknown) => bound.push(texture);
         if (name === "deleteTexture") return (texture: unknown) => deleted.push(texture);
         if (name.startsWith("create")) return () => ({});
         return () => null;

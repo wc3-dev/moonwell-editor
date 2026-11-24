@@ -60,10 +60,18 @@ test("another map or a reload lets go of what was chosen on the map", async () =
   };
   choose();
   await each.show({ ...arena, path: "C:/maps/Other.w3x" });
-  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([null, null, null]);
+  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([
+    null,
+    null,
+    null,
+  ]);
   choose();
   await each.reloadFromDisk(true);
-  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([null, null, null]);
+  expect([terrainTools.chosen, terrainTools.mark, terrainTools.place.type]).toEqual([
+    null,
+    null,
+    null,
+  ]);
 });
 
 test("a reload sends what was typed first, so it is dropped with the other edits, not sent into the map read again", async () => {

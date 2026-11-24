@@ -239,7 +239,10 @@ test("a cliff stroke shows its cliff models as it goes, not only once the button
 // A second button pressed while the first is down gives no pointerdown, and the last one let go gives the pointerup
 // (Pointer Events, chorded buttons): after left, then right, then left up and right up, the pointerup is the right's.
 test.each([
-  ["the last button let go is another", (map: HTMLElement) => fireEvent.pointerUp(map, { button: 2 })],
+  [
+    "the last button let go is another",
+    (map: HTMLElement) => fireEvent.pointerUp(map, { button: 2 }),
+  ],
   ["the browser cancels the pointer", (map: HTMLElement) => fireEvent.pointerCancel(map)],
   ["the view loses the pointer", (map: HTMLElement) => fireEvent.lostPointerCapture(map)],
 ])("a brush stroke ends when %s", async (_, end) => {
