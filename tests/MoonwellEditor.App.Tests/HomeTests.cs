@@ -133,12 +133,26 @@ public sealed class HomeTests : IDisposable
     [Fact]
     public void A_state_file_with_a_key_twice_is_a_mistake_and_a_map_is_still_remembered()
     {
-        PutHome("state.json", """{ "recentMaps": ["C:\\Maps\\A"], "recentMaps": ["C:\\Maps\\B"] }""");
+        var state = """{ "recentMaps": ["C:\\Maps\\A"], "recentMaps": ["C:\\Maps\\B"], "terminalHeight": 300 }""";
+        PutHome("state.json", state);
         var home = Open();
 
         Assert.Empty(home.RecentMaps);
         home.RememberMap(@"C:\Maps\C");
         Assert.Equal([@"C:\Maps\C"], home.RecentMaps);
+
+        // What the page could still read in it is kept beside it, not lost.
+        Assert.Equal(state, File.ReadAllText(Path.Combine(Folder, "state.json.bak")));
+    }
+
+    [Fact]
+    public void A_good_state_file_is_changed_without_a_copy()
+    {
+        PutHome("state.json", """{ "terminalHeight": 300 }""");
+
+        Open().RememberMap(@"C:\Maps\C");
+
+        Assert.False(File.Exists(Path.Combine(Folder, "state.json.bak")));
     }
 
     [Fact]

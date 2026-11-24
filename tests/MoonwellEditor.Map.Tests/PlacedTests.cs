@@ -26,7 +26,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
 
         var files = MapReader.Read(store);
         var grid = TerrainGrid.From(files.Terrain!, WaterLevel);
-        var made = Placed.Things(files, grid, session, "sd").Select(thing => thing.Ref)
+        var made = Placed.Things(files, grid, session, Game, "sd").Select(thing => thing.Ref)
             .Concat(Placed.Regions(files.Regions).Select(region => region.Ref))
             .Concat(Placed.Cameras(files.Cameras).Select(camera => camera.Ref))
             .ToHashSet();
@@ -60,7 +60,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         var grid = TerrainGrid.From(read.Terrain!, WaterLevel);
         foreach (var mode in new[] { "sd", "hd" })
         {
-            var things = Placed.Things(read, grid, session, mode);
+            var things = Placed.Things(read, grid, session, Game, mode);
             // A model the map's own data names may be missing (Forgotten Hollow's 3DPoint.mdl); a standard one may not.
             var missing = things.Where(thing => thing.Model != null && !Found(thing.Model, mode) && !OwnModel(thing))
                 .Select(thing => thing.Model!).Distinct().ToList();
@@ -110,7 +110,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         creep.OwnerId = 24;
         creep.CustomPlayerColorId = 3;
 
-        var thing = Assert.Single(Placed.Things(Files(units: Units(creep)), Flat(), session, "sd"));
+        var thing = Assert.Single(Placed.Things(Files(units: Units(creep)), Flat(), session, Game, "sd"));
 
         Assert.Equal(3, thing.Player);
         Assert.Equal(24, thing.Owner);
@@ -129,7 +129,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
 
         var units = Units(Unit("X000"), Unit("uDNR"), Item("iDNR"));
 
-        var things = Placed.Things(Files(units: units), Flat(), session, "sd");
+        var things = Placed.Things(Files(units: units), Flat(), session, Game, "sd");
 
         Assert.All(things, thing => Assert.Null(thing.Model));
         Assert.Equal(["X000", "uDNR", "iDNR"], things.Select(thing => thing.Name));
@@ -150,7 +150,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         session.Create(ObjectKind.Unit, "hfoo", "h000");
         session.Set(ObjectKind.Unit, "h000", "umdl", 0, @"war3mapImported\Box.mdx");
 
-        var thing = Assert.Single(Placed.Things(Files(units: Units(Unit("h000"))), Flat(), session, "sd"));
+        var thing = Assert.Single(Placed.Things(Files(units: Units(Unit("h000"))), Flat(), session, Game, "sd"));
 
         Assert.Equal(@"war3mapImported\Box.mdx", thing.Model);
         Assert.Equal("gg_unit_h000_0001", thing.Ref);
@@ -182,7 +182,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
             session.Object(ObjectKind.Destructable, "YT16")!.Fields.First(field => field.Id == "bfxr").Value,
             System.Globalization.CultureInfo.InvariantCulture);
 
-        var bridge = Assert.Single(Placed.Things(Files(doodads: doodads), Flat(), session, "sd"));
+        var bridge = Assert.Single(Placed.Things(Files(doodads: doodads), Flat(), session, Game, "sd"));
 
         Assert.Equal(ThingKind.Destructable, bridge.Kind);
         Assert.Equal(32f, bridge.X);
@@ -190,6 +190,51 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         Assert.Equal(fixedRotation * MathF.PI / 180f, bridge.Facing, 4);
         Assert.Equal("gg_dest_YT16_0004", bridge.Ref);
     }
+
+    // Where the game put them (docs/game-facts.md, 10-27 and 11-02): YT16 (fixed 0) goes 32 from 0 along x, and below 0
+    // that is west. LT06 (fixed 90, the same texture) is the other way round, by the rule under Destructables.
+    [Theory]
+    [InlineData("YT16", -1536f, 0f, -1568f, 0f)]
+    [InlineData("YT16", 1536f, 0f, 1568f, 0f)]
+    [InlineData("YT16", 2600f, 1200f, 2592f, 1152f)]
+    [InlineData("YT16", 2600f, -1200f, 2592f, -1152f)]
+    [InlineData("LT06", 100f, 100f, 64f, 96f)]
+    [InlineData("LT06", -100f, -100f, -64f, -96f)]
+    public void A_fixed_rotation_bridge_goes_on_the_games_grid(string type, float x, float y, float atX, float atY)
+    {
+        using var folder = new TempFolder();
+        var session = TestGameData.Open(MapFolder.Open(folder.Path));
+        if (session == null)
+        {
+            output.WriteLine(InstallMaps.NoInstall);
+            return;
+        }
+
+        var doodads = new MapDoodads(MapWidgetsFormatVersion.v8, MapWidgetsSubVersion.v11, true);
+        doodads.Doodads.Add(new DoodadData
+        {
+            TypeId = type.FromRawcode(), SkinId = type.FromRawcode(), Position = new Vector3(x, y, 0),
+            Scale = Vector3.One, State = DoodadState.Normal, CreationNumber = 1,
+        });
+
+        var bridge = Assert.Single(Placed.Things(Files(doodads: doodads), Flat(), session, Game, "sd"));
+
+        Assert.Equal((atX, atY), (bridge.X, bridge.Y));
+    }
+
+    // A tree's texture is 4 cells across, a barrel's 2 (docs/game-facts.md, Destructables, 11-08).
+    [Theory]
+    [InlineData(-10f, 4, 0f)]
+    [InlineData(100.6f, 4, 64f)]
+    [InlineData(-200.9f, 4, -192f)]
+    [InlineData(-96f, 4, -64f)]
+    [InlineData(-10f, 2, -32f)]
+    [InlineData(100.6f, 2, 96f)]
+    [InlineData(-200.9f, 2, -224f)]
+    [InlineData(-96f, 2, -96f)]
+    [InlineData(0f, 2, 32f)]
+    public void A_place_goes_on_the_grid_the_game_uses(float at, int cells, float expected) =>
+        Assert.Equal(expected, Placed.OnGrid(at, cells));
 
     [Fact]
     public void A_thing_keeps_its_variation()
@@ -209,7 +254,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
             State = DoodadState.Normal, CreationNumber = 1,
         });
 
-        var tree = Assert.Single(Placed.Things(Files(doodads: doodads), Flat(), session, "sd"));
+        var tree = Assert.Single(Placed.Things(Files(doodads: doodads), Flat(), session, Game, "sd"));
 
         Assert.Equal(3, tree.Variation);
     }
@@ -236,7 +281,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
             System.Globalization.CultureInfo.InvariantCulture);
 
         var gryphon = Assert.Single(Placed.Things(
-            Files(units: Units(Unit("hgry"))), TerrainGrid.From(terrain, WaterLevel), session, "sd"));
+            Files(units: Units(Unit("hgry"))), TerrainGrid.From(terrain, WaterLevel), session, Game, "sd"));
 
         Assert.True(flyHeight > 0);
         Assert.Equal(128f + flyHeight, gryphon.Z, 3);
@@ -258,7 +303,7 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
         float Number(string id, string field) =>
             float.Parse(Field(id, field), System.Globalization.CultureInfo.InvariantCulture);
 
-        var things = Placed.Things(Files(units: Units(Unit("hfoo"), Unit("hgry"), Unit("htow"))), Flat(), session, "sd");
+        var things = Placed.Things(Files(units: Units(Unit("hfoo"), Unit("hgry"), Unit("htow"))), Flat(), session, Game, "sd");
 
         var footman = things[0].Shadow;
         Assert.NotNull(footman);
@@ -287,6 +332,8 @@ public sealed partial class PlacedTests(ITestOutputHelper output)
     private static partial Regex Names();
 
     private static TerrainGrid Flat() => TerrainGrid.From(Grids.Flat(2, 2), WaterLevel);
+
+    private static IMapGameFiles Game => (IMapGameFiles?)InstallGameFiles.Open() ?? new NoGameFiles();
 
     private static MapFiles Files(MapUnits? units = null, MapDoodads? doodads = null) =>
         new(null, doodads, units, null, null, null, null, []);

@@ -129,6 +129,18 @@ export function typingIn(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.isContentEditable;
 }
 
+/**
+ * Whether the page has text selected that a copy would take. A box keeps its selection after the focus leaves it, and
+ * Chromium still gives it as the page's selection (an offset in the box's parent, at the box), so a word left selected
+ * in a box the user has clicked away from does not count: Ctrl C then went to it and the object was not copied.
+ */
+export function hasTextToCopy(selection: Selection | null): boolean {
+  if (!selection || selection.toString() === "") return false;
+  const at = selection.anchorNode?.childNodes[selection.anchorOffset];
+  const inBox = at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement;
+  return !inBox || at === document.activeElement;
+}
+
 export function inPopup(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('[role="dialog"], [data-popup]') !== null;
 }
