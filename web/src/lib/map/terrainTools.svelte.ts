@@ -74,6 +74,16 @@ export function toggleGroup(group: ToolGroup): void {
   if (isBrushGroup(group)) terrainTools.tool = terrainTools.last[group];
 }
 
+/**
+ * Lets go of what was chosen in the map that was open: a placed thing, a region or camera (each by its number) and the
+ * type a click places (a custom id names another type, or none, in another map).
+ */
+export function forgetMapChoices(): void {
+  terrainTools.chosen = null;
+  terrainTools.mark = null;
+  terrainTools.place.type = null;
+}
+
 /** Picks `tool` in the group that is on, which keeps it for next time. */
 export function chooseTool(tool: GroundTool): void {
   terrainTools.tool = tool;

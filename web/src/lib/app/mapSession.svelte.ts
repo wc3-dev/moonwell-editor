@@ -14,6 +14,7 @@ import { BridgeError } from "../bridge.ts";
 import { errorText } from "../errors.ts";
 import { savedText } from "../objects/values.ts";
 import { prefs } from "../prefs.svelte.ts";
+import { forgetMapChoices } from "../map/terrainTools.svelte.ts";
 import type { Terminals } from "../terminal/terminals.svelte.ts";
 import { t } from "../text.ts";
 import { hasTyped, sendTyped } from "../typing.ts";
@@ -156,6 +157,7 @@ export class MapSession {
 
   #setMap(info: MapInfo): void {
     this.map = info;
+    forgetMapChoices();
     this.#pages.mapChanged();
     this.problemsOpen = info.problems.length > 0;
   }
