@@ -25,6 +25,7 @@ import { type Page, Pages } from "./pages.svelte.ts";
 import { Startup } from "./startup.svelte.ts";
 import {
   answerKey,
+  hasTextToCopy,
   inMonaco,
   inPopup,
   inTerminal,
@@ -228,7 +229,7 @@ export class Editor {
       dialogOpen: this.#dialogOpen,
       typing,
       inPopup: inPopup(event.target),
-      textSelected: (window.getSelection()?.toString() ?? "") !== "",
+      textSelected: hasTextToCopy(window.getSelection()),
     });
     if (prevent) event.preventDefault();
     if (command === "dismiss") {

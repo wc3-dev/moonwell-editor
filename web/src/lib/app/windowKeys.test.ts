@@ -2,7 +2,15 @@
 import { describe, expect, test } from "vitest";
 import type { Action } from "./keymap.ts";
 import type { Page } from "./pages.svelte.ts";
-import { answerKey, inMonaco, inPopup, inTerminal, type KeyPlace, typingIn } from "./windowKeys.ts";
+import {
+  answerKey,
+  hasTextToCopy,
+  inMonaco,
+  inPopup,
+  inTerminal,
+  type KeyPlace,
+  typingIn,
+} from "./windowKeys.ts";
 
 const details: KeyPlace = {
   page: "details",
@@ -277,5 +285,32 @@ describe("where a key goes", () => {
     expect(inPopup(element(`<div role="dialog"><span id="it"></span></div>`))).toBe(true);
     expect(inPopup(element(`<div data-popup><span id="it"></span></div>`))).toBe(true);
     expect(inPopup(element(`<span id="it"></span>`))).toBe(false);
+  });
+});
+
+// Chromium gives a box's selection as an offset in the box's parent, at the box, and keeps it after the focus leaves:
+// a word selected in a field and a click on a row in the tree left Ctrl C copying nothing (Sven, 2026-10-29).
+describe("text to copy", () => {
+  const around = (node: Node, offset: number, text: string): Selection =>
+    ({ anchorNode: node, anchorOffset: offset, toString: () => text }) as unknown as Selection;
+
+  test("a word left in a box the focus has left is not text to copy", () => {
+    document.body.innerHTML = `<div id="panel"><input value="Footman"><button id="row">Row</button></div>`;
+    const panel = document.getElementById("panel")!;
+    document.getElementById("row")!.focus();
+    expect(hasTextToCopy(around(panel, 0, "Footman"))).toBe(false);
+  });
+
+  test("a word in the box with the focus is", () => {
+    document.body.innerHTML = `<div id="panel"><input id="box" value="Footman"></div>`;
+    document.getElementById("box")!.focus();
+    expect(hasTextToCopy(around(document.getElementById("panel")!, 0, "Footman"))).toBe(true);
+  });
+
+  test("text selected on the page is, and nothing selected is not", () => {
+    document.body.innerHTML = `<p id="text">Some words</p>`;
+    expect(hasTextToCopy(around(document.getElementById("text")!.firstChild!, 0, "Some"))).toBe(true);
+    expect(hasTextToCopy(around(document.body, 0, ""))).toBe(false);
+    expect(hasTextToCopy(null)).toBe(false);
   });
 });
