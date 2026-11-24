@@ -120,6 +120,28 @@ public sealed class MapArchiveTests : IDisposable
         Assert.Equal([1], store.Read("war3map.w3i"));
     }
 
+    [Theory]
+    [InlineData(true, false, "map.w3x")]
+    [InlineData(false, true, "map")]
+    [InlineData(true, true, "map.w3x")]
+    public void Store_opens_a_projects_map_in_map_w3x_then_map(bool w3x, bool plain, string expected)
+    {
+        var project = Path.Combine(_folder, "Project");
+        foreach (var (name, has) in new[] { ("map.w3x", w3x), ("map", plain) })
+        {
+            if (has)
+            {
+                Directory.CreateDirectory(Path.Combine(project, name));
+                File.WriteAllText(Path.Combine(project, name, "war3map.w3i"), name);
+            }
+        }
+
+        var store = MapStore.Open(project);
+
+        Assert.Equal(Path.Combine(project, expected), store.Path);
+        Assert.Equal(expected, System.Text.Encoding.UTF8.GetString(store.Read("war3map.w3i")!));
+    }
+
     [Fact]
     public void Store_keeps_a_map_folder_that_has_a_folder_called_map_in_it()
     {
